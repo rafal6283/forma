@@ -328,19 +328,20 @@ class Trainer {
     String intensity;
     if (calm) {
       final types = kind == WorkoutKind.stretch ? {ExType.stretch} : {ExType.mobility, ExType.stretch, ExType.core};
-      final work = 45;
-      final n = (mainSec / (work + 10)).floor().clamp(5, 16);
+      final n = (mainSec / 55).floor().clamp(5, 16);
       final list = <Exercise>[];
       for (var i = 0; i < n; i++) {
         final e = pick((e) => types.contains(e.type) && e.lvl <= math.max(2, target.round()));
         if (e == null) break;
         list.add(e);
       }
-      // mało ćwiczeń? druga runda
-      final rounds = list.length * (work + 10) * 2 <= mainSec ? 2 : 1;
+      // mało ćwiczeń? kolejne rundy i dłuższe utrzymanie pozycji, żeby wypełnić czas
+      final slots = list.fold(0, (a, e) => a + (e.uni ? 2 : 1));
+      final rounds = slots == 0 ? 1 : (mainSec / (slots * 55)).round().clamp(1, 3);
+      final work = slots == 0 ? 45 : ((mainSec / rounds / slots) - 10).round().clamp(30, 90);
       for (var rd = 1; rd <= rounds; rd++) {
         for (final e in list) {
-          add(e, work, 10, Phase.main, round: rd, rounds: rounds);
+          add(e, e.uni ? work * 2 : work, 10, Phase.main, round: rd, rounds: rounds);
         }
       }
       intensity = 'spokojnie';
@@ -385,7 +386,7 @@ class Trainer {
       }
       int perRound() =>
           list.fold(0, (s, e) => s + (e.uni ? (math.max(15, work ~/ 2) * 2 + 5) : work) + rest) + roundRest;
-      var rounds = (mainSec / perRound()).floor();
+      var rounds = (mainSec / perRound()).round();
       if (rounds < 1) {
         rounds = 1;
         while (list.length > 3 && perRound() > mainSec) {
@@ -393,6 +394,13 @@ class Trainer {
         }
       }
       rounds = rounds.clamp(1, 6);
+      // dopasuj czas pracy, żeby trening trwał tyle, ile wybrano (bez zmiany przerw)
+      final planned = rounds * perRound() - roundRest;
+      final workSlots = rounds * list.length;
+      if (workSlots > 0) {
+        final delta = ((mainSec - planned) / workSlots).round();
+        work = (work + delta).clamp(20, 60);
+      }
       for (var rd = 1; rd <= rounds; rd++) {
         for (var i = 0; i < list.length; i++) {
           final lastInRound = i == list.length - 1;
