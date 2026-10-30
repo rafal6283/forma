@@ -31,7 +31,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
       if (onlyAvailable && !e.availableWith(owned)) return false;
       if (query.isNotEmpty) {
         final q = query.toLowerCase();
-        if (!e.name.toLowerCase().contains(q) && !e.groups.any((g) => g.contains(q))) return false;
+        if (!e.name.toLowerCase().contains(q) &&
+            !e.groups.any((g) => g.contains(q)) &&
+            !e.aka.any((a) => a.toLowerCase().contains(q))) {
+          return false;
+        }
       }
       return true;
     }).toList();
@@ -42,7 +46,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: TextField(
             decoration: InputDecoration(
-              hintText: 'Szukaj (nazwa lub partia, np. brzuch)',
+              hintText: 'Szukaj: nazwa, partia lub nazwa z Fitify',
               prefixIcon: const Icon(Icons.search),
               filled: true,
               fillColor: C.surface,
@@ -200,6 +204,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 Expanded(child: Text(t, style: const TextStyle(fontSize: 15, height: 1.3))),
               ]),
             ),
+        ],
+        if (e.aka.isNotEmpty) ...[
+          const SectionTitle('W Fitify'),
+          Text(e.aka.join(' · '), style: const TextStyle(color: C.muted)),
         ],
         if (e.stress.isNotEmpty) ...[
           const SectionTitle('Uważaj'),

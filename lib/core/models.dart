@@ -20,6 +20,7 @@ const equipmentLabel = {
   'kb': 'Kettlebell',
   'band': 'Guma oporowa',
   'bar': 'Drążek',
+  'wheel': 'Kółko do brzucha',
 };
 
 /// Ograniczenia: ćwiczenia obciążające te miejsca są pomijane.
@@ -52,6 +53,7 @@ class Exercise {
   final String id, name;
   final ExType type;
   final List<String> groups, eq, stress, tips;
+  final List<String> aka; // nazwy tego ruchu w Fitify
   final int lvl;
   final double met;
   final bool impact, uni, isStatic;
@@ -67,6 +69,7 @@ class Exercise {
     required this.eq,
     required this.stress,
     required this.tips,
+    this.aka = const [],
     required this.lvl,
     required this.met,
     required this.impact,
@@ -89,6 +92,7 @@ class Exercise {
       eq: s('eq'),
       stress: s('stress'),
       tips: s('tips'),
+      aka: s('aka'),
       lvl: (j['lvl'] as num).toInt(),
       met: (j['met'] as num).toDouble(),
       impact: j['impact'] == true,

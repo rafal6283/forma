@@ -332,7 +332,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
         ),
         const SizedBox(height: 24),
-        const Center(child: Text('Forma 1.1 · trener działa na telefonie, bez chmury', style: TextStyle(color: C.muted, fontSize: 12))),
+        const Center(child: Text('Forma 1.2 · trener działa na telefonie, bez chmury', style: TextStyle(color: C.muted, fontSize: 12))),
       ]),
     );
   }

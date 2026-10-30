@@ -35,6 +35,12 @@ void main() {
     }
   });
 
+  test('nazwy z Fitify są przypisane', () {
+    final names = {for (final e in lib.all) ...e.aka};
+    expect(names.length, greaterThan(250));
+    expect(names, containsAll(['Push-Ups', 'Superman', 'Reverse Snow Angels', 'Tricep Dips', 'The Hundred']));
+  });
+
   test('TCX i opis dla Stravy', () {
     final s = Session(
       id: '42',

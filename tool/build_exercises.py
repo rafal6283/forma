@@ -397,6 +397,101 @@ P["db_shrug_up"] = {"an": [4, 4], "af": [2, 2], "h": 186}
 P["reverse_fly_a"] = {"t": 100, "h": 104, "an": [5, 5], "af": [5, 5], "ln": [18, -8], "lf": [16, -8]}
 P["reverse_fly_b"] = {"t": 100, "h": 104, "an": [-70, -70], "af": [-72, -72], "ln": [18, -8], "lf": [16, -8]}
 
+
+# ------------------------------------------------------------ v3: brakujące ćwiczenia z Fitify
+P["bridge_march"] = dict(P["bridge_up"], ln=[-172, -95])
+P["squat_punch"] = dict(P["squat_bot"], an=[88, 90], af=[30, 150])
+P["knee_up"] = {"an": [10, 10], "af": [-10, -5], "ln": [100, 5], "lf": [0, 0]}
+P["chair_pose"] = {"t": 158, "h": 162, "an": [165, 170], "af": [162, 168], "ln": [58, -22], "lf": [56, -22]}
+P["sumo_jump"] = dict(P["sumo_top"], lift=0.2, x=0.3)
+P["frog_air"] = dict(P["jump_up"], x=0.4, lift=0.28)
+P["atg_bot"] = {"t": 174, "an": [10, 10], "af": [-8, -8], "ln": [-28, -70], "lf": [72, -40]}
+P["atg_top"] = {"t": 178, "an": [10, 10], "af": [-8, -8], "ln": [-14, -20], "lf": [45, -30]}
+P["leg_curl"] = {"an": [-30, 60], "af": [-32, 58], "ln": [-8, -130], "lf": [0, 0]}
+P["donkey_straight"] = dict(P["quad"], ln=[-100, -100])
+P["hydrant"] = dict(P["quad"], ln=[-45, -95])
+P["inner_base"] = dict(P["side_lying"], lf=[150, 40])
+P["inner_up"] = dict(P["side_lying"], lf=[150, 40], ln=[-72, -72])
+P["side_leg_out"] = dict(FR, an=[10, -120], af=[10, -120], ln=[42, 42], lf=[4, 4])
+P["supine_march"] = dict(P["bridge_down"], ln=[178, -92])
+P["alt_leg_up"] = dict(P["legs_low"], ln=[-168, -168])
+P["circle_a"] = dict(SUP, ln=[-176, -176], lf=[-92, -92])
+P["circle_b"] = dict(SUP, ln=[-150, -150], lf=[-92, -92])
+P["circle_c"] = dict(SUP, ln=[-128, -128], lf=[-92, -92])
+P["circle_d"] = dict(SUP, ln=[-152, -152], lf=[-92, -92])
+P["crunch_tt_down"] = dict(SUP, an=[160, -30], af=[158, -32], ln=[178, -90], lf=[176, -92])
+P["crunch_tt_up"] = dict(SUP, t=120, h=126, an=[-130, -130], af=[-132, -132], ln=[178, -90], lf=[176, -92])
+P["side_crunch_up"] = dict(P["side_lying"], t=114, h=120, af=[150, -40])
+P["side_crunch_down"] = dict(P["side_lying"], af=[150, -40])
+P["heel_a"] = dict(SUP, t=110, h=116, an=[-80, -80], af=[-82, -82], ln=[-140, -32], lf=[-142, -32])
+P["heel_b"] = dict(SUP, t=108, h=114, an=[-96, -96], af=[-98, -98], ln=[-140, -32], lf=[-142, -32])
+P["rollup_top"] = {"t": -132, "h": -122, "back": True, "an": [-100, -100], "af": [-102, -102], "ln": [-90, -90], "lf": [-90, -90]}
+P["ball_up"] = dict(P["tuck_sit_in"], an=[30, 10], af=[28, 8])
+P["ball_back"] = dict(P["tuck_sit_in"], t=-112, h=-118, an=[30, 10], af=[28, 8], ln=[175, 45], lf=[173, 43])
+P["hundred_a"] = dict(SUP, t=112, h=120, an=[-78, -78], af=[-80, -80], ln=[-130, -130], lf=[-131, -131])
+P["hundred_b"] = dict(P["hundred_a"], an=[-90, -90], af=[-92, -92])
+P["teaser_low"] = {"t": -112, "h": -116, "an": [100, 100], "af": [98, 98], "ln": [100, 100], "lf": [100, 100]}
+P["teaser_up"] = {"t": -145, "h": -150, "an": [118, 118], "af": [116, 116], "ln": [132, 132], "lf": [132, 132]}
+P["twist_a"] = dict(FR, an=[90, 90], af=[25, -110], ln=[10, 10], lf=[10, 10])
+P["twist_b"] = dict(FR, an=[25, -110], af=[90, 90], ln=[10, 10], lf=[10, 10])
+P["lumbar_side"] = dict(P["bridge_down"], ln=[-115, -55], lf=[-117, -55])
+P["plank_reach"] = dict(P["plank"], an=[95, 95])
+P["two_point"] = dict(P["pushup_top"], an=[95, 95], lf=[P["pushup_top"]["t"] - 172] * 2)
+P["plank_hips"] = dict(P["pushup_top"], t=P["pushup_top"]["t"] + 6, h=P["pushup_top"]["t"] + 10,
+                       ln=[P["pushup_top"]["t"] - 168] * 2, lf=[P["pushup_top"]["t"] - 168] * 2)
+P["plank_leg"] = dict(P["plank"], ln=[P["plank"]["t"] - 168] * 2)
+P["scap_low"] = dict(P["pushup_top"], t=P["pushup_top"]["t"] - 3, h=P["pushup_top"]["t"])
+P["rev_plank_kick"] = dict(P["rev_plank"], ln=[P["rev_plank"]["t"] - 160] * 2)
+P["crab_step"] = dict(P["tabletop_up"], ln=[-70, 0])
+P["side_plank_knee"] = dict(P["side_plank"], ln=[P["side_plank"]["ln"][0], P["side_plank"]["ln"][0] + 80],
+                            lf=[P["side_plank"]["lf"][0], P["side_plank"]["lf"][0] - 80])
+P["side_plank_leg"] = dict(P["side_plank"], lf=[115, 115])
+P["prone_t"] = dict(PRONE, t=92, h=94, an=[84, 84], af=[86, 86])
+P["prone_t_up"] = dict(PRONE, t=96, h=100, an=[96, 96], af=[98, 98])
+P["wall_push_top"] = {"t": 152, "h": 156, "an": [72, 72], "af": [70, 70], "ln": [-28, -28], "lf": [-28, -28]}
+P["wall_push_bot"] = {"t": 148, "h": 152, "an": [-15, 100], "af": [-17, 98], "ln": [-32, -32], "lf": [-32, -32]}
+P["up_dog"] = clean(solve({"t": 140, "h": 150, "ln": [-90, -90], "lf": [-90, -90]},
+                          lambda p, v: (p.__setitem__("an", [v, v]), p.__setitem__("af", [v, v])), "haN", "toN", 0, 80))
+P["crawl_a"] = {"t": 112, "h": 116, "an": [160, 165], "af": [-40, -30], "ln": [18, -8], "lf": [16, -8]}
+P["clap_air"] = dict(P["pushup_top"], lift=0.12, an=[-20, 30], af=[-22, 28])
+P["spider"] = dict(P["pushup_bot"], ln=[55, -60])
+P["t_rot"] = dict(P["pushup_top"], af=[180, 180], h=P["pushup_top"]["t"] + 30)
+P["hs_top"] = {"t": 4, "h": 0, "an": [2, 2], "af": [0, 0], "ln": [178, 178], "lf": [176, 176]}
+P["hs_bot"] = {"t": 10, "h": 4, "an": [-60, 40], "af": [-62, 38], "ln": [178, 178], "lf": [176, 176]}
+P["cross_climb"] = dict(P["pushup_top"], ln=[72, -40])
+P["step_touch"] = dict(FR, x=0.18, an=[150, 160], af=[150, 160], ln=[18, 4], lf=[-4, -4])
+P["front_kick"] = {"an": [10, 10], "af": [95, 95], "ln": [86, 86], "lf": [0, 0]}
+P["hop_one"] = {"an": [20, 60], "af": [18, 58], "ln": [-10, -70], "lf": [0, 0], "fp": -30}
+P["hop_one_up"] = dict(P["hop_one"], lift=0.1)
+P["feet_hop_a"] = dict(FR, an=[20, 40], af=[20, 40], ln=[3, 3], lf=[3, 3])
+P["feet_hop_b"] = dict(P["feet_hop_a"], x=0.3, lift=0.12)
+P["roll_kneel"] = clean(solve({"t": 100, "h": 106, "ln": [0, -92], "lf": [0, -92]},
+                              lambda p, v: (p.__setitem__("an", [v, v]), p.__setitem__("af", [v, v])), "haN", "knN", 0, 80))
+P["roll_out"] = clean(solve({"t": 98, "h": 102, "ln": [-82, -92], "lf": [-82, -92]},
+                            lambda p, v: (p.__setitem__("an", [v, v]), p.__setitem__("af", [v, v])), "haN", "knN", 40, 89))
+P["pigeon"] = {"t": 178, "an": [10, 10], "af": [-8, -8], "ln": [-88, -90], "lf": [80, -70]}
+P["pigeon_low"] = {"t": 112, "h": 104, "an": [80, 80], "af": [78, 78], "ln": [-88, -90], "lf": [80, -70]}
+P["thread"] = dict(P["quad"], t=P["quad"]["t"] - 18, h=P["quad"]["t"] - 30, an=[-80, -80])
+P["lying_ham"] = dict(SUP, an=[-150, -150], af=[-152, -152], ln=[-178, -178], lf=[-92, -92])
+P["wide_fold"] = dict(FR, t=22, h=10, an=[4, 4], af=[4, 4], ln=[30, 30], lf=[30, 30])
+P["knee_circ_a"] = {"t": 150, "an": [45, 10], "af": [43, 8], "ln": [40, -30], "lf": [38, -30]}
+P["knee_circ_b"] = {"t": 152, "an": [42, 8], "af": [40, 6], "ln": [30, -24], "lf": [28, -24]}
+P["shoulder_up"] = {"t": 180, "h": 184, "an": [-6, -4], "af": [-8, -6]}
+P["neck_l"] = dict(FR, h=158, an=[8, 4], af=[8, 4], ln=[6, 6], lf=[6, 6])
+P["warrior2"] = dict(FR, an=[90, 90], af=[90, 90], ln=[58, 0], lf=[42, 42])
+P["triangle"] = dict(FR, t=128, h=128, an=[0, 0], af=[180, 180], ln=[36, 36], lf=[36, 36])
+P["windmill"] = dict(FR, t=32, h=30, an=[-25, -25], af=[175, 175], ln=[30, 30], lf=[30, 30])
+P["backbend"] = {"t": -164, "h": -150, "an": [-165, -165], "af": [-163, -163], "ln": [8, 0], "lf": [6, 0]}
+P["upper_back"] = {"t": 172, "h": 150, "an": [96, 150], "af": [94, 148]}
+P["wrist_a"] = {"an": [90, 70], "af": [88, 68]}
+P["wrist_b"] = {"an": [90, 110], "af": [88, 108]}
+P["ankle_a"] = {"an": [10, 10], "af": [-8, -8], "ln": [30, -10], "lf": [0, 0], "fp": 30}
+P["ankle_b"] = dict(P["ankle_a"], fp=-30)
+P["plow"] = dict(SUP, t=40, h=88, an=[-90, -90], af=[-92, -92], ln=[100, 100], lf=[100, 100])
+P["candle"] = dict(SUP, t=14, h=88, an=[-90, -40], af=[-92, -42], ln=[176, 176], lf=[176, 176])
+P["fish"] = dict(SUP, t=104, h=60, an=[-92, -92], af=[-94, -94], ln=[-92, -92], lf=[-92, -92])
+P["mountain"] = {"an": [4, 4], "af": [-4, -4], "ln": [1, 0], "lf": [-1, 0]}
+
 for k, v in list(P.items()):
     P[k] = clean(v)
 
@@ -904,6 +999,272 @@ E += [
        tips=["Wdech nosem — brzuch rośnie", "Długi wydech ustami"]),
 ]
 
+
+# ============================================================ v3: brakujące ruchy z Fitify
+E += [
+    # --- nogi i pośladki
+    ex("bridge_march", "Marsz w mostku", "strength", [], 2, 4.0, ["bridge_up", "bridge_march", "bridge_up", "bridge_march~"], 2.6,
+       m="glutes hamstrings | abs lower_back", tips=["Biodra nie opadają przy unoszeniu nogi", "Wolno i pod kontrolą"]),
+    ex("punch_squat", "Przysiad z ciosami", "cardio", [], 2, 6.5, ["squat_bot", "squat_punch", "squat_bot", "squat_punch~"], 1.6,
+       stress=["kolana"], m="quads glutes shoulders | abs", tips=["Zostań nisko w przysiadzie", "Ciosy szybkie, brzuch napięty"]),
+    ex("squat_reach", "Przysiad z wyprostem w górę", "strength", [], 1, 5.0, ["squat_bot", "stand_up"], 2.4, stress=["kolana"],
+       m="quads glutes | shoulders calves", tips=["Wstając sięgnij rękami do sufitu", "Możesz wspiąć się na palce"]),
+    ex("squat_knee", "Przysiad z unoszeniem kolana", "strength", [], 2, 6.0, ["squat_bot", "knee_up", "squat_bot", "knee_up~"],
+       2.8, stress=["kolana"], m="quads glutes abs | hamstrings", tips=["Po wstaniu kolano do pasa", "Utrzymaj równowagę"]),
+    ex("toe_touch_squat", "Przysiad z dotknięciem palców", "strength", [], 2, 5.0, ["squat_hands", "stand_up"], 2.6,
+       stress=["kolana", "plecy"], m="quads glutes | hamstrings shoulders", tips=["Dłonie do palców stóp na dole", "Wyprostuj się z rękami w górze"]),
+    ex("chair_pose", "Pozycja krzesła", "strength", [], 2, 3.5, ["chair_pose", dict(P["chair_pose"], t=157)], 3.0, static=True,
+       stress=["kolana"], m="quads glutes | shoulders lower_back", tips=["Biodra w tył, ręce w górę", "Ciężar na piętach"]),
+    ex("lateral_jump_squat", "Przysiad z przeskokiem w bok", "cardio", [], 3, 8.5, ["sumo_bot", "sumo_jump", "sumo_bot~", "sumo_jump~"],
+       1.8, impact=True, stress=["kolana"], m="quads glutes abductors | calves", tips=["Skacz w bok z przysiadu", "Ląduj od razu w przysiadzie"]),
+    ex("frog_jumps", "Żabie skoki", "cardio", [], 4, 9.0, ["squat_hands", "frog_air"], 1.6, impact=True, stress=["kolana"],
+       m="quads glutes | calves hamstrings", tips=["Dłonie do podłogi, potem skok do przodu", "Miękkie lądowanie"]),
+    ex("chair_pistol", "Przysiad na jednej nodze do krzesła", "strength", [], 3, 5.5, ["pistol_bot", "pistol_top"], 3.4,
+       uni=True, eq=["chair"], props=[{"type": "chair", "at": "hip", "w": 0.42, "dx": -0.16}], stress=["kolana"],
+       m="quads glutes | abs", harder="pistol_squat", tips=["Siadaj na krzesło na jednej nodze", "Wstań bez odpychania rękami"]),
+    ex("atg_split_squat", "Przysiad wykroczny z przednią stopą wyżej", "strength", [], 3, 5.5, ["atg_top", "atg_bot"], 3.0,
+       uni=True, eq=["chair"], props=[{"type": "chair", "at": "toF", "w": 0.36, "dx": 0.0}], stress=["kolana"],
+       m="quads glutes | hamstrings adductors", tips=["Kolano wychodzi daleko przed palce", "Tył uda na łydce na dole"]),
+    ex("lunge_knee_drive", "Wykrok z wyjściem kolana", "strength", [], 2, 6.0, ["lunge_down", "knee_up"], 2.4, uni=True,
+       stress=["kolana"], m="quads glutes | abs calves", tips=["Z wykroku od razu kolano w górę", "Stabilna noga podporowa"]),
+    ex("leg_curl_standing", "Uginanie nogi w tył w staniu", "warmup", [], 1, 3.5, ["stand", "leg_curl", "stand", "leg_curl~"], 1.4,
+       m="hamstrings | glutes", tips=["Pięta do pośladka", "Kolana obok siebie"]),
+    ex("donkey_straight", "Wymachy prostej nogi w klęku", "strength", [], 2, 3.5, ["quad", "donkey_straight"], 1.8, uni=True,
+       stress=["nadgarstki"], m="glutes | hamstrings lower_back", tips=["Noga prosta, stopa napięta", "Nie wyginaj lędźwi"]),
+    ex("fire_hydrant", "Odwodzenie nogi w klęku podpartym", "strength", [], 1, 3.5, ["quad", "hydrant"], 1.8, uni=True,
+       stress=["nadgarstki"], m="abductors glutes", tips=["Kolano w bok na wysokość biodra", "Miednica nieruchoma"]),
+    ex("inner_thigh_raise", "Przywodzenie nogi w leżeniu bokiem", "strength", [], 1, 3.0, ["inner_base", "inner_up"], 1.8, uni=True,
+       m="adductors", tips=["Górna noga ugięta przed dolną", "Unoś dolną, prostą nogę"]),
+    ex("side_leg_standing", "Odwodzenie nogi w staniu", "warmup", [], 1, 3.0, ["front_stand", "side_leg_out"], 1.6, uni=True,
+       m="abductors | glutes", tips=["Tułów prosto", "Palce stopy do przodu"]),
+
+    # --- brzuch i pilates
+    ex("supine_march", "Marsz w leżeniu", "core", [], 1, 3.0, ["bridge_down", "supine_march", "bridge_down", "supine_march~"], 2.4,
+       m="abs | quads", harder="dead_bug", tips=["Lędźwie przy podłodze", "Kolano nad biodro"]),
+    ex("alt_leg_raise", "Naprzemienne unoszenie nóg", "core", [], 1, 3.5, ["legs_low", "alt_leg_up", "legs_low", "alt_leg_up~"], 2.4,
+       m="abs | quads", harder="leg_raises", tips=["Nogi proste", "Druga noga nisko nad podłogą"]),
+    ex("leg_circles", "Krążenia nogą w leżeniu", "core", [], 2, 3.5, ["circle_a", "circle_b", "circle_c", "circle_d"], 3.2, uni=True,
+       m="abs | quads adductors", tips=["Małe koła, miednica nieruchomo", "W połowie zmień kierunek"]),
+    ex("crunch_legs_up", "Brzuszki z nogami w górze", "core", [], 2, 4.0, ["crunch_tt_down", "crunch_tt_up"], 2.0, m="abs",
+       tips=["Kolana nad biodrami przez cały czas", "Ręce sięgają do kolan"]),
+    ex("side_crunch", "Skłony boczne w leżeniu", "core", [], 2, 3.5, ["side_crunch_down", "side_crunch_up"], 2.0, uni=True,
+       m="obliques | abs", tips=["Leż na boku, unoś tułów bokiem", "Ruch krótki, kontrolowany"]),
+    ex("heel_taps", "Dotykanie pięt", "core", [], 1, 3.5, ["heel_a", "heel_b"], 1.0, m="obliques abs",
+       tips=["Łopatki nad podłogą", "Na zmianę dłoń do pięty"]),
+    ex("roll_up", "Rolowanie z leżenia do skłonu", "core", [], 3, 4.0, ["v_flat", "rollup_top"], 4.0, stress=["plecy"],
+       m="abs | hamstrings", tips=["Kręg po kręgu w górę i w dół", "Bez szarpania"]),
+    ex("rolling_ball", "Turlanie w kłębku", "core", [], 2, 3.5, ["ball_up", "ball_back"], 2.0, m="abs | lower_back",
+       tips=["Zwiń się w kulkę", "Wróć do siadu bez dotykania stopami podłogi"]),
+    ex("hundred", "Setka", "core", [], 3, 4.5, ["hundred_a", "hundred_b"], 0.5, m="abs | quads shoulders",
+       tips=["Pompuj prostymi rękami", "5 wdechów, 5 wydechów"]),
+    ex("teaser", "Teaser", "core", [], 4, 4.5, ["teaser_low", "teaser_up"], 3.0, stress=["plecy"], m="abs | quads",
+       easier="v_ups", tips=["Ręce równolegle do nóg", "Balans na kości ogonowej"]),
+    ex("v_sit_hold", "Utrzymanie siadu V", "core", [], 3, 4.0, ["teaser_up", dict(P["teaser_up"], t=-146)], 3.0, static=True,
+       stress=["plecy"], m="abs | quads", tips=["Plecy proste", "Nogi ugięte = łatwiej"]),
+    ex("torso_twist", "Skręty tułowia w staniu", "warmup", [], 1, 3.0, ["twist_a", "twist_b"], 1.6, m="obliques | upper_back",
+       tips=["Biodra przodem", "Ręce luźno za ruchem"]),
+    ex("lumbar_rotation", "Skręty bioder w leżeniu", "mobility", [], 1, 2.5, ["bridge_down", "lumbar_side", "bridge_down", "lumbar_side~"],
+       4.0, m="obliques lower_back", tips=["Kolana razem opadają na bok", "Łopatki na podłodze"]),
+    ex("plank_reach", "Deska z sięganiem ręką", "core", [], 2, 4.0, ["plank", "plank_reach", "plank", "plank_reach~"], 2.4,
+       m="abs shoulders | obliques", tips=["Biodra nie skręcają", "Ręka prosto przed siebie"]),
+    ex("two_point_plank", "Podpór na ręce i nodze", "core", [], 3, 4.0, ["pushup_top", "two_point", "pushup_top", "two_point~"], 3.0,
+       stress=["nadgarstki"], m="abs lower_back shoulders | glutes", tips=["Przeciwna ręka i noga", "Utrzymaj 2–3 s"]),
+    ex("plank_jacks", "Pajacyki w desce", "cardio", [], 2, 7.0, ["pushup_top", "plank_hips"], 0.8, impact=True,
+       stress=["nadgarstki"], m="abs shoulders | abductors calves", tips=["Stopy skaczą na boki", "Biodra nisko"]),
+    ex("plank_jump_in", "Doskoki do rąk z deski", "cardio", [], 3, 8.0, ["pushup_top", "squat_hands"], 1.4, impact=True,
+       stress=["nadgarstki", "kolana"], m="abs quads shoulders", tips=["Stopy wskakują pod dłonie", "Wróć do prostej deski"]),
+    ex("plank_leg_raise", "Deska z unoszeniem nogi", "core", [], 2, 4.0, ["plank", "plank_leg", "plank", "plank_leg~"], 2.4,
+       m="abs glutes | lower_back", tips=["Noga prosta, nie wyżej niż biodro", "Biodra nieruchomo"]),
+    ex("scap_pushup", "Pompki łopatkowe", "strength", [], 1, 3.5, ["pushup_top", "scap_low"], 1.6, stress=["nadgarstki"],
+       m="upper_back shoulders | chest", tips=["Łokcie proste", "Łopatki razem i od siebie"]),
+    ex("reverse_plank_kick", "Deska tyłem z wymachem", "core", [], 3, 4.5, ["rev_plank", "rev_plank_kick", "rev_plank", "rev_plank_kick~"],
+       2.4, stress=["nadgarstki", "barki"], m="glutes lower_back shoulders | hamstrings", tips=["Biodra wysoko", "Noga prosta do góry"]),
+    ex("crab_walk", "Chód kraba", "cardio", [], 2, 5.0, ["tabletop_up", "crab_step", "tabletop_up", "crab_step~"], 1.4,
+       stress=["nadgarstki"], m="triceps glutes shoulders | quads", tips=["Biodra wysoko", "Małe kroki"]),
+    ex("side_plank_knee", "Deska bokiem na kolanach", "core", [], 1, 3.5, ["side_plank_knee", dict(P["side_plank_knee"], t=P["side_plank_knee"]["t"] + 1)],
+       3.0, static=True, uni=True, m="obliques | abs abductors", harder="side_plank", tips=["Kolana ugięte", "Biodra w górę"]),
+    ex("side_plank_leg", "Deska bokiem z unoszeniem nogi", "core", [], 3, 4.0, ["side_plank", "side_plank_leg"], 2.0, uni=True,
+       stress=["barki"], m="obliques abductors | glutes abs", tips=["Górna noga prosta", "Biodra wysoko"]),
+    ex("ab_rollout", "Kółko do brzucha", "core", [], 4, 5.0, ["roll_kneel", "roll_out"], 3.0, eq=["wheel"], stress=["plecy"],
+       m="abs | lats shoulders", tips=["Plecy nie zapadają się", "Wróć siłą brzucha"]),
+
+    # --- plecy, ramiona, barki
+    ex("prone_t", "Unoszenie rąk T w leżeniu", "strength", [], 1, 3.0, ["prone_t", "prone_t_up"], 2.4,
+       m="upper_back traps | shoulders", tips=["Ręce w bok jak litera T", "Kciuki do sufitu"]),
+    ex("wall_pushup", "Pompki przy ścianie", "strength", [], 1, 3.0, ["wall_push_top", "wall_push_bot"], 2.2,
+       props=[{"type": "wall", "at": "haN", "dx": 0.03}], m="chest triceps | shoulders", harder="incline_pushups",
+       tips=["Ciało proste jak deska", "Klatka do ściany"]),
+    ex("hindu_pushup", "Pompki hinduskie", "strength", [], 4, 6.0, ["dog", "pushup_bot", "up_dog"], 3.6,
+       stress=["nadgarstki", "barki", "plecy"], m="chest shoulders triceps | lower_back abs",
+       tips=["Z psa w dół płynnym łukiem", "Wróć przez pozycję kobry"]),
+    ex("swim_strokes", "Kraul w opadzie tułowia", "strength", [], 1, 4.0, ["crawl_a", "crawl_a~"], 1.4, stress=["plecy"],
+       m="shoulders upper_back | lats", tips=["Plecy proste w opadzie", "Duże ruchy rękami"]),
+    ex("pallof_press", "Wypychanie gumy przed siebie (Pallof)", "core", [], 2, 3.5, ["band_press_in", "band_row_out"], 3.0,
+       uni=True, eq=["band"], hold="band", m="obliques abs | shoulders", tips=["Guma zaczepiona z boku", "Nie daj się obrócić"]),
+    ex("clap_pushup", "Pompki z klaśnięciem", "strength", [], 5, 8.0, ["pushup_bot", "clap_air"], 1.6, impact=True,
+       stress=["nadgarstki", "barki"], m="chest triceps | shoulders", easier="pushups",
+       tips=["Wybij się mocno", "Ląduj na ugiętych łokciach"]),
+    ex("spiderman_pushup", "Pompki Spidermana", "strength", [], 4, 6.0, ["pushup_top", "spider", "pushup_top", "spider~"], 2.8,
+       stress=["nadgarstki"], m="chest triceps obliques | abs shoulders", tips=["Kolano do łokcia przy zejściu", "Biodra nisko"]),
+    ex("pushup_tap", "Pompka z dotknięciem barku", "strength", [], 3, 6.0, ["pushup_top", "pushup_bot", "pushup_top", "tap",
+                                                                           "pushup_top", "pushup_bot", "pushup_top", "tap~"], 6.0,
+       stress=["nadgarstki"], m="chest triceps abs | shoulders", tips=["Po pompce dotknij przeciwnego barku", "Biodra stabilne"]),
+    ex("t_pushup", "Pompka z obrotem", "strength", [], 3, 6.0, ["pushup_top", "pushup_bot", "pushup_top", "t_rot"], 3.6,
+       stress=["nadgarstki"], m="chest obliques shoulders | triceps", tips=["Po pompce otwórz się do deski bokiem", "Wzrok za ręką"]),
+    ex("handstand_pushup", "Pompki w staniu na rękach przy ścianie", "strength", [], 5, 8.0, ["hs_top", "hs_bot"], 3.0,
+       props=[{"type": "wall", "at": "toN", "dx": -0.08}], stress=["nadgarstki", "barki"], m="shoulders triceps | traps",
+       easier="pike_pushups", tips=["Tylko przy ścianie i na miękkim podłożu", "Głowa schodzi między dłonie"]),
+
+    # --- kardio
+    ex("cross_climber", "Wspinaczka skośna", "cardio", [], 3, 8.0, ["pushup_top", "cross_climb", "pushup_top", "cross_climb~"], 0.9,
+       stress=["nadgarstki"], m="obliques abs shoulders | quads", tips=["Kolano do przeciwnego łokcia", "Biodra nisko"]),
+    ex("step_touch", "Krok dostawny", "warmup", [], 1, 4.0, ["front_stand", "step_touch", "front_stand", "step_touch~"], 1.4,
+       m="quads calves | shoulders", tips=["Krok w bok i dostaw nogę", "Ręce w górę przy kroku"]),
+    ex("front_kicks", "Wymachy nóg w przód", "warmup", [], 1, 4.5, ["stand", "front_kick", "stand", "front_kick~"], 1.6,
+       m="hamstrings quads | abs", tips=["Przeciwna ręka do stopy", "Noga prosta, bez szarpania"]),
+    ex("single_leg_hops", "Podskoki na jednej nodze", "cardio", [], 3, 8.0, ["hop_one", "hop_one_up"], 0.5, uni=True, impact=True,
+       stress=["kolana"], m="calves quads | glutes", tips=["Małe, sprężyste skoki", "Kolano lekko ugięte"]),
+    ex("side_hops", "Przeskoki obunóż w bok", "cardio", [], 2, 8.0, ["feet_hop_a", "feet_hop_b", "feet_hop_a~", "feet_hop_b~"], 1.2,
+       impact=True, stress=["kolana"], m="calves quads | abductors", tips=["Stopy razem", "Skacz nad wyobrażoną linią"]),
+    ex("side_reach", "Sięganie w bok", "warmup", [], 1, 3.0, ["front_stand", "side_bend", "front_stand", "side_bend~"], 2.0,
+       m="obliques lats", tips=["Ręka daleko nad głową", "Biodra stoją w miejscu"]),
+    ex("pushup_burpee", "Burpees z pompką", "cardio", [], 5, 11.0,
+       ["stand", "squat_hands", "pushup_top", "pushup_bot", "pushup_top", "squat_hands", "jump_up"], 4.0, impact=True,
+       stress=["kolana", "nadgarstki"], m="chest quads shoulders | triceps abs glutes", easier="burpees",
+       tips=["Pełna pompka na dole", "Wyskok z rękami w górę"]),
+
+    # --- mobilność, rozciąganie, joga
+    ex("pigeon", "Pozycja gołębia", "stretch", [], 2, 2.0, ["pigeon", "pigeon_low"], 6.0, static=True, uni=True,
+       stress=["kolana"], m="glutes | quads", tips=["Przednie kolano zgięte, goleń przed sobą", "Opuść tułów, jeśli możesz"]),
+    ex("thread_needle", "Nawlekanie igły", "mobility", [], 1, 2.5, ["quad", "thread", "quad", "thoracic_open"], 5.0, uni=True,
+       stress=["nadgarstki"], m="upper_back | shoulders obliques", tips=["Ręka wsuwa się pod tułów", "Bark do podłogi"]),
+    ex("lying_hamstring", "Rozciąganie tyłu uda w leżeniu", "stretch", [], 1, 2.0, ["lying_ham", dict(P["lying_ham"], ln=[-174, -174])],
+       5.0, static=True, uni=True, m="hamstrings | calves", tips=["Noga prosta do góry", "Możesz pomóc sobie ręcznikiem"]),
+    ex("wide_fold", "Skłon w rozkroku", "stretch", [], 1, 2.0, ["wide_fold", dict(P["wide_fold"], t=18)], 5.0, static=True,
+       m="hamstrings adductors | lower_back", tips=["Stopy szeroko", "Głowa i ręce swobodnie w dół"]),
+    ex("knee_circles", "Krążenia kolan", "warmup", [], 1, 2.5, ["knee_circ_a", "knee_circ_b"], 1.6, m="quads | calves",
+       tips=["Dłonie na kolanach", "Kolana razem, małe koła"]),
+    ex("shoulder_rolls", "Krążenia barków", "warmup", [], 1, 2.0, ["stand", "shoulder_up"], 1.6, m="traps shoulders",
+       tips=["Barki w górę, w tył i w dół", "Ręce luźno"]),
+    ex("neck_tilts", "Skłony głowy na boki", "mobility", [], 1, 1.5, ["neck_l", "neck_l~"], 4.0, m="traps",
+       tips=["Ucho do barku", "Bez szarpania i krążenia"]),
+    ex("warrior2", "Wojownik II", "stretch", [], 2, 3.0, ["warrior2", dict(P["warrior2"], h=182)], 5.0, static=True, uni=True,
+       stress=["kolana"], m="quads adductors | shoulders glutes", tips=["Przednie kolano nad stopą", "Ręce długie, barki nisko"]),
+    ex("triangle", "Trójkąt", "stretch", [], 2, 2.5, ["triangle", dict(P["triangle"], h=134)], 5.0, static=True, uni=True,
+       m="hamstrings obliques | adductors", tips=["Obie nogi proste", "Klatka otwarta do przodu"]),
+    ex("windmill", "Wiatrak", "mobility", [], 1, 3.5, ["windmill", "windmill~"], 2.4, stress=["plecy"],
+       m="hamstrings obliques | upper_back", tips=["Dłoń do przeciwnej stopy", "Druga ręka w górę"]),
+    ex("standing_backbend", "Odchylenie w staniu", "stretch", [], 1, 2.0, ["stand_up", "backbend"], 4.0, stress=["plecy"],
+       m="abs | chest", tips=["Biodra lekko do przodu", "Tylko w komfortowym zakresie"]),
+    ex("upper_back_stretch", "Rozciąganie górnej części pleców", "stretch", [], 1, 2.0, ["upper_back", dict(P["upper_back"], h=146)],
+       4.0, static=True, m="upper_back | traps shoulders", tips=["Zaokrąglij plecy", "Ręce przed sobą, splecione"]),
+    ex("wrist_mobility", "Rozgrzewka nadgarstków", "warmup", [], 1, 1.5, ["wrist_a", "wrist_b"], 1.6, m="forearms",
+       tips=["Dłonie w górę i w dół", "Potem krążenia"]),
+    ex("ankle_circles", "Krążenia stóp", "warmup", [], 1, 1.5, ["ankle_a", "ankle_b"], 1.4, uni=True, m="calves",
+       tips=["Kolano nieruchomo", "Duże koła stopą"]),
+    ex("plow", "Pług", "stretch", [], 3, 2.0, ["plow", dict(P["plow"], t=42)], 5.0, static=True, stress=["plecy"],
+       m="lower_back hamstrings | traps", tips=["Ciężar na barkach, nie na szyi", "Nie obracaj głowy"]),
+    ex("shoulder_stand", "Świeca", "stretch", [], 3, 2.5, ["candle", dict(P["candle"], t=16)], 5.0, static=True, stress=["plecy"],
+       m="abs lower_back | traps", tips=["Dłonie podpierają plecy", "Nie obracaj głowy"]),
+    ex("fish_pose", "Ryba", "stretch", [], 2, 2.0, ["fish", dict(P["fish"], t=106)], 5.0, static=True, m="chest abs | traps",
+       tips=["Klatka w górę, ciężar na łokciach", "Szyja długa"]),
+    ex("mountain_pose", "Pozycja góry", "mobility", [], 1, 1.5, ["mountain", dict(P["mountain"], h=182)], 6.0, static=True,
+       m="abs | calves", tips=["Stopy razem, ciężar równo", "Spokojny oddech"]),
+]
+
+# ------------------------------------------------------------ odpowiedniki nazw z Fitify (do wyszukiwania i importu)
+FITIFY = {
+    "Chair Squats": "box_squat", "Sumo Chair Squats": "sumo_squat", "Wall Sit": "wall_sit", "Step-Ups": "step_ups",
+    "Calf Raises": "calf_raises", "Bridge Pose": "bridge_hold", "Bridges": "glute_bridge", "Bridge Marching": "bridge_march",
+    "Bridge Kick": "single_leg_bridge", "Outer Thigh Raises": "side_leg_raise", "Squats": "squat", "Free Arm Squat": "squat",
+    "Prisoner's Squat": "prisoner_squat", "Bouncing Squat": "squat_pulse", "Back & Forth Squat": "squat",
+    "Punching Squats": "punch_squat", "Squat & Reach": "squat_reach", "Squat & Knee Kick": "squat_knee",
+    "Toe Touch Squat": "toe_touch_squat", "Chair Pose": "chair_pose", "Sumo Squat": "sumo_squat", "Jump Squats": "jump_squats",
+    "Side-to-Side Jump Squat": "lateral_jump_squat", "Frog Jumps": "frog_jumps", "Pistol Squats": "pistol_squat",
+    "One Leg Chair Squats": "chair_pistol", "Bulgarian Squat": "split_squat", "ATG Split Squat": "atg_split_squat",
+    "Ski Sit": "wall_sit", "Lunges": "forward_lunge", "Rear Lunges": "reverse_lunge", "Knee-Up Lunge": "lunge_knee_drive",
+    "Diagonal Lunges": "curtsy_lunge", "Heisman Lunges": "side_lunge", "Toe Balancing Lunge": "forward_lunge",
+    "Jumping Lunges": "jump_lunge", "Lunge Run": "jump_lunge", "Alternating Side Lunge": "side_lunge",
+    "Side Lunge March": "side_lunge", "Single Calf Raises": "sl_calf_raise", "Hamstring Kickback": "leg_curl_standing",
+    "Warrior III": "sl_rdl", "Donkey Kick": "donkey_kicks", "Straight Leg Donkey Kick": "donkey_straight",
+    "Butt Lifters": "glute_bridge", "Bridge Kicker": "single_leg_bridge", "Inner Thigh Raises": "inner_thigh_raise",
+    "Outer Thigh Bicycle": "side_leg_raise", "Outer Thigh Triangle": "side_leg_raise", "Side Leg Lift": "side_leg_standing",
+    "Seated Leg Scissors": "flutter_kicks", "Fire Hydrants": "fire_hydrant",
+    "Seated Core Twist": "russian_twist", "Russian Twist": "russian_twist", "Crunches": "crunches", "Bird Dog": "bird_dog",
+    "Supine Marching": "supine_march", "Alternating Leg Raises": "alt_leg_raise", "Single Leg Circles": "leg_circles",
+    "Corkscrew": "leg_circles", "Sit-Ups": "sit_ups", "Bicycle Crunches": "bicycle", "Elevated Crunches": "crunch_legs_up",
+    "Reaching Crunch": "crunch_legs_up", "Side Crunches": "side_crunch", "Elbow to the Knee": "knee_to_elbow",
+    "Heel Touches": "heel_taps", "Belly Penguin": "heel_taps", "Toe Touches": "toe_touches", "Ab Rollups": "roll_up",
+    "Dynamic Rollups": "roll_up", "Roll Like a Ball": "rolling_ball", "The Hundred": "hundred", "Hundred Pike": "hundred",
+    "Teaser": "teaser", "V Sit-Ups": "v_ups", "V-Sit Hold": "v_sit_hold", "V Sit Rowing": "seated_tucks",
+    "Leg Lifts": "leg_raises", "Abdominal Hip Raises": "reverse_crunch", "Mason Twist": "russian_twist",
+    "Oblique Rotations": "russian_twist", "Standing Torso Twist": "torso_twist", "Lumbar Rotation": "lumbar_rotation",
+    "Mountain Climbers": "mountain_climbers", "Mountain Runner": "mountain_climbers", "Mountain Walkers": "inchworm",
+    "Plank": "plank", "High Plank": "high_plank", "One Elbow Plank": "plank_reach", "One Arm Plank": "plank_reach",
+    "Two Point Plank": "two_point_plank", "Arm Raise Plank": "plank_reach", "Alternating Plank": "plank_up_down",
+    "Walking Plank": "plank_up_down", "Shoulder Tap Plank": "shoulder_taps", "Plank Jacks": "plank_jacks",
+    "Plank-Ins": "plank_jump_in", "Jump Planks": "plank_jump_in", "Single Leg Plank": "plank_leg_raise",
+    "Plank & Rear Kick": "plank_leg_raise", "Scapular Planks": "scap_pushup", "Reverse Plank": "reverse_plank",
+    "Back Plank & Kick": "reverse_plank_kick", "Roof Kickback": "reverse_plank_kick", "Roof Pose": "tabletop",
+    "Table Pose": "tabletop", "Crab Walk": "crab_walk", "Side Plank": "side_plank", "Easy Side Plank": "side_plank_knee",
+    "Side Plank Raises": "side_plank_dips", "Easy Side Plank Raises": "side_plank_dips", "Side Plank Balancing": "side_plank_leg",
+    "Superman": "superman", "Swimmer": "swimmers", "Pulse Rows": "superman_pull", "Reachers": "superman",
+    "T Raise": "prone_t", "Y Raise": "prone_y", "Reverse Snow Angels": "reverse_angels",
+    "Wall Tricep Press": "wall_pushup", "Shoulder Push-Ups": "pike_pushups", "Hindu Push-Ups": "hindu_pushup",
+    "Seal Push-Ups": "knee_pushups", "Forward Arm Circles": "arm_circles", "Backward Arm Circles": "arm_circles",
+    "Extended Arm Circles": "small_arm_circles", "Standing Crawl Stroke": "swim_strokes",
+    "Standing Butterfly Stroke": "swim_strokes", "Air Row": "scap_squeeze", "Rotation Resistance": "pallof_press",
+    "Push-Ups": "pushups", "Diamond Push-Ups": "diamond_pushups", "Narrow Push-Ups": "diamond_pushups",
+    "Wide Arm Push-Ups": "wide_pushups", "Incline Push-Ups": "incline_pushups", "Decline Push-Ups": "decline_pushups",
+    "Kneeled Push-Ups": "knee_pushups", "Kneeled Diamond Push-Ups": "kpush_narrow", "Kneeled Narrow Push-Ups": "kpush_narrow",
+    "Kneeled Wide Push-Ups": "knee_pushups", "Arm Clap Push-Ups": "clap_pushup", "Spiderman Push-Ups": "spiderman_pushup",
+    "Grasshopper Push-Ups": "spiderman_pushup", "Single Leg Push-Ups": "pushups", "One Arm Side Push-Ups": "wide_pushups",
+    "Shoulder Tap Push-Ups": "pushup_tap", "Push-Up & Rotation": "t_pushup", "Scapular Push-Ups": "scap_pushup",
+    "Push-Up & Pike": "plank_to_dog", "Tricep Pikes": "pike_pushups", "Upside Down Push-Ups": "handstand_pushup",
+    "Tricep Dips": "floor_dips",
+    "Jumping Jacks": "jumping_jacks", "Inchworms": "inchworm", "Twisted Mountain Climber": "cross_climber",
+    "March & Clap": "march", "Step Touch": "step_touch", "Front Kicks": "front_kicks", "Toe Touch Walk": "front_kicks",
+    "High Knees": "high_knees", "Jogging": "jog_in_place", "Running in Place": "jog_in_place", "Running Sprinter": "jog_in_place",
+    "Butt Kickers": "butt_kicks", "Butt Kicks": "butt_kicks", "Two Way Butt Kicks": "butt_kicks", "Scissor Run": "jog_in_place",
+    "Cross Country Run": "jog_in_place", "Low Runner": "mountain_climbers", "Single Leg Runner": "single_leg_hops",
+    "Jump Rope": "jump_rope", "One Leg Rope Jump": "single_leg_hops", "Star Jump": "star_jumps", "Low Jacks": "step_jacks",
+    "Low Jump Jacks": "jumping_jacks", "Cancan Jump": "jumping_jacks", "Puppet Hops": "jumping_jacks",
+    "Puppet Spin": "jumping_jacks", "Hero Jump": "tuck_jumps", "High Jump": "jump_squats", "Single Leg Hops": "single_leg_hops",
+    "Single Leg Jumps": "single_leg_hops", "Skaters": "skaters", "Side-to-Side Jumps": "side_hops",
+    "One Leg Side Hops": "single_leg_hops", "Slalom Hops": "side_hops", "Slow Box": "shadow_boxing",
+    "Side to Side Reach": "side_reach", "Burpees": "burpees", "Push-Up Burpees": "pushup_burpee",
+    "Running Burpees": "burpees", "Jacks & Burpees": "burpees",
+    "Ab Rollouts": "ab_rollout", "Dumbbell Thrusters": "db_thruster",
+    "Cat-Cow Pose": "cat_cow", "Elbow Cat-Cow Pose": "cat_cow", "Pigeon Pose": "pigeon", "Lazy Pigeon": "pigeon",
+    "Low Cobra": "sphinx", "Swan Pose": "cobra", "Threading the Needle": "thread_needle",
+    "Supine Hamstring Stretch": "lying_hamstring", "Seated Forward Bend": "hamstring_stretch",
+    "Hurdler Stretch": "hamstring_stretch", "Forward Fold": "standing_fold", "Forward Bend": "standing_fold",
+    "Wide Legged Bend": "wide_fold", "Wide Leg Bend": "wide_fold", "Calf & Ham Stretch": "down_dog",
+    "Quadricep Stretch": "quad_stretch", "Standing Chest Stretch": "chest_stretch", "Resisted Chest Stretch": "chest_stretch",
+    "Shoulder Opener": "chest_stretch", "Hip Circles": "hip_circles", "Knee Circles": "knee_circles",
+    "Backward Shoulder Circles": "shoulder_rolls", "Front Shoulder Circles": "shoulder_rolls",
+    "Opposite Arm Circles": "arm_circles", "X-Legged Spinal Twist": "lumbar_rotation", "Back Neck Stretch": "neck_tilts",
+    "Front Neck Stretch": "neck_tilts", "Side Neck Stretch": "neck_tilts", "Side Neck Resistance": "neck_tilts",
+    "Front Neck Resistance": "neck_tilts", "Neck Looking Around": "neck_tilts", "Warrior II": "warrior2",
+    "Child Pose": "childs_pose", "Hip Flexor Stretch": "hip_flexor_stretch", "Hip Flexion": "hip_flexor_stretch",
+    "Sprinter's Calf Stretch": "calf_stretch", "Lying Glute Stretch": "figure_four", "Butterfly Stretch": "butterfly",
+    "Reclined Cobbler's Pose": "butterfly", "Deep Squat Stretch": "deep_squat_hold", "Fish Pose": "fish_pose",
+    "Plow Pose": "plow", "Shoulder Stand": "shoulder_stand", "Half Shoulder Stand": "shoulder_stand",
+    "Deep Breathing": "breathing", "Namaste Breathing": "breathing", "Mountain Pose": "mountain_pose",
+    "Like & Dislike": "neck_tilts", "Triangle Pose": "triangle", "Half Triangle": "triangle",
+    "Side Angle Extension": "triangle", "Side Bend": "side_bend", "Side Oblique Stretch": "side_bend",
+    "Windmill": "windmill", "Yoga Backbend": "standing_backbend", "Bent Over Stretch": "standing_fold",
+    "Bent Over Twist": "windmill", "Upper Back Stretch": "upper_back_stretch", "Deltoid Stretch": "shoulder_stretch",
+    "Armpit Check Stretch": "triceps_stretch", "Tricep Stretch": "triceps_stretch", "Chair Pose Twist": "chair_pose",
+    "Wrist Circles": "wrist_mobility", "Forearm Stretch": "wrist_mobility", "Back Wrist Stretch": "wrist_mobility",
+    "Front Wrist Stretch": "wrist_mobility", "Ankle Twist": "ankle_circles",
+}
+FITIFY_SKIPPED = {"Barbell Clean": "wymaga sztangi"}
+_byid = {e["id"]: e for e in E}
+for name, eid in FITIFY.items():
+    assert eid in _byid, f"Fitify {name} → brak {eid}"
+    _byid[eid].setdefault("aka", []).append(name)
+
 for e in E:
     prim = [k for k, v in e["m"].items() if v >= 1]
     g = []
@@ -941,4 +1302,4 @@ out = {
 dst = ROOT / "assets" / "exercises.json"
 dst.parent.mkdir(exist_ok=True)
 dst.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
-print(f"{len(E)} ćwiczeń, {len(P)} póz → {dst.relative_to(ROOT)}")
+print(f"{len(E)} ćwiczeń, {len(P)} póz → {dst.relative_to(ROOT)}; Fitify: {len(FITIFY)} nazw → {len(set(FITIFY.values()))} ćwiczeń")
