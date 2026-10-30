@@ -1,0 +1,116 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: pip install pillow
+      - name: Klucz podpisu (z repo, stały — aktualizacje bez odinstalowania)
+        run: |
+          echo "FORMA_KEYSTORE=$GITHUB_WORKSPACE/signing/forma.jks" >> "$GITHUB_ENV"
+          echo "FORMA_STORE_PASS=$(grep storePassword signing/keystore.properties | cut -d= -f2-)" >> "$GITHUB_ENV"
+          echo "FORMA_KEY_PASS=$(grep keyPassword signing/keystore.properties | cut -d= -f2-)" >> "$GITHUB_ENV"
+          echo "FORMA_KEY_ALIAS=$(grep keyAlias signing/keystore.properties | cut -d= -f2-)" >> "$GITHUB_ENV"
+      - name: Katalogi platform
+        run: PLATFORMS=android bash tool/prepare_platforms.sh
+      - run: flutter pub get
+      - name: Analiza kodu
+        run: |
+          set -o pipefail
+          flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee build.log
+      - name: Testy trenera
+        continue-on-error: true
+        run: |
+          if ! flutter test --reporter expanded > test.log 2>&1; then
+            msg=$(grep -v '^\s*$' test.log | tail -n 60 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')
+            echo "::warning title=Testy::$msg"
+            exit 1
+          fi
+          tail -n 3 test.log
+      - name: APK
+        run: |
+          set -o pipefail
+          flutter build apk --release 2>&1 | tee build.log
+          cp build/app/outputs/flutter-apk/app-release.apk forma.apk
+      - name: Błędy kompilacji jako adnotacje
+        if: failure()
+        run: bash tool/annotate_errors.sh build.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forma-android
+          path: forma.apk
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: pip3 install --break-system-packages pillow || pip3 install pillow
+      - name: Katalogi platform
+        run: PLATFORMS=ios bash tool/prepare_platforms.sh
+      - run: flutter pub get
+      - name: Konfiguracja Xcode/Podfile
+        run: |
+          set -o pipefail
+          flutter build ios --config-only --release --no-codesign 2>&1 | tee build.log
+          python3 tool/patch_platforms.py ios
+      - name: Build (bez podpisu)
+        run: |
+          set -o pipefail
+          flutter build ios --release --no-codesign 2>&1 | tee build.log
+      - name: Błędy kompilacji jako adnotacje
+        if: failure()
+        run: bash tool/annotate_errors.sh build.log
+      - name: IPA do sideloadu
+        run: |
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qr forma.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forma-ios
+          path: forma.ipa
+
+  release:
+    needs: [android, ios]
+    if: ${{ always() && needs.android.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Forma build ${{ github.run_number }}
+          body: |
+            Automatyczny build z `${{ github.sha }}`.
+            - **Android:** pobierz `forma.apk` i zainstaluj.
+            - **iPhone:** `forma.ipa` (niepodpisany) — wgraj przez Sideloadly/AltStore z darmowym Apple ID.
+          files: out/*
+          make_latest: true
