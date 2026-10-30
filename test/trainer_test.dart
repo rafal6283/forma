@@ -88,6 +88,69 @@ void main() {
     }
   }
 
+  test('tabata: bloki po 8 interwałów 20/10', () {
+    final t = make(Profile(minutes: 30, level: 3));
+    final plan = t.generate(kind: WorkoutKind.hiit, format: WorkoutFormat.tabata, readiness: const Readiness(75, [], true), seed: 2);
+    final main = plan.items.where((i) => i.phase == Phase.main).toList();
+    expect(main.length % 8, 0);
+    expect(main.every((i) => i.work == 20), isTrue);
+    expect(plan.format, WorkoutFormat.tabata);
+  });
+
+  test('serie i superserie mają cele powtórzeń', () {
+    final t = make(Profile(minutes: 40, level: 3, goal: Goal.strength));
+    for (final f in [WorkoutFormat.sets, WorkoutFormat.supersets]) {
+      final plan = t.generate(kind: WorkoutKind.upper, format: f, readiness: const Readiness(75, [], true), seed: 5);
+      final main = plan.items.where((i) => i.phase == Phase.main).toList();
+      expect(main, isNotEmpty, reason: '$f');
+      expect(main.where((i) => i.reps != null).length, greaterThan(main.length ~/ 2), reason: '$f');
+      expect(main.every((i) => i.rounds >= 2), isTrue, reason: '$f');
+    }
+  });
+
+  test('progresja: wszystkie serie zrobione → cel +1, nie zrobione → bez wzrostu', () {
+    final e = lib['pushups']!;
+    Session s(List<int> reps) => Session(
+          id: 'x',
+          start: DateTime(2026, 10, 28, 18),
+          end: DateTime(2026, 10, 28, 18, 30),
+          kind: WorkoutKind.upper,
+          title: 'x',
+          done: [for (final r in reps) DoneItem('pushups', 30, 0, reps: r, target: 10)],
+          kcal: 100,
+          format: WorkoutFormat.sets,
+        );
+    expect(make(Profile(level: 3), sessions: [s([10, 10, 10])]).repsTarget(e, 3), 11);
+    expect(make(Profile(level: 3), sessions: [s([10, 9, 7])]).repsTarget(e, 3), lessThanOrEqualTo(10));
+  });
+
+  test('plan wielotygodniowy: dni, tydzień lżejszy, kolejka', () {
+    final t = make(Profile(goal: Goal.strength, daysPerWeek: 3));
+    final p = t.buildProgram(weeks: 8, weekdays: [1, 3, 5], minutes: 30, start: DateTime(2026, 11, 2));
+    expect(p.days.length, 24);
+    expect(p.days.where((d) => d.week == 4).every((d) => d.deload), isTrue);
+    expect(p.days.where((d) => d.week == 2).every((d) => !d.deload), isTrue);
+    expect(p.next!.id, 'w1d1');
+    p.days.first.sessionId = 's1';
+    expect(p.next!.id, 'w1d2');
+    expect(p.days.map((d) => d.format).toSet(), contains(WorkoutFormat.sets));
+  });
+
+  test('serie tygodnia liczone na partię', () {
+    final s = Session(
+      id: 'w',
+      start: DateTime(2026, 10, 27, 18),
+      end: DateTime(2026, 10, 27, 18, 30),
+      kind: WorkoutKind.upper,
+      title: 'x',
+      done: [DoneItem('pushups', 30, 0, reps: 10), DoneItem('pushups', 30, 0, reps: 10), DoneItem('squat', 30, 0)],
+      kcal: 100,
+    );
+    final w = make(Profile(), sessions: [s]).weeklySets();
+    expect(w['klatka'], 2);
+    expect(w['nogi'], 1);
+  });
+
   test('ograniczenia i brak sprzętu są respektowane', () {
     final p = Profile(limits: {'kolana', 'nadgarstki'}, equipment: {}, noJumping: true, level: 3);
     final t = make(p);

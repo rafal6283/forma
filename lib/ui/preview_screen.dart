@@ -64,10 +64,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
   void _addAs(List<PlanItem> out, Exercise e, PlanItem like, int work, int rest) {
     if (e.uni) {
       final half = (work / 2).round().clamp(15, 60);
-      out.add(PlanItem(exId: e.id, work: half, rest: 5, phase: like.phase, side: 1, round: like.round, rounds: like.rounds));
-      out.add(PlanItem(exId: e.id, work: half, rest: rest, phase: like.phase, side: 2, round: like.round, rounds: like.rounds));
+      final w = like.reps != null ? work : half;
+      out.add(PlanItem(exId: e.id, work: w, rest: 5, phase: like.phase, side: 1, round: like.round, rounds: like.rounds, reps: like.reps, tag: like.tag));
+      out.add(PlanItem(exId: e.id, work: w, rest: rest, phase: like.phase, side: 2, round: like.round, rounds: like.rounds, reps: like.reps, tag: like.tag));
     } else {
-      out.add(PlanItem(exId: e.id, work: work, rest: rest, phase: like.phase, round: like.round, rounds: like.rounds));
+      out.add(PlanItem(exId: e.id, work: work, rest: rest, phase: like.phase, round: like.round, rounds: like.rounds, reps: like.reps, tag: like.tag));
     }
   }
 
@@ -79,27 +80,46 @@ class _PreviewScreenState extends State<PreviewScreen> {
       final items = plan.items.where((i) => i.phase == ph).toList();
       if (items.isEmpty) continue;
       final rounds = items.fold(1, (m, i) => i.rounds > m ? i.rounds : m);
-      final first = items.where((i) => i.round == 1).toList();
       final secs = items.fold(0, (a, i) => a + i.work + i.rest);
       sections.add(SectionTitle(
-        rounds > 1 ? '${phaseLabel[ph]} · $rounds × obwód' : phaseLabel[ph]!,
+        ph != Phase.main
+            ? phaseLabel[ph]!
+            : switch (plan.format) {
+                WorkoutFormat.tabata => '${phaseLabel[ph]} · tabata',
+                WorkoutFormat.sets || WorkoutFormat.supersets => '${phaseLabel[ph]} · ${formatLabel[plan.format]!.toLowerCase()}',
+                _ => rounds > 1 ? '${phaseLabel[ph]} · $rounds × obwód' : phaseLabel[ph]!,
+              },
         trailing: Text(fmtMin(secs), style: const TextStyle(color: C.muted)),
       ));
       final shown = <String>{};
       final rows = <Widget>[];
-      for (final it in first) {
+      for (final it in items) {
         if (!shown.add(it.exId)) continue;
         final e = lib[it.exId];
         if (e == null) continue;
-        final w = e.uni ? '2 × ${it.work} s' : '${it.work} s';
-        final reps = e.repsFor(it.work);
+        // ile serii / interwałów tego ćwiczenia w fazie (strony liczymy raz)
+        final mine = items.where((x) => x.exId == it.exId && x.side != 2).toList();
+        final n = mine.length;
+        final String dose;
+        if (it.reps != null) {
+          dose = '${n > 1 ? '$n × ' : ''}${it.reps} powt.${e.uni ? ' na stronę' : ''}';
+        } else {
+          final w = '${it.work} s';
+          dose = '${n > 1 ? '$n × ' : ''}$w${e.uni && it.side == 0 ? '' : (e.uni ? ' na stronę' : '')}';
+        }
+        final approx = it.reps == null ? e.repsFor(it.work) : null;
+        final rest = mine.length > 1 ? mine.first.rest : it.rest;
         rows.add(ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
           leading: FigureThumb(e, size: 52),
           title: Text(e.name, style: const TextStyle(fontWeight: FontWeight.w600)),
           subtitle: Text(
-            [w, if (reps != null && !e.uni) '~$reps powt.', if (e.uni) 'każda strona', if (it.rest > 0 && ph == Phase.main) 'przerwa ${it.rest} s']
-                .join(' · '),
+            [
+              if (it.tag != null && plan.format == WorkoutFormat.supersets) it.tag!.split(' ').first,
+              dose,
+              if (approx != null && !e.uni && rounds == 1 && n == 1) '~$approx powt.',
+              if (rest > 5 && ph == Phase.main && plan.format != WorkoutFormat.tabata) 'przerwa $rest s',
+            ].join(' · '),
             style: const TextStyle(color: C.muted),
           ),
           trailing: IconButton(icon: const Icon(Icons.swap_horiz), tooltip: 'Zamień', onPressed: () => _swap(it.exId)),
@@ -117,7 +137,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
           Row(children: [
             Stat('minut', '${plan.minutes}'),
             const SizedBox(width: 24),
-            Stat('intensywność', plan.intensity, color: C.accent),
+            Expanded(child: Stat(formatLabel[plan.format]!.toLowerCase(), plan.intensity, color: C.accent)),
           ]),
           ...sections,
         ],

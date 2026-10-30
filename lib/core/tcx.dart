@@ -48,19 +48,23 @@ String _xml(String s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').repl
 /// Opis treningu: ćwiczenia z czasem (jak dopisywane ręcznie w Stravie).
 String sessionDescription(Session s) {
   final lib = Library.instance;
-  final per = <String, (int, int)>{}; // id → (serie, sekundy)
+  // ćwiczenie → (serie, sekundy, powtórzenia w kolejnych seriach)
+  final per = <String, (int, int, List<int>)>{};
   for (final d in s.done) {
     final e = lib[d.exId];
     if (e == null || e.type == ExType.warmup || e.type == ExType.stretch) continue;
-    final cur = per[d.exId] ?? (0, 0);
-    per[d.exId] = (cur.$1 + (d.side == 2 ? 0 : 1), cur.$2 + d.seconds);
+    final cur = per[d.exId] ?? (0, 0, <int>[]);
+    final first = d.side != 2;
+    per[d.exId] = (cur.$1 + (first ? 1 : 0), cur.$2 + d.seconds, [...cur.$3, if (d.reps != null && first) d.reps!]);
   }
   final lines = <String>[
     for (final e in per.entries)
-      '• ${lib[e.key]!.name}: ${e.value.$1 > 1 ? '${e.value.$1} × ' : ''}${(e.value.$2 / (e.value.$1 == 0 ? 1 : e.value.$1)).round()} s',
+      e.value.$3.isNotEmpty
+          ? '• ${lib[e.key]!.name}: ${e.value.$3.length} × ${e.value.$3.join('/')} powt.'
+          : '• ${lib[e.key]!.name}: ${e.value.$1 > 1 ? '${e.value.$1} × ' : ''}${(e.value.$2 / (e.value.$1 == 0 ? 1 : e.value.$1)).round()} s',
   ];
   return [
-    '${s.title} — Forma',
+    '${s.title} — Forma (${formatLabel[s.format]})',
     ...lines,
     [
       'RPE ${s.rpe}/10',

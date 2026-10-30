@@ -40,6 +40,7 @@ class Store extends ChangeNotifier {
   final List<HrvMeasure> hrv = [];
   final List<Measurement> measurements = [];
   final Map<String, ExStat> stats = {};
+  Program? program; // plan wielotygodniowy (aktywny lub zakończony)
   HealthSnapshot health = HealthSnapshot.empty;
 
   // --- osoby
@@ -97,6 +98,7 @@ class Store extends ChangeNotifier {
     hrv.clear();
     measurements.clear();
     stats.clear();
+    program = null;
     health = HealthSnapshot.empty;
   }
 
@@ -115,6 +117,7 @@ class Store extends ChangeNotifier {
         'hrv': hrv.map((h) => h.toJson()).toList(),
         'measurements': measurements.map((m) => m.toJson()).toList(),
         'stats': stats.map((k, v) => MapEntry(k, v.toJson())),
+        if (program != null) 'program': program!.toJson(),
       });
 
   void _applyUser(String raw) {
@@ -141,6 +144,7 @@ class Store extends ChangeNotifier {
       ..clear()
       ..addAll(((j['stats'] as Map?) ?? const {})
           .map((k, v) => MapEntry(k as String, ExStat.fromJson((v as Map).cast<String, dynamic>()))));
+    program = j['program'] == null ? null : Program.fromJson((j['program'] as Map).cast<String, dynamic>());
   }
 
   // ------------------------------------------------------------ kopia całej rodziny
@@ -302,6 +306,13 @@ class Store extends ChangeNotifier {
 
   Future<void> addSession(Session s) async {
     sessions.add(s);
+    final pr = program;
+    if (pr != null && s.programDay != null) {
+      for (final d in pr.days) {
+        if (d.id == s.programDay) d.sessionId = s.id;
+      }
+      if (pr.next == null) pr.active = false;
+    }
     for (final d in s.done) {
       final st = stat(d.exId);
       st.count++;
@@ -312,8 +323,18 @@ class Store extends ChangeNotifier {
 
   Future<void> deleteSession(Session s) async {
     sessions.remove(s);
+    for (final d in program?.days ?? const <ProgramDay>[]) {
+      if (d.sessionId == s.id) d.sessionId = null;
+    }
     await save();
   }
 
   static bool _sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+extension ProgramStore on Store {
+  Future<void> setProgram(Program? p) async {
+    program = p;
+    await save();
+  }
 }

@@ -10,6 +10,7 @@ import 'checkin_sheet.dart';
 import 'hr_screen.dart';
 import 'hrv_screen.dart';
 import 'preview_screen.dart';
+import 'program_screen.dart';
 import 'theme.dart';
 import 'users.dart';
 import 'widgets.dart';
@@ -24,8 +25,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   WorkoutPlan? _plan;
-  WorkoutKind? _kind; // wybór użytkownika (null = sugestia trenera)
+  WorkoutKind? _kind; // wybór użytkownika (null = sugestia trenera / plan)
+  WorkoutFormat? _format;
   int? _minutes;
+  bool _offPlan = false; // użytkownik wybrał coś innego niż dzień planu
   int _seed = 0;
   String? _reason;
 
@@ -52,9 +55,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final s = Store.instance;
     final sig = '${s.sessions.length}|${s.todayCheckIn?.at}|${s.todayHrv?.at}|${s.health.sleepHours}|'
         '${s.health.restingHr}|${s.profile.level}|${s.profile.minutes}|${s.profile.equipment}|${s.profile.limits}|'
-        '${s.profile.goal}|${s.profile.noJumping}';
+        '${s.profile.goal}|${s.profile.noJumping}|${s.program?.id}|${s.program?.doneCount}|${s.program?.active}';
     if (sig != _lastSig) {
-      if (s.sessions.length != _lastSessions && _lastSessions >= 0) _kind = null;
+      if (s.sessions.length != _lastSessions && _lastSessions >= 0) {
+        _kind = null;
+        _format = null;
+        _offPlan = false;
+      }
       _lastSessions = s.sessions.length;
       _lastSig = sig;
       _regen();
@@ -66,27 +73,52 @@ class _HomeScreenState extends State<HomeScreen> {
   void _regen() {
     final t = coach();
     final r = t.readiness();
-    var kind = _kind;
-    String? reason;
-    if (kind == null) {
-      final rec = t.recommendKind(r);
-      kind = rec.$1;
-      reason = rec.$2;
+    final pr = Store.instance.program;
+    final day = pr != null && pr.active && !_offPlan && _kind == null ? pr.next : null;
+    if (day != null) {
+      // dzień z planu — przy słabej gotowości lżej, ale nadal według planu
+      final light = r.score < 40;
+      final perWeek = pr!.weekdays.length;
+      final late = DateTime.now().difference(day.date).inDays;
+      _reason = 'Plan „${pr.name}”: tydzień ${day.week}/${pr.weeks}, trening ${day.index}/$perWeek'
+          '${late > 1 ? ' (zaległy od ${fmtDate(day.date)})' : ''}${day.deload ? ' — tydzień lżejszy' : ''}'
+          '${light ? '. Gotowość niska, więc dziś mniejsza objętość.' : '.'}';
+      _plan = t.generate(
+        kind: day.kind,
+        format: day.format,
+        readiness: r,
+        minutes: _minutes ?? day.minutes,
+        seed: _seed,
+        reason: _reason,
+        load: light ? day.load * 0.7 : day.load,
+        programDay: day.id,
+      );
+    } else {
+      var kind = _kind;
+      String? reason;
+      if (kind == null) {
+        final rec = t.recommendKind(r);
+        kind = rec.$1;
+        reason = rec.$2;
+      }
+      _reason = reason;
+      _plan = t.generate(kind: kind, format: _format, readiness: r, minutes: _minutes, seed: _seed, reason: reason);
     }
-    _reason = reason;
-    _plan = t.generate(kind: kind, readiness: r, minutes: _minutes, seed: _seed, reason: reason);
     if (mounted) setState(() {});
   }
 
   Future<void> _chooseKind() async {
-    final res = await showModalBottomSheet<(WorkoutKind?, int?)>(
+    final res = await showModalBottomSheet<(WorkoutKind?, WorkoutFormat?, int?)>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
-      builder: (c) => _KindSheet(kind: _kind, minutes: _minutes ?? Store.instance.profile.minutes),
+      builder: (c) => _KindSheet(kind: _kind, format: _format, minutes: _minutes ?? Store.instance.profile.minutes),
     );
     if (res == null) return;
     _kind = res.$1;
-    _minutes = res.$2;
+    _format = res.$2;
+    _minutes = res.$3;
+    _offPlan = _kind != null;
     _seed++;
     _regen();
   }
@@ -125,6 +157,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 _seed++;
                 _regen();
               }, reason: _reason),
+              const SectionTitle('Plan'),
+              const ProgramCard(),
               const SectionTitle('Ten tydzień'),
               _WeekCard(sessions: s.sessions, target: s.profile.daysPerWeek),
             ],
@@ -279,8 +313,9 @@ class _PlanCard extends StatelessWidget {
 
 class _KindSheet extends StatefulWidget {
   final WorkoutKind? kind;
+  final WorkoutFormat? format;
   final int minutes;
-  const _KindSheet({required this.kind, required this.minutes});
+  const _KindSheet({required this.kind, required this.format, required this.minutes});
 
   @override
   State<_KindSheet> createState() => _KindSheetState();
@@ -288,40 +323,67 @@ class _KindSheet extends StatefulWidget {
 
 class _KindSheetState extends State<_KindSheet> {
   late WorkoutKind? kind = widget.kind;
+  late WorkoutFormat? format = widget.format;
   late int minutes = widget.minutes;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Rodzaj treningu', style: TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              ChoiceChip(
-                label: const Text('Wybór trenera'),
-                selected: kind == null,
-                onSelected: (_) => setState(() => kind = null),
-              ),
-              for (final k in WorkoutKind.values)
-                ChoiceChip(label: Text(kindLabel[k]!), selected: kind == k, onSelected: (_) => setState(() => kind = k)),
-            ]),
-            const SizedBox(height: 16),
-            const Text('Czas', style: TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, children: [
-              for (final m in [10, 15, 20, 25, 30, 40, 50])
-                ChoiceChip(label: Text('$m min'), selected: minutes == m, onSelected: (_) => setState(() => minutes = m)),
-            ]),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, (kind, minutes)),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-              child: const Text('Ułóż trening'),
+  Widget build(BuildContext context) {
+    final hasPlan = Store.instance.program?.active == true;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Partia / rodzaj', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            ChoiceChip(
+              label: Text(hasPlan ? 'Według planu' : 'Wybór trenera'),
+              selected: kind == null,
+              onSelected: (_) => setState(() {
+                kind = null;
+                format = null;
+              }),
             ),
+            for (final k in WorkoutKind.values)
+              ChoiceChip(label: Text(kindLabel[k]!), selected: kind == k, onSelected: (_) => setState(() => kind = k)),
           ]),
-        ),
-      );
+          const SizedBox(height: 16),
+          const Text('Format', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            ChoiceChip(label: const Text('Dobierz sam'), selected: format == null, onSelected: (_) => setState(() => format = null)),
+            for (final f in WorkoutFormat.values)
+              ChoiceChip(
+                label: Text(formatLabel[f]!),
+                selected: format == f,
+                onSelected: (_) => setState(() {
+                  format = f;
+                  kind ??= f == WorkoutFormat.flow ? WorkoutKind.mobility : WorkoutKind.fullBody;
+                }),
+              ),
+          ]),
+          if (format != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(formatHint[format]!, style: const TextStyle(color: C.muted, fontSize: 12)),
+            ),
+          const SizedBox(height: 16),
+          const Text('Czas', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final m in [10, 15, 20, 25, 30, 40, 50, 60])
+              ChoiceChip(label: Text('$m min'), selected: minutes == m, onSelected: (_) => setState(() => minutes = m)),
+          ]),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, (kind, format, minutes)),
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+            child: const Text('Ułóż trening'),
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
 class _WeekCard extends StatelessWidget {

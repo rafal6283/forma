@@ -144,6 +144,32 @@ const kindLabel = {
   WorkoutKind.stretch: 'Rozciąganie',
 };
 
+/// Format treningu (jak w Fitify): niezależny od partii ciała.
+enum WorkoutFormat { circuit, hiit, tabata, strengthIntervals, sets, supersets, flow }
+
+const formatLabel = {
+  WorkoutFormat.circuit: 'Obwód',
+  WorkoutFormat.hiit: 'HIIT',
+  WorkoutFormat.tabata: 'Tabata',
+  WorkoutFormat.strengthIntervals: 'Interwały siłowe',
+  WorkoutFormat.sets: 'Serie siłowe',
+  WorkoutFormat.supersets: 'Superserie',
+  WorkoutFormat.flow: 'Spokojny przepływ',
+};
+
+const formatHint = {
+  WorkoutFormat.circuit: 'Ćwiczenia jedno po drugim, kilka rund',
+  WorkoutFormat.hiit: 'Krótka, mocna praca i krótkie przerwy',
+  WorkoutFormat.tabata: 'Bloki 8 × (20 s pracy / 10 s przerwy)',
+  WorkoutFormat.strengthIntervals: 'Długa praca siłowa, mniej ćwiczeń',
+  WorkoutFormat.sets: 'Serie na powtórzenia z przerwą — klasyczna siłownia',
+  WorkoutFormat.supersets: 'Pary ćwiczeń A/B na przemian',
+  WorkoutFormat.flow: 'Mobilność i rozciąganie w swoim tempie',
+};
+
+WorkoutFormat formatOf(String? s) =>
+    WorkoutFormat.values.firstWhere((e) => e.name == s, orElse: () => WorkoutFormat.circuit);
+
 WorkoutKind kindOf(String s) =>
     WorkoutKind.values.firstWhere((e) => e.name == s, orElse: () => WorkoutKind.fullBody);
 
@@ -260,6 +286,8 @@ class PlanItem {
   int side; // 0 = obie / nie dotyczy, 1 = prawa, 2 = lewa
   int round;
   int rounds;
+  int? reps; // serie na powtórzenia (null = na czas)
+  String? tag; // np. „A1”, „B2” w superseriach, „Blok 1” w tabacie
 
   PlanItem({
     required this.exId,
@@ -269,10 +297,21 @@ class PlanItem {
     this.side = 0,
     this.round = 1,
     this.rounds = 1,
+    this.reps,
+    this.tag,
   });
 
-  Map<String, dynamic> toJson() =>
-      {'ex': exId, 'w': work, 'r': rest, 'p': phase.name, 's': side, 'rd': round, 'rds': rounds};
+  Map<String, dynamic> toJson() => {
+        'ex': exId,
+        'w': work,
+        'r': rest,
+        'p': phase.name,
+        's': side,
+        'rd': round,
+        'rds': rounds,
+        if (reps != null) 'reps': reps,
+        if (tag != null) 'tag': tag,
+      };
 
   factory PlanItem.fromJson(Map<String, dynamic> j) => PlanItem(
         exId: j['ex'] as String,
@@ -282,24 +321,30 @@ class PlanItem {
         side: (j['s'] as num?)?.toInt() ?? 0,
         round: (j['rd'] as num?)?.toInt() ?? 1,
         rounds: (j['rds'] as num?)?.toInt() ?? 1,
+        reps: (j['reps'] as num?)?.toInt(),
+        tag: j['tag'] as String?,
       );
 }
 
 class WorkoutPlan {
   WorkoutKind kind;
+  WorkoutFormat format;
   String title;
   List<PlanItem> items;
   int readiness;
   String intensity;
   List<String> reasons;
+  String? programDay; // dzień planu, który ten trening realizuje
 
   WorkoutPlan({
     required this.kind,
+    this.format = WorkoutFormat.circuit,
     required this.title,
     required this.items,
     required this.readiness,
     required this.intensity,
     required this.reasons,
+    this.programDay,
   });
 
   int get seconds => items.fold(0, (s, i) => s + i.work + i.rest);
@@ -311,10 +356,18 @@ class DoneItem {
   final String exId;
   final int seconds;
   final int side;
-  DoneItem(this.exId, this.seconds, this.side);
-  Map<String, dynamic> toJson() => {'ex': exId, 's': seconds, 'sd': side};
-  factory DoneItem.fromJson(Map<String, dynamic> j) =>
-      DoneItem(j['ex'] as String, (j['s'] as num).toInt(), (j['sd'] as num?)?.toInt() ?? 0);
+  final int? reps; // wykonane powtórzenia (serie na powtórzenia)
+  final int? target; // cel powtórzeń
+  DoneItem(this.exId, this.seconds, this.side, {this.reps, this.target});
+  Map<String, dynamic> toJson() =>
+      {'ex': exId, 's': seconds, 'sd': side, if (reps != null) 'r': reps, if (target != null) 't': target};
+  factory DoneItem.fromJson(Map<String, dynamic> j) => DoneItem(
+        j['ex'] as String,
+        (j['s'] as num).toInt(),
+        (j['sd'] as num?)?.toInt() ?? 0,
+        reps: (j['r'] as num?)?.toInt(),
+        target: (j['t'] as num?)?.toInt(),
+      );
 }
 
 class Session {
@@ -328,6 +381,8 @@ class Session {
   final List<int> hr; // średnie tętno co 5 s (0 = brak odczytu)
   final List<int> zones; // sekundy w strefach 1–5
   int rpe; // 1–10
+  final WorkoutFormat format;
+  final String? programDay;
   int? stravaId; // aktywność w Stravie (uzupełniona lub wysłana)
   bool stravaPending; // czeka na aktywność z zegarka
   final int readiness;
@@ -354,6 +409,8 @@ class Session {
     this.inHealth = false,
     this.stravaId,
     this.stravaPending = false,
+    this.format = WorkoutFormat.circuit,
+    this.programDay,
   }) : feedback = feedback ?? {};
 
   int get activeSeconds => done.fold(0, (s, d) => s + d.seconds);
@@ -382,6 +439,8 @@ class Session {
         'inHealth': inHealth,
         'stravaId': stravaId,
         'stravaPending': stravaPending,
+        'format': format.name,
+        if (programDay != null) 'programDay': programDay,
       };
 
   factory Session.fromJson(Map<String, dynamic> j) => Session(
@@ -405,6 +464,8 @@ class Session {
         inHealth: j['inHealth'] == true,
         stravaId: (j['stravaId'] as num?)?.toInt(),
         stravaPending: j['stravaPending'] == true,
+        format: formatOf(j['format'] as String?),
+        programDay: j['programDay'] as String?,
       );
 }
 
@@ -499,4 +560,121 @@ class UserRef {
   UserRef(this.id, this.name);
   Map<String, dynamic> toJson() => {'id': id, 'name': name};
   factory UserRef.fromJson(Map<String, dynamic> j) => UserRef(j['id'] as String, j['name'] as String? ?? '');
+}
+
+/// Dzień planu: co i jak ćwiczyć, z którym tygodniem progresji.
+class ProgramDay {
+  final String id; // np. „w2d3”
+  final int week; // od 1
+  final int index; // kolejność w tygodniu, od 1
+  final DateTime date; // planowany dzień
+  final WorkoutKind kind;
+  final WorkoutFormat format;
+  final int minutes;
+  final double load; // mnożnik objętości (tydzień lżejszy < 1)
+  String? sessionId; // wykonany trening
+  bool skipped;
+
+  ProgramDay({
+    required this.id,
+    required this.week,
+    required this.index,
+    required this.date,
+    required this.kind,
+    required this.format,
+    required this.minutes,
+    required this.load,
+    this.sessionId,
+    this.skipped = false,
+  });
+
+  bool get done => sessionId != null;
+  bool get deload => load < 0.95;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'w': week,
+        'i': index,
+        'd': date.toIso8601String(),
+        'k': kind.name,
+        'f': format.name,
+        'm': minutes,
+        'l': load,
+        if (sessionId != null) 's': sessionId,
+        if (skipped) 'x': true,
+      };
+
+  factory ProgramDay.fromJson(Map<String, dynamic> j) => ProgramDay(
+        id: j['id'] as String,
+        week: (j['w'] as num).toInt(),
+        index: (j['i'] as num).toInt(),
+        date: DateTime.parse(j['d'] as String),
+        kind: kindOf(j['k'] as String),
+        format: formatOf(j['f'] as String?),
+        minutes: (j['m'] as num).toInt(),
+        load: (j['l'] as num).toDouble(),
+        sessionId: j['s'] as String?,
+        skipped: j['x'] == true,
+      );
+}
+
+class Program {
+  final String id;
+  final String name;
+  final Goal goal;
+  final DateTime start;
+  final int weeks;
+  final List<int> weekdays; // 1 = pon … 7 = ndz
+  final List<ProgramDay> days;
+  bool active;
+
+  Program({
+    required this.id,
+    required this.name,
+    required this.goal,
+    required this.start,
+    required this.weeks,
+    required this.weekdays,
+    required this.days,
+    this.active = true,
+  });
+
+  int get doneCount => days.where((d) => d.done).length;
+  double get progress => days.isEmpty ? 0 : doneCount / days.length;
+
+  /// Następny trening do zrobienia (zaległe najpierw, w kolejności planu).
+  ProgramDay? get next {
+    for (final d in days) {
+      if (!d.done && !d.skipped) return d;
+    }
+    return null;
+  }
+
+  int currentWeek(DateTime now) {
+    final n = next;
+    if (n != null) return n.week;
+    return weeks;
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'goal': goal.name,
+        'start': start.toIso8601String(),
+        'weeks': weeks,
+        'weekdays': weekdays,
+        'days': days.map((d) => d.toJson()).toList(),
+        'active': active,
+      };
+
+  factory Program.fromJson(Map<String, dynamic> j) => Program(
+        id: j['id'] as String,
+        name: j['name'] as String,
+        goal: Goal.values.firstWhere((g) => g.name == j['goal'], orElse: () => Goal.general),
+        start: DateTime.parse(j['start'] as String),
+        weeks: (j['weeks'] as num).toInt(),
+        weekdays: ((j['weekdays'] as List?) ?? const [1, 3, 5]).map((e) => (e as num).toInt()).toList(),
+        days: ((j['days'] as List?) ?? const []).map((e) => ProgramDay.fromJson((e as Map).cast<String, dynamic>())).toList(),
+        active: j['active'] != false,
+      );
 }

@@ -85,6 +85,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int get stepElapsedMs => _sw.elapsedMilliseconds - _stepStartMs;
   int get remaining => (step.seconds - stepElapsedMs / 1000).ceil().clamp(0, 9999);
 
+  /// Seria na powtórzenia: bez odliczania, kończy się przyciskiem „Gotowe”.
+  bool get repsStep => step.kind == _Kind.work && step.item?.reps != null;
+  int repCount = 0;
+
   void _tick() {
     if (paused || finished) return;
     // próbki co sekundę całego treningu
@@ -94,6 +98,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
       hrSec.add(hr.freshBpm ?? 0);
       final e = step.item == null ? null : lib[step.item!.exId];
       metSeconds += step.kind == _Kind.work && e != null ? e.met : 2.0;
+    }
+    if (repsStep) {
+      setState(() {});
+      return;
     }
     final rem = remaining;
     if (rem != _lastWhole) {
@@ -114,7 +122,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _recordWork() {
     if (step.kind != _Kind.work) return;
     final s = (stepElapsedMs / 1000).round();
-    if (s >= 3) done.add(DoneItem(step.item!.exId, s.clamp(0, step.seconds), step.item!.side));
+    final it = step.item!;
+    if (it.reps != null) {
+      if (repCount > 0) done.add(DoneItem(it.exId, s.clamp(1, 600), it.side, reps: repCount, target: it.reps));
+      return;
+    }
+    if (s >= 3) done.add(DoneItem(it.exId, s.clamp(0, step.seconds), it.side));
   }
 
   void _next({bool auto = false}) {
@@ -162,12 +175,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
             : 'Przerwa. Następne: ${e.name}${_sideText(it)}');
       case _Kind.work:
         voice.go();
+        repCount = it!.reps ?? 0;
         final prevPhase = idx > 0 ? _prevWorkPhase() : null;
         final phaseNote = prevPhase != null && prevPhase != it!.phase ? '${phaseLabel[it.phase]}. ' : '';
-        if (it!.side == 2 && idx > 0 && steps[idx - 1].item?.exId == it.exId) {
-          voice.say('Zmiana strony');
+        final repsNote = it.reps != null ? '. ${it.reps} powtórzeń' : '';
+        if (it.side == 2 && idx > 0 && steps[idx - 1].item?.exId == it.exId) {
+          voice.say('Zmiana strony$repsNote');
         } else {
-          voice.say('$phaseNote${e.name}${_sideText(it)}');
+          voice.say('$phaseNote${e.name}${_sideText(it)}$repsNote');
         }
     }
   }
@@ -233,6 +248,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       zones: zones,
       readiness: widget.plan.readiness,
       plannedSeconds: widget.plan.items.fold(0, (a, i) => a + i.work),
+      format: widget.plan.format,
+      programDay: widget.plan.programDay,
     );
     if (!mounted) return;
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SummaryScreen(session: session)));
@@ -278,7 +295,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final elapsedAll = _sw.elapsedMilliseconds / 1000;
     final workIdx = steps.take(idx + 1).where((s) => s.kind == _Kind.work).length;
     final workTotal = steps.where((s) => s.kind == _Kind.work).length;
-    final reps = work && e != null ? e.repsFor(step.seconds) : null;
+    final reps = work && e != null && it?.reps == null ? e.repsFor(step.seconds) : null;
     final tip = e != null && e.tips.isNotEmpty ? e.tips[(remaining ~/ 8) % e.tips.length] : null;
 
     return PopScope(
@@ -352,9 +369,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   const SizedBox(height: 4),
                   Text(
                     [
-                      if (it!.side == 1) 'prawa strona',
+                      if (it!.tag != null) it.tag!,
+                      if (it.side == 1) 'prawa strona',
                       if (it.side == 2) 'lewa strona',
                       if (reps != null) 'ok. $reps powtórzeń',
+                      if (it.reps != null && step.kind != _Kind.work) '${it.reps} powtórzeń',
                       if (e.isStatic) 'utrzymaj pozycję',
                     ].join(' · '),
                     style: const TextStyle(color: C.muted),
@@ -366,13 +385,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ]),
               ),
             const SizedBox(height: 14),
-            Ring(
-              value: step.seconds == 0 ? 0 : 1 - (stepElapsedMs / 1000 / step.seconds).clamp(0, 1).toDouble(),
-              color: color,
-              size: 132,
-              width: 10,
-              child: Text(fmtDur(remaining), style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800)),
-            ),
+            if (repsStep)
+              _RepsCounter(
+                count: repCount,
+                target: it!.reps!,
+                elapsed: stepElapsedMs ~/ 1000,
+                onChange: (v) => setState(() => repCount = v.clamp(0, 99)),
+                onDone: () => _next(),
+              )
+            else
+              Ring(
+                value: step.seconds == 0 ? 0 : 1 - (stepElapsedMs / 1000 / step.seconds).clamp(0, 1).toDouble(),
+                color: color,
+                size: 132,
+                width: 10,
+                child: Text(fmtDur(remaining), style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800)),
+              ),
             const SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
@@ -400,4 +428,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ),
     );
   }
+}
+
+/// Licznik powtórzeń w serii: cel, korekta −/+ i „Gotowe”.
+class _RepsCounter extends StatelessWidget {
+  final int count, target, elapsed;
+  final ValueChanged<int> onChange;
+  final VoidCallback onDone;
+  const _RepsCounter({
+    required this.count,
+    required this.target,
+    required this.elapsed,
+    required this.onChange,
+    required this.onDone,
+  });
+
+  @override
+  Widget build(BuildContext context) => Column(children: [
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          IconButton.filledTonal(onPressed: () => onChange(count - 1), icon: const Icon(Icons.remove)),
+          SizedBox(
+            width: 120,
+            child: Column(children: [
+              Text('$count',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 52, fontWeight: FontWeight.w800, color: count >= target ? C.good : C.text)),
+              Text('cel $target · ${fmtDur(elapsed)}', style: const TextStyle(color: C.muted, fontSize: 12)),
+            ]),
+          ),
+          IconButton.filledTonal(onPressed: () => onChange(count + 1), icon: const Icon(Icons.add)),
+        ]),
+        const SizedBox(height: 10),
+        FilledButton.icon(
+          onPressed: onDone,
+          icon: const Icon(Icons.check),
+          label: const Text('Seria zrobiona'),
+          style: FilledButton.styleFrom(minimumSize: const Size(220, 52)),
+        ),
+      ]);
 }

@@ -12,6 +12,7 @@ import '../core/strava.dart';
 import '../core/tcx.dart';
 import 'muscle_map.dart';
 import 'session_widgets.dart';
+import 'stats_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -27,9 +28,16 @@ class HistoryScreen extends StatelessWidget {
           final list = s.sessions.reversed.toList();
           final now = DateTime.now();
           final month = s.sessions.where((x) => now.difference(x.start).inDays < 30).toList();
-          return Scaffold(
-            appBar: AppBar(title: const Text('Historia')),
-            body: list.isEmpty
+          return DefaultTabController(
+            length: 2,
+            child: Scaffold(
+            appBar: AppBar(
+              title: const Text('Postępy'),
+              bottom: const TabBar(tabs: [Tab(text: 'Przegląd'), Tab(text: 'Treningi')]),
+            ),
+            body: TabBarView(children: [
+              const StatsView(),
+              list.isEmpty
                 ? const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32),
@@ -79,6 +87,8 @@ class HistoryScreen extends StatelessWidget {
                         ),
                       ),
                   ]),
+            ]),
+          ),
           );
         },
       );
@@ -127,6 +137,10 @@ class _SessionScreenState extends State<SessionScreen> {
     final lib = Library.instance;
     // zsumowany czas na ćwiczenie
     final per = <String, int>{};
+    final repsBy = <String, List<int>>{};
+    for (final d in s.done) {
+      if (d.reps != null && d.side != 2) repsBy.putIfAbsent(d.exId, () => []).add(d.reps!);
+    }
     for (final d in s.done) {
       per[d.exId] = (per[d.exId] ?? 0) + d.seconds;
     }
@@ -179,7 +193,8 @@ class _SessionScreenState extends State<SessionScreen> {
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   if (s.feedback[e.key] == 1) const Text('trudne  ', style: TextStyle(color: C.bad)),
                   if (s.feedback[e.key] == -1) const Text('łatwe  ', style: TextStyle(color: C.good)),
-                  Text(fmtDur(e.value), style: const TextStyle(color: C.muted)),
+                  Text(repsBy[e.key] != null ? '${repsBy[e.key]!.join('/')} powt.' : fmtDur(e.value),
+                      style: const TextStyle(color: C.muted)),
                 ]),
               ),
           ]),

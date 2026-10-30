@@ -5,6 +5,7 @@ import '../core/models.dart';
 import '../core/store.dart';
 import 'figure_view.dart';
 import 'muscle_map.dart';
+import 'stats_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -235,6 +236,14 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         Text(st.count == 0
             ? 'Jeszcze nie wykonywane.'
             : 'Wykonane: ${st.count}×${st.last != null ? ', ostatnio ${fmtDate(st.last!)}' : ''}.'),
+        if (st.count > 0)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.show_chart, color: C.accent),
+            title: const Text('Postęp w tym ćwiczeniu'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExerciseProgressScreen(exId: e.id))),
+          ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Nie proponuj tego ćwiczenia'),
