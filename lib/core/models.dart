@@ -27,6 +27,27 @@ const limitLabels = ['kolana', 'plecy', 'nadgarstki', 'barki'];
 
 const muscleGroups = ['nogi', 'pośladki', 'klatka', 'plecy', 'barki', 'ramiona', 'brzuch'];
 
+/// Mięśnie na mapie (przód/tył) — klucze z assets/exercises.json i assets/muscles.json.
+const muscleLabel = {
+  'chest': 'Klatka piersiowa',
+  'shoulders': 'Barki',
+  'biceps': 'Biceps',
+  'triceps': 'Triceps',
+  'forearms': 'Przedramiona',
+  'abs': 'Brzuch',
+  'obliques': 'Mięśnie skośne',
+  'traps': 'Kaptury',
+  'upper_back': 'Górna część pleców',
+  'lats': 'Najszersze grzbietu',
+  'lower_back': 'Lędźwie',
+  'glutes': 'Pośladki',
+  'abductors': 'Boczna część bioder',
+  'adductors': 'Przywodziciele',
+  'quads': 'Przód uda',
+  'hamstrings': 'Tył uda',
+  'calves': 'Łydki',
+};
+
 class Exercise {
   final String id, name;
   final ExType type;
@@ -36,6 +57,7 @@ class Exercise {
   final bool impact, uni, isStatic;
   final String? hold, easier, harder;
   final FigAnim anim;
+  final Map<String, double> muscles; // 1 = główny, 0,5 = pomocniczy
 
   Exercise({
     required this.id,
@@ -51,6 +73,7 @@ class Exercise {
     required this.uni,
     required this.isStatic,
     required this.anim,
+    this.muscles = const {},
     this.hold,
     this.easier,
     this.harder,
@@ -75,6 +98,7 @@ class Exercise {
       easier: j['easier'] as String?,
       harder: j['harder'] as String?,
       anim: FigAnim.fromJson((j['anim'] as Map).cast<String, dynamic>(), lib),
+      muscles: ((j['m'] as Map?) ?? const {}).map((k, v) => MapEntry(k as String, (v as num).toDouble())),
     );
   }
 
@@ -102,12 +126,14 @@ const goalLabel = {
   Goal.mobility: 'Mobilność i zdrowe plecy',
 };
 
-enum WorkoutKind { fullBody, upper, lower, core, hiit, mobility, stretch }
+enum WorkoutKind { fullBody, upper, lower, back, arms, core, hiit, mobility, stretch }
 
 const kindLabel = {
   WorkoutKind.fullBody: 'Całe ciało',
   WorkoutKind.upper: 'Góra ciała',
   WorkoutKind.lower: 'Nogi i pośladki',
+  WorkoutKind.back: 'Plecy i barki',
+  WorkoutKind.arms: 'Ramiona i barki',
   WorkoutKind.core: 'Brzuch i core',
   WorkoutKind.hiit: 'Interwały HIIT',
   WorkoutKind.mobility: 'Mobilność',
@@ -137,6 +163,8 @@ class Profile {
   String? hrDeviceName;
   int? maxHrOverride;
   bool onboarded;
+  bool stravaAuto; // wysyłaj po treningu
+  bool stravaMatch; // uzupełnij aktywność z zegarka zamiast tworzyć nową
 
   Profile({
     this.name = '',
@@ -158,6 +186,8 @@ class Profile {
     this.hrDeviceName,
     this.maxHrOverride,
     this.onboarded = false,
+    this.stravaAuto = true,
+    this.stravaMatch = true,
   })  : equipment = equipment ?? {'chair'},
         limits = limits ?? {};
 
@@ -184,6 +214,8 @@ class Profile {
         'hrDeviceName': hrDeviceName,
         'maxHrOverride': maxHrOverride,
         'onboarded': onboarded,
+        'stravaAuto': stravaAuto,
+        'stravaMatch': stravaMatch,
       };
 
   factory Profile.fromJson(Map<String, dynamic> j) => Profile(
@@ -206,6 +238,8 @@ class Profile {
         hrDeviceName: j['hrDeviceName'] as String?,
         maxHrOverride: (j['maxHrOverride'] as num?)?.toInt(),
         onboarded: j['onboarded'] == true,
+        stravaAuto: j['stravaAuto'] != false,
+        stravaMatch: j['stravaMatch'] != false,
       );
 }
 
@@ -290,6 +324,8 @@ class Session {
   final List<int> hr; // średnie tętno co 5 s (0 = brak odczytu)
   final List<int> zones; // sekundy w strefach 1–5
   int rpe; // 1–10
+  int? stravaId; // aktywność w Stravie (uzupełniona lub wysłana)
+  bool stravaPending; // czeka na aktywność z zegarka
   final int readiness;
   final int plannedSeconds;
   Map<String, int> feedback; // ćwiczenie → -1 za łatwe, 1 za trudne
@@ -312,6 +348,8 @@ class Session {
     this.plannedSeconds = 0,
     Map<String, int>? feedback,
     this.inHealth = false,
+    this.stravaId,
+    this.stravaPending = false,
   }) : feedback = feedback ?? {};
 
   int get activeSeconds => done.fold(0, (s, d) => s + d.seconds);
@@ -338,6 +376,8 @@ class Session {
         'planned': plannedSeconds,
         'feedback': feedback,
         'inHealth': inHealth,
+        'stravaId': stravaId,
+        'stravaPending': stravaPending,
       };
 
   factory Session.fromJson(Map<String, dynamic> j) => Session(
@@ -359,6 +399,8 @@ class Session {
         plannedSeconds: (j['planned'] as num?)?.toInt() ?? 0,
         feedback: ((j['feedback'] as Map?) ?? const {}).map((k, v) => MapEntry(k as String, (v as num).toInt())),
         inHealth: j['inHealth'] == true,
+        stravaId: (j['stravaId'] as num?)?.toInt(),
+        stravaPending: j['stravaPending'] == true,
       );
 }
 
@@ -419,4 +461,38 @@ class HealthSnapshot {
   });
 
   static const empty = HealthSnapshot();
+}
+
+/// Pomiary ciała (każde pole opcjonalne).
+class Measurement {
+  final DateTime at;
+  final Map<String, double> values; // weight, waist, hips, chest, arm, thigh, fat
+
+  Measurement(this.at, this.values);
+
+  Map<String, dynamic> toJson() => {'at': at.toIso8601String(), 'v': values};
+
+  factory Measurement.fromJson(Map<String, dynamic> j) => Measurement(
+        DateTime.parse(j['at'] as String),
+        ((j['v'] as Map?) ?? const {}).map((k, v) => MapEntry(k as String, (v as num).toDouble())),
+      );
+}
+
+const measureLabel = {
+  'weight': ('Waga', 'kg'),
+  'waist': ('Talia', 'cm'),
+  'hips': ('Biodra', 'cm'),
+  'chest': ('Klatka', 'cm'),
+  'arm': ('Ramię', 'cm'),
+  'thigh': ('Udo', 'cm'),
+  'fat': ('Tkanka tłuszczowa', '%'),
+};
+
+/// Osoba w aplikacji (dane każdej w osobnym pliku).
+class UserRef {
+  final String id;
+  String name;
+  UserRef(this.id, this.name);
+  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+  factory UserRef.fromJson(Map<String, dynamic> j) => UserRef(j['id'] as String, j['name'] as String? ?? '');
 }

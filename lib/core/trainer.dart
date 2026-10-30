@@ -183,6 +183,8 @@ class Trainer {
     WorkoutKind.fullBody: ['nogi', 'klatka', 'plecy', 'pośladki', 'barki', 'brzuch'],
     WorkoutKind.upper: ['klatka', 'plecy', 'barki', 'ramiona'],
     WorkoutKind.lower: ['nogi', 'pośladki'],
+    WorkoutKind.back: ['plecy', 'barki', 'plecy'],
+    WorkoutKind.arms: ['ramiona', 'barki', 'ramiona'],
     WorkoutKind.core: ['brzuch', 'plecy'],
     WorkoutKind.hiit: ['całe ciało', 'nogi', 'brzuch'],
     WorkoutKind.mobility: ['plecy', 'nogi', 'barki'],
@@ -190,8 +192,10 @@ class Trainer {
   };
 
   static const _goalRotation = {
-    Goal.general: [WorkoutKind.fullBody, WorkoutKind.upper, WorkoutKind.lower, WorkoutKind.core, WorkoutKind.hiit],
-    Goal.strength: [WorkoutKind.upper, WorkoutKind.lower, WorkoutKind.fullBody, WorkoutKind.core],
+    Goal.general: [WorkoutKind.fullBody, WorkoutKind.upper, WorkoutKind.lower, WorkoutKind.core, WorkoutKind.back,
+      WorkoutKind.hiit],
+    Goal.strength: [WorkoutKind.upper, WorkoutKind.lower, WorkoutKind.back, WorkoutKind.fullBody, WorkoutKind.arms,
+      WorkoutKind.core],
     Goal.burn: [WorkoutKind.hiit, WorkoutKind.fullBody, WorkoutKind.lower, WorkoutKind.hiit, WorkoutKind.upper],
     Goal.fitness: [WorkoutKind.hiit, WorkoutKind.fullBody, WorkoutKind.core, WorkoutKind.lower],
     Goal.mobility: [WorkoutKind.mobility, WorkoutKind.core, WorkoutKind.stretch, WorkoutKind.fullBody],

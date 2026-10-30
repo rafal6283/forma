@@ -35,9 +35,10 @@ def props_for(ex, first):
             x0 = pt[0] + pr.get("dx", 0) - pr["w"] / 2
             out.append(("chair", x0, pt[1], pr["w"]))
         elif pr["type"] == "wall":
-            out.append(("wall", pr["x"]))
+            x = first[pr["at"]][0] + pr.get("dx", 0) if "at" in pr else pr["x"]
+            out.append(("wall", x))
         elif pr["type"] == "bar":
-            out.append(("bar", first["haN"][1]))
+            out.append(("bar", first["haN"][1], first["haN"][0]))
     return out
 
 
@@ -53,7 +54,7 @@ def draw_pose(dr, j, ox, oy, front, hold, props):
         elif pr[0] == "wall":
             dr.line([P((pr[1], 0)), P((pr[1], -2))], fill=(150, 120, 80), width=3)
         elif pr[0] == "bar":
-            dr.line([P((-0.6, pr[1])), P((0.6, pr[1]))], fill=(150, 120, 80), width=3)
+            dr.line([P((pr[2] - 0.6, pr[1])), P((pr[2] + 0.6, pr[1]))], fill=(150, 120, 80), width=3)
     far = (150, 170, 220)
     near = (30, 60, 160)
     if front:
@@ -69,7 +70,7 @@ def draw_pose(dr, j, ox, oy, front, hold, props):
             dr.line([P(j["hpN"]), P(j["hpF"])], fill=(20, 20, 20), width=4)
         dr.line([P(j[f"hp{side}"]), P(j[f"kn{side}"]), P(j[f"an{side}"]), P(j[f"to{side}"])], fill=col, width=4)
         dr.line([P(j[f"sh{side}"]), P(j[f"el{side}"]), P(j[f"ha{side}"])], fill=col, width=4)
-        if hold:
+        if hold and (hold not in ("kb", "db1") or side == "N"):
             x, y = P(j[f"ha{side}"])
             dr.rectangle([x - 5, y - 3, x + 5, y + 3], fill=(200, 60, 40))
 

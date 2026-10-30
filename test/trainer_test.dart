@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:forma/core/figure.dart';
 import 'package:forma/core/library.dart';
 import 'package:forma/core/models.dart';
+import 'package:forma/core/tcx.dart';
 import 'package:forma/core/trainer.dart';
 
 void main() {
@@ -19,6 +20,38 @@ void main() {
       if (e.easier != null) expect(lib[e.easier!], isNotNull, reason: e.id);
       if (e.harder != null) expect(lib[e.harder!], isNotNull, reason: e.id);
     }
+  });
+
+  test('każde ćwiczenie ma mięśnie, a każda partia ma ćwiczenia', () {
+    for (final e in lib.all) {
+      expect(e.muscles, isNotEmpty, reason: e.id);
+      for (final m in e.muscles.keys) {
+        expect(muscleLabel.containsKey(m), isTrue, reason: '${e.id}: $m');
+      }
+    }
+    for (final g in muscleGroups) {
+      final n = lib.all.where((e) => e.groups.contains(g)).length;
+      expect(n, greaterThanOrEqualTo(8), reason: g);
+    }
+  });
+
+  test('TCX i opis dla Stravy', () {
+    final s = Session(
+      id: '42',
+      start: DateTime(2026, 10, 30, 18),
+      end: DateTime(2026, 10, 30, 18, 20),
+      kind: WorkoutKind.back,
+      title: 'Plecy i barki',
+      done: [DoneItem('door_row', 40, 0), DoneItem('door_row', 40, 0), DoneItem('superman', 30, 0)],
+      kcal: 150,
+      avgHr: 120,
+      maxHr: 150,
+      hr: [100, 110, 0, 130],
+    );
+    final x = sessionTcx(s);
+    expect(x, contains('<HeartRateBpm><Value>130</Value></HeartRateBpm>'));
+    expect(x, contains('<Calories>150</Calories>'));
+    expect(sessionDescription(s), contains('Wiosłowanie przy framudze: 2 × 40 s'));
   });
 
   test('postać nie wchodzi w podłogę', () {

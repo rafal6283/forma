@@ -4,6 +4,7 @@ import '../core/library.dart';
 import '../core/models.dart';
 import '../core/store.dart';
 import 'figure_view.dart';
+import 'muscle_map.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -17,6 +18,7 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   ExType? type;
+  String? group;
   String query = '';
   bool onlyAvailable = false;
 
@@ -25,6 +27,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final owned = Store.instance.profile.equipment;
     final list = Library.instance.all.where((e) {
       if (type != null && e.type != type) return false;
+      if (group != null && !e.groups.contains(group) && !e.muscles.keys.any((m) => muscleLabel[m] == group)) return false;
       if (onlyAvailable && !e.availableWith(owned)) return false;
       if (query.isNotEmpty) {
         final q = query.toLowerCase();
@@ -64,6 +67,23 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ChoiceChip(label: Text(exTypeLabel[t]!), selected: type == t, onSelected: (_) => setState(() => type = t)),
             ],
           ]),
+        ),
+        SizedBox(
+          height: 44,
+          child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16), children: [
+            ChoiceChip(label: const Text('Wszystkie partie'), selected: group == null, onSelected: (_) => setState(() => group = null)),
+            for (final g in muscleGroups) ...[
+              const SizedBox(width: 8),
+              ChoiceChip(label: Text(g), selected: group == g, onSelected: (_) => setState(() => group = g)),
+            ],
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text('${list.length} ćwiczeń', style: const TextStyle(color: C.muted, fontSize: 12)),
+          ),
         ),
         Expanded(
           child: ListView.builder(
@@ -162,6 +182,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
           if (e.uni) const Chip(label: Text('na każdą stronę')),
           if (e.impact) const Chip(label: Text('ze skokami')),
         ]),
+        if (e.muscles.isNotEmpty) ...[
+          const SectionTitle('Mięśnie'),
+          MuscleMap(e.muscles, height: 200),
+        ],
         if (e.needsEquipment) ...[
           const SectionTitle('Sprzęt'),
           Text(e.eq.map((q) => q.split('|').map((x) => equipmentLabel[x] ?? x).join(' lub ')).join(', ')),

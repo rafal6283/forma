@@ -7,6 +7,8 @@ import '../core/health_sync.dart';
 import '../core/library.dart';
 import '../core/models.dart';
 import '../core/store.dart';
+import '../core/strava.dart';
+import 'muscle_map.dart';
 import 'session_widgets.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -65,6 +67,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
     if (!mounted) return;
     toast(context, msg);
     Navigator.pop(context);
+    // Strava w tle — wynik w historii treningu
+    if (store.profile.stravaAuto && await Strava.instance.connected()) {
+      try {
+        await Strava.instance.push(s);
+      } catch (e) {
+        debugPrint('Strava: $e');
+      }
+    }
   }
 
   @override
@@ -96,6 +106,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   SessionStats(s),
+                  if (muscleLoad(s.done).isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    MuscleMap(muscleLoad(s.done), height: 220),
+                  ],
                   if (s.hr.where((v) => v > 0).length > 2) ...[
                     const SizedBox(height: 16),
                     HrChart(s),

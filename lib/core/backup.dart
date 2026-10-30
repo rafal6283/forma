@@ -13,15 +13,14 @@ class FormaBackup extends BackupAdapter {
   String get appName => 'Forma';
 
   @override
-  String get contentNote => 'W kopii: profil, historia treningów, samopoczucie, pomiary HRV i oceny ćwiczeń.';
+  String get contentNote => 'W kopii: wszystkie osoby — profile, treningi, pomiary ciała, samopoczucie, HRV i oceny ćwiczeń.';
 
   @override
-  Future<BackupContent> export() async => BackupContent(utf8.encode(Store.instance.exportJson()));
+  Future<BackupContent> export() async => BackupContent(utf8.encode(await Store.instance.exportAll()));
 
   @override
   Future<void> import(RestoredBackup r, void Function(String step) progress) async {
     progress('Wczytuję dane…');
-    Store.instance.importJson(utf8.decode(r.data));
-    await Store.instance.save();
+    await Store.instance.importAll(utf8.decode(r.data));
   }
 }

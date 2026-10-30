@@ -112,11 +112,14 @@ class _Prop {
         final x0 = pt.dx + ((p['dx'] as num?)?.toDouble() ?? 0) - w / 2;
         return _Prop('chair', Rect.fromLTRB(x0, pt.dy, x0 + w, 0));
       case 'wall':
-        final x = (p['x'] as num?)?.toDouble() ?? -0.1;
-        return _Prop('wall', Rect.fromLTRB(x - 0.04, -1.9, x, 0));
+        final at = p['at'] as String?;
+        final x = at != null
+            ? first[at].dx + ((p['dx'] as num?)?.toDouble() ?? 0)
+            : (p['x'] as num?)?.toDouble() ?? -0.1;
+        return _Prop('wall', Rect.fromLTRB(x, -1.9, x + 0.04, 0));
       case 'bar':
-        final y = first['haN'].dy;
-        return _Prop('bar', Rect.fromLTRB(-0.55, y - 0.02, 0.55, y + 0.02));
+        final h = first['haN'];
+        return _Prop('bar', Rect.fromLTRB(h.dx - 0.55, h.dy - 0.02, h.dx + 0.55, h.dy + 0.02));
     }
     return _Prop('none', Rect.zero);
   }
@@ -214,7 +217,8 @@ class _FigurePainter extends CustomPainter {
     final hold = scene.ex.hold;
     if (hold != null) {
       final hp = Paint()..color = C.accent;
-      for (final k in front ? ['haN', 'haF'] : ['haF', 'haN']) {
+      final single = hold == 'kb' || hold == 'db1';
+      for (final k in single ? ['haN'] : (front ? ['haN', 'haF'] : ['haF', 'haN'])) {
         final c = P(j[k]);
         switch (hold) {
           case 'kb':
@@ -225,7 +229,6 @@ class _FigurePainter extends CustomPainter {
             final r = Rect.fromCenter(center: c, width: s * 0.16, height: s * 0.06);
             canvas.drawRRect(RRect.fromRectAndRadius(r, Radius.circular(s * 0.02)), hp);
         }
-        if (hold == 'kb') break;
       }
       if (hold == 'band') {
         canvas.drawLine(

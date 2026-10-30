@@ -9,6 +9,8 @@ import '../core/models.dart';
 import '../core/store.dart';
 import '../core/voice.dart';
 import 'hr_screen.dart';
+import 'strava_screen.dart';
+import 'users.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -306,10 +308,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ]),
         ),
+        const SectionTitle('Strava'),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.directions_run),
+            title: const Text('Strava'),
+            subtitle: const Text('Uzupełnianie aktywności z zegarka lub wysyłka treningu', style: TextStyle(color: C.muted)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StravaScreen())),
+          ),
+        ),
         const SectionTitle('Dane'),
-        const Card(child: KoofrBackupTile()),
+        Card(
+          child: Column(children: [
+            ListTile(
+              leading: const Icon(Icons.group_outlined),
+              title: const Text('Osoby'),
+              subtitle: Text('${store.users.length} · teraz: ${p.name.isEmpty ? '—' : p.name}', style: const TextStyle(color: C.muted)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UsersScreen())),
+            ),
+            const KoofrBackupTile(),
+          ]),
+        ),
         const SizedBox(height: 24),
-        const Center(child: Text('Forma 1.0 · trener działa na telefonie, bez chmury', style: TextStyle(color: C.muted, fontSize: 12))),
+        const Center(child: Text('Forma 1.1 · trener działa na telefonie, bez chmury', style: TextStyle(color: C.muted, fontSize: 12))),
       ]),
     );
   }

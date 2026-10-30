@@ -12,6 +12,8 @@ import 'ui/exercise_screen.dart';
 import 'ui/history_screen.dart';
 import 'ui/home_screen.dart';
 import 'ui/onboarding_screen.dart';
+import 'ui/muscle_map.dart';
+import 'ui/profile_screen.dart';
 import 'ui/settings_screen.dart';
 import 'ui/theme.dart';
 
@@ -25,6 +27,7 @@ void koofrCallback() => KoofrBackground.dispatch(() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Library.load();
+  await MuscleShapes.load();
   await Store.instance.load();
   final p = Store.instance.profile;
   Voice.instance
@@ -64,9 +67,13 @@ class _FormaAppState extends State<FormaApp> {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        home: Store.instance.profile.onboarded
-            ? const Shell()
-            : OnboardingScreen(onDone: () => setState(() {})),
+        // przełączenie osoby podmienia cały ekran (nowa osoba zaczyna od wprowadzenia)
+        home: ListenableBuilder(
+          listenable: Store.instance,
+          builder: (context, _) => Store.instance.profile.onboarded
+              ? Shell(key: ValueKey(Store.instance.userId))
+              : OnboardingScreen(key: ValueKey('ob-${Store.instance.userId}'), onDone: () => setState(() {})),
+        ),
       );
 }
 
@@ -86,6 +93,7 @@ class _ShellState extends State<Shell> {
           HomeScreen(),
           LibraryScreen(),
           HistoryScreen(),
+          ProfileScreen(),
           SettingsScreen(),
         ]),
         bottomNavigationBar: NavigationBar(
@@ -96,6 +104,7 @@ class _ShellState extends State<Shell> {
             NavigationDestination(
                 icon: Icon(Icons.fitness_center_outlined), selectedIcon: Icon(Icons.fitness_center), label: 'Ćwiczenia'),
             NavigationDestination(icon: Icon(Icons.insights_outlined), selectedIcon: Icon(Icons.insights), label: 'Historia'),
+            NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Ty'),
             NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Ustawienia'),
           ],
         ),

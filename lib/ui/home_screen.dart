@@ -4,12 +4,14 @@ import '../core/coach.dart';
 import '../core/hr.dart';
 import '../core/models.dart';
 import '../core/store.dart';
+import '../core/strava.dart';
 import '../core/trainer.dart';
 import 'checkin_sheet.dart';
 import 'hr_screen.dart';
 import 'hrv_screen.dart';
 import 'preview_screen.dart';
 import 'theme.dart';
+import 'users.dart';
 import 'widgets.dart';
 
 /// „Dziś”: gotowość, trening dobrany przez trenera, tydzień.
@@ -33,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Store.instance.addListener(_onStore);
     _regen();
     refreshHealth();
+    Strava.instance.retryPending();
   }
 
   @override
@@ -112,6 +115,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ]),
                 ),
                 const HrBadge(),
+                const SizedBox(width: 8),
+                const UserChip(),
               ]),
               const SizedBox(height: 16),
               _ReadinessCard(r: r),

@@ -58,6 +58,19 @@ RATIONALE_FILTER = '''            <intent-filter>
             </intent-filter>
 '''
 
+STRAVA_CALLBACK = '''        <activity
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true"
+            android:taskAffinity="">
+            <intent-filter android:label="flutter_web_auth_2">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="forma"/>
+            </intent-filter>
+        </activity>
+'''
+
 PERMISSION_ALIAS = '''        <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
@@ -72,6 +85,9 @@ PERMISSION_ALIAS = '''        <activity-alias
 
 QUERIES = '''    <queries>
         <package android:name="com.google.android.apps.healthdata"/>
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService"/>
+        </intent>
         <intent>
             <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>
         </intent>
@@ -154,6 +170,8 @@ def patch_android():
     if "ACTION_SHOW_PERMISSIONS_RATIONALE" not in m.split("<queries>")[0]:
         # filtr na MainActivity: Health Connect pokazuje stąd uzasadnienie uprawnień
         m = re.sub(r'(<activity\s+android:name="\.MainActivity"[^>]*>\n)', lambda mm: mm.group(1) + RATIONALE_FILTER, m, count=1)
+    if "flutter_web_auth_2.CallbackActivity" not in m:
+        m = m.replace("    </application>", STRAVA_CALLBACK + "    </application>", 1)
     if "ViewPermissionUsageActivity" not in m:
         m = m.replace("    </application>", PERMISSION_ALIAS + "    </application>", 1)
     if "com.google.android.apps.healthdata" not in m:

@@ -1,9 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/health_sync.dart';
 import '../core/library.dart';
 import '../core/models.dart';
 import '../core/store.dart';
+import '../core/strava.dart';
+import '../core/tcx.dart';
+import 'muscle_map.dart';
 import 'session_widgets.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -158,6 +165,10 @@ class _SessionScreenState extends State<SessionScreen> {
             ]),
           ),
         ),
+        if (muscleLoad(s.done).isNotEmpty) ...[
+          const SectionTitle('Pracujące mięśnie'),
+          Card(child: Padding(padding: const EdgeInsets.all(16), child: MuscleMap(muscleLoad(s.done), height: 220))),
+        ],
         const SectionTitle('Ćwiczenia'),
         Card(
           child: Column(children: [
@@ -173,6 +184,8 @@ class _SessionScreenState extends State<SessionScreen> {
               ),
           ]),
         ),
+        const SectionTitle('Strava'),
+        _StravaCard(session: s),
         if (Store.instance.profile.healthConnect && !s.inHealth) ...[
           const SizedBox(height: 16),
           OutlinedButton.icon(
@@ -194,6 +207,93 @@ class _SessionScreenState extends State<SessionScreen> {
           ),
         ],
       ]),
+    );
+  }
+}
+
+class _StravaCard extends StatefulWidget {
+  final Session session;
+  const _StravaCard({required this.session});
+
+  @override
+  State<_StravaCard> createState() => _StravaCardState();
+}
+
+class _StravaCardState extends State<_StravaCard> {
+  bool busy = false;
+  bool? connected;
+
+  @override
+  void initState() {
+    super.initState();
+    Strava.instance.connected().then((v) {
+      if (mounted) setState(() => connected = v);
+    });
+  }
+
+  Future<void> _run(Future<String> Function() f) async {
+    setState(() => busy = true);
+    try {
+      final msg = await f();
+      if (mounted) toast(context, msg);
+    } catch (e) {
+      if (mounted) toast(context, '$e');
+    }
+    if (mounted) setState(() => busy = false);
+  }
+
+  Future<void> _exportTcx() async {
+    final s = widget.session;
+    final dir = await getTemporaryDirectory();
+    final f = File('${dir.path}/forma-${s.start.toIso8601String().substring(0, 16).replaceAll(':', '-')}.tcx');
+    await f.writeAsString(sessionTcx(s));
+    await SharePlus.instance.share(ShareParams(files: [XFile(f.path)], subject: '${s.title} — Forma'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.session;
+    final status = s.stravaId != null
+        ? 'W Stravie ✓'
+        : s.stravaPending
+            ? 'Czeka na aktywność z zegarka'
+            : 'Nie wysłano';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(status, style: TextStyle(color: s.stravaId != null ? C.good : C.muted, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 10),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            if (connected == true && s.stravaId == null) ...[
+              FilledButton.tonal(
+                onPressed: busy ? null : () => _run(() => Strava.instance.push(s)),
+                child: const Text('Uzupełnij z zegarka'),
+              ),
+              OutlinedButton(
+                onPressed: busy ? null : () => _run(() => Strava.instance.push(s, forceUpload: true)),
+                child: const Text('Wyślij jako nową'),
+              ),
+            ],
+            if (connected == true && s.stravaId != null)
+              OutlinedButton(
+                onPressed: busy ? null : () => _run(() => Strava.instance.push(s)),
+                child: const Text('Zaktualizuj opis'),
+              ),
+            OutlinedButton.icon(
+              onPressed: _exportTcx,
+              icon: const Icon(Icons.ios_share, size: 18),
+              label: const Text('Plik TCX'),
+            ),
+          ]),
+          if (connected == false)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Połącz Stravę w Ustawieniach albo wgraj plik TCX na strava.com/upload.',
+                  style: TextStyle(color: C.muted, fontSize: 12)),
+            ),
+        ]),
+      ),
     );
   }
 }
