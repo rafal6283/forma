@@ -2,9 +2,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../core/catalog.dart';
 import '../core/library.dart';
 import '../core/models.dart';
 import '../core/store.dart';
+import 'fit_test_screen.dart';
 import 'muscle_map.dart';
 import 'theme.dart';
 import 'users.dart';
@@ -132,6 +134,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ]),
                 ),
               ),
+              SectionTitle('Forma', trailing: TextButton(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FitTestScreen())),
+                child: const Text('Nowy test'),
+              )),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: s.tests.isEmpty
+                      ? const Text('Zrób test formy, a zobaczysz tu wynik 0–100 i jego zmiany co miesiąc.',
+                          style: TextStyle(color: C.muted))
+                      : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            Expanded(child: Stat('wynik formy', '${s.tests.last.score}', color: C.readiness(s.tests.last.score))),
+                            if (s.tests.length > 1)
+                              Expanded(
+                                child: Stat('zmiana',
+                                    '${s.tests.last.score - s.tests[s.tests.length - 2].score >= 0 ? '+' : ''}${s.tests.last.score - s.tests[s.tests.length - 2].score}'),
+                              ),
+                            Expanded(child: Stat('testów', '${s.tests.length}')),
+                          ]),
+                          if (s.tests.length >= 2) ...[
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              height: 110,
+                              child: _TrendChart([for (final t in s.tests) (t.at, t.score.toDouble())], unit: 'pkt'),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Wrap(spacing: 6, runSpacing: 6, children: [
+                            for (final e in s.tests.last.parts.entries)
+                              Chip(visualDensity: VisualDensity.compact, label: Text('${e.key} ${e.value}')),
+                          ]),
+                        ]),
+                ),
+              ),
+              const SectionTitle('Odznaki'),
+              _Badges(list: badges(s)),
               const SectionTitle('Mięśnie w tym tygodniu'),
               Card(
                 child: Padding(
@@ -347,4 +386,49 @@ class _TrendPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_TrendPainter o) => o.pts != pts;
+}
+
+class _Badges extends StatelessWidget {
+  final List<Achievement> list;
+  const _Badges({required this.list});
+
+  @override
+  Widget build(BuildContext context) {
+    final got = list.where((b) => b.earned).length;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text('$got z ${list.length}', style: const TextStyle(color: C.muted)),
+          ),
+          GridView.count(
+            crossAxisCount: 4,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 0.8,
+            children: [
+              for (final b in list)
+                Tooltip(
+                  message: b.desc,
+                  triggerMode: TooltipTriggerMode.tap,
+                  child: Opacity(
+                    opacity: b.earned ? 1 : 0.3,
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Text(b.icon, style: const TextStyle(fontSize: 30)),
+                      const SizedBox(height: 4),
+                      Text(b.name,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          style: TextStyle(fontSize: 11, color: b.earned ? C.text : C.muted)),
+                    ]),
+                  ),
+                ),
+            ],
+          ),
+        ]),
+      ),
+    );
+  }
 }

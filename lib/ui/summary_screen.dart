@@ -106,6 +106,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   SessionStats(s),
+                  if (s.hrr != null) ...[
+                    const SizedBox(height: 10),
+                    Text('Regeneracja: tętno spadło o ${s.hrr} uderzeń w minutę${s.hrr! >= 25 ? ' — bardzo dobrze' : s.hrr! >= 12 ? '' : ' — organizm jest zmęczony'}',
+                        style: const TextStyle(color: C.good)),
+                  ],
                   if (muscleLoad(s.done).isNotEmpty) ...[
                     const SizedBox(height: 16),
                     MuscleMap(muscleLoad(s.done), height: 220),

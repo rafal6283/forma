@@ -360,6 +360,8 @@ class Trainer {
     String? reason,
     double load = 1,
     String? programDay,
+    Set<String> prefer = const {},
+    bool quiet = false,
   }) {
     final rnd = math.Random(seed == 0 ? now.millisecondsSinceEpoch : seed);
     final fmt = format ?? recommendFormat(kind, readiness);
@@ -374,7 +376,7 @@ class Trainer {
       if (hidden.contains(e.id)) return false;
       if (!e.availableWith(profile.equipment)) return false;
       if (e.stress.any(profile.limits.contains)) return false;
-      if (e.impact && (_jumpsOff || r < 45)) return false;
+      if (e.impact && (_jumpsOff || r < 45 || quiet)) return false;
       return true;
     }).toList();
 
@@ -388,6 +390,7 @@ class Trainer {
       final last = exLast[e.id];
       if (last != null && now.difference(last).inHours < 48) s -= 1.2;
       if (favorites.contains(e.id)) s += 1;
+      if (prefer.contains(e.id)) s += 3.5; // ćwiczenia programu
       if (e.needsEquipment) s += 0.8;
       // w seriach na powtórzenia unikamy ćwiczeń na czas (deski) i skoków
       if (repsMode && (e.isStatic || e.impact)) s -= 3;
@@ -753,10 +756,20 @@ class Trainer {
   /// Mnożnik objętości: 3 tygodnie wzrostu, 4. lżejszy.
   static double weekLoad(int week) => week % 4 == 0 ? 0.75 : 1 + 0.06 * ((week - 1) % 4);
 
-  Program buildProgram({required int weeks, required List<int> weekdays, required int minutes, DateTime? start}) {
+  Program buildProgram({
+    required int weeks,
+    required List<int> weekdays,
+    required int minutes,
+    DateTime? start,
+    List<(WorkoutKind, WorkoutFormat)>? week,
+    String? name,
+    String? templateId,
+    List<String> prefer = const [],
+    bool quiet = false,
+  }) {
     final from = DateTime((start ?? now).year, (start ?? now).month, (start ?? now).day);
     final wd = [...weekdays]..sort();
-    final tpl = weekTemplate(profile.goal, wd.length);
+    final tpl = week ?? weekTemplate(profile.goal, wd.length);
     final days = <ProgramDay>[];
     // pierwszy tydzień liczymy od poniedziałku tygodnia startu; dni przed startem przesuwamy na kolejne wolne
     var monday = from.subtract(Duration(days: from.weekday - 1));
@@ -780,12 +793,15 @@ class Trainer {
     }
     return Program(
       id: 'p${now.millisecondsSinceEpoch}',
-      name: '${goalLabel[profile.goal]} · $weeks tyg.',
+      name: name ?? '${goalLabel[profile.goal]} · $weeks tyg.',
       goal: profile.goal,
       start: from,
       weeks: weeks,
       weekdays: wd,
       days: days,
+      templateId: templateId,
+      prefer: prefer,
+      quiet: quiet,
     );
   }
 

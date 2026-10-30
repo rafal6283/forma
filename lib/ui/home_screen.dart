@@ -11,6 +11,9 @@ import 'hr_screen.dart';
 import 'hrv_screen.dart';
 import 'preview_screen.dart';
 import 'program_screen.dart';
+import 'catalog_screen.dart';
+import 'fit_test_screen.dart';
+import '../core/catalog.dart';
 import 'theme.dart';
 import 'users.dart';
 import 'widgets.dart';
@@ -159,6 +162,8 @@ class _HomeScreenState extends State<HomeScreen> {
               }, reason: _reason),
               const SectionTitle('Plan'),
               const ProgramCard(),
+              const SizedBox(height: 10),
+              const _Extras(),
               const SectionTitle('Ten tydzień'),
               _WeekCard(sessions: s.sessions, target: s.profile.daysPerWeek),
             ],
@@ -447,5 +452,58 @@ class _WeekCard extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+/// Wyzwania w toku, katalog programów i przypomnienie o teście formy.
+class _Extras extends StatelessWidget {
+  const _Extras();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = Store.instance;
+    final active = [
+      for (final c in challengeDefs)
+        if (s.challenges[c.id]?.active == true && (s.challenges[c.id]!.done.length < c.days)) c,
+    ];
+    final lastTest = s.tests.isEmpty ? null : s.tests.last;
+    final testDue = lastTest == null ? s.sessions.length >= 1 : DateTime.now().difference(lastTest.at).inDays >= 28;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      for (final c in active) ChallengeTile(c: c, progress: s.challenges[c.id], compact: true),
+      Row(children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CatalogScreen())),
+            icon: const Icon(Icons.auto_awesome_motion, size: 18),
+            label: const Text('Programy'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CatalogScreen(tab: 1))),
+            icon: const Icon(Icons.emoji_events_outlined, size: 18),
+            label: const Text('Wyzwania'),
+          ),
+        ),
+      ]),
+      const SizedBox(height: 8),
+      Card(
+        child: ListTile(
+          leading: Icon(Icons.speed, color: testDue ? C.accent : C.muted),
+          title: Text(lastTest == null ? 'Test formy' : 'Test formy · wynik ${lastTest.score}'),
+          subtitle: Text(
+            lastTest == null
+                ? '10 minut: pompki, przysiady, deska i tętno — punkt wyjścia do porównań'
+                : testDue
+                    ? 'Minęły 4 tygodnie — czas sprawdzić postęp'
+                    : 'Następny za ${28 - DateTime.now().difference(lastTest.at).inDays} dni',
+            style: const TextStyle(color: C.muted),
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FitTestScreen())),
+        ),
+      ),
+    ]);
   }
 }

@@ -159,6 +159,11 @@ class _StatsViewState extends State<StatsView> {
                 const Text('Średnie tętno na treningu', style: TextStyle(color: C.muted)),
                 SizedBox(height: 70, child: _Line([for (final x in list) if (x.avgHr != null) x.avgHr!.toDouble()], C.bad)),
               ],
+              if (list.where((x) => x.hrr != null).length >= 2) ...[
+                const SizedBox(height: 12),
+                const Text('Regeneracja tętna po treningu (spadek w minutę)', style: TextStyle(color: C.muted)),
+                SizedBox(height: 70, child: _Line([for (final x in list) if (x.hrr != null) x.hrr!.toDouble()], C.good)),
+              ],
               if (s.hrv.length >= 3) ...[
                 const SizedBox(height: 12),
                 const Text('HRV rano (ms)', style: TextStyle(color: C.muted)),

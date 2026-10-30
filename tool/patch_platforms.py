@@ -36,6 +36,7 @@ def resize(src, dst, px):
 
 ANDROID_PERMS = [
     '<uses-permission android:name="android.permission.INTERNET"/>',
+    '<uses-permission android:name="android.permission.RECORD_AUDIO"/>',
     '<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>',
     '<uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>',
     '<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>',
@@ -87,6 +88,9 @@ QUERIES = '''    <queries>
         <package android:name="com.google.android.apps.healthdata"/>
         <intent>
             <action android:name="android.support.customtabs.action.CustomTabsService"/>
+        </intent>
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
         </intent>
         <intent>
             <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>
@@ -227,6 +231,8 @@ def patch_ios():
     pl["NSHealthShareUsageDescription"] = (
         "Forma odczytuje sen, tętno spoczynkowe, HRV i wagę, żeby dopasować trening do Twojej formy.")
     pl["NSHealthUpdateUsageDescription"] = "Forma zapisuje treningi, tętno i spalone kalorie w aplikacji Zdrowie."
+    pl["NSMicrophoneUsageDescription"] = "Forma słucha komend głosowych podczas treningu („dalej”, „pauza”, „za trudne”)."
+    pl["NSSpeechRecognitionUsageDescription"] = "Rozpoznawanie mowy zamienia Twoje komendy w sterowanie treningiem."
     with open(plist_path, "wb") as f:
         plistlib.dump(pl, f)
     log("Info.plist: Bluetooth i Zdrowie")

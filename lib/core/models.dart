@@ -193,6 +193,8 @@ class Profile {
   String? hrDeviceName;
   int? maxHrOverride;
   bool onboarded;
+  bool hrControl; // przerwy i podpowiedzi wg tętna, pomiar regeneracji
+  bool voiceControl; // komendy głosowe w trakcie treningu
   bool stravaAuto; // wysyłaj po treningu
   bool stravaMatch; // uzupełnij aktywność z zegarka zamiast tworzyć nową
 
@@ -216,6 +218,8 @@ class Profile {
     this.hrDeviceName,
     this.maxHrOverride,
     this.onboarded = false,
+    this.hrControl = true,
+    this.voiceControl = false,
     this.stravaAuto = true,
     this.stravaMatch = true,
   })  : equipment = equipment ?? {'chair'},
@@ -244,6 +248,8 @@ class Profile {
         'hrDeviceName': hrDeviceName,
         'maxHrOverride': maxHrOverride,
         'onboarded': onboarded,
+        'hrControl': hrControl,
+        'voiceControl': voiceControl,
         'stravaAuto': stravaAuto,
         'stravaMatch': stravaMatch,
       };
@@ -268,6 +274,8 @@ class Profile {
         hrDeviceName: j['hrDeviceName'] as String?,
         maxHrOverride: (j['maxHrOverride'] as num?)?.toInt(),
         onboarded: j['onboarded'] == true,
+        hrControl: j['hrControl'] != false,
+        voiceControl: j['voiceControl'] == true,
         stravaAuto: j['stravaAuto'] != false,
         stravaMatch: j['stravaMatch'] != false,
       );
@@ -335,6 +343,7 @@ class WorkoutPlan {
   String intensity;
   List<String> reasons;
   String? programDay; // dzień planu, który ten trening realizuje
+  String? challenge; // dzień wyzwania
 
   WorkoutPlan({
     required this.kind,
@@ -345,6 +354,7 @@ class WorkoutPlan {
     required this.intensity,
     required this.reasons,
     this.programDay,
+    this.challenge,
   });
 
   int get seconds => items.fold(0, (s, i) => s + i.work + i.rest);
@@ -383,6 +393,8 @@ class Session {
   int rpe; // 1–10
   final WorkoutFormat format;
   final String? programDay;
+  final String? challenge; // „plank30:7” = wyzwanie, dzień
+  final int? hrr; // spadek tętna w minutę po treningu
   int? stravaId; // aktywność w Stravie (uzupełniona lub wysłana)
   bool stravaPending; // czeka na aktywność z zegarka
   final int readiness;
@@ -411,6 +423,8 @@ class Session {
     this.stravaPending = false,
     this.format = WorkoutFormat.circuit,
     this.programDay,
+    this.challenge,
+    this.hrr,
   }) : feedback = feedback ?? {};
 
   int get activeSeconds => done.fold(0, (s, d) => s + d.seconds);
@@ -441,6 +455,8 @@ class Session {
         'stravaPending': stravaPending,
         'format': format.name,
         if (programDay != null) 'programDay': programDay,
+        if (challenge != null) 'challenge': challenge,
+        if (hrr != null) 'hrr': hrr,
       };
 
   factory Session.fromJson(Map<String, dynamic> j) => Session(
@@ -466,6 +482,8 @@ class Session {
         stravaPending: j['stravaPending'] == true,
         format: formatOf(j['format'] as String?),
         programDay: j['programDay'] as String?,
+        challenge: j['challenge'] as String?,
+        hrr: (j['hrr'] as num?)?.toInt(),
       );
 }
 
@@ -627,6 +645,9 @@ class Program {
   final List<int> weekdays; // 1 = pon … 7 = ndz
   final List<ProgramDay> days;
   bool active;
+  final String? templateId; // gotowy program z katalogu
+  final List<String> prefer; // ćwiczenia, które ten program stawia na pierwszym miejscu
+  final bool quiet; // bez skoków
 
   Program({
     required this.id,
@@ -637,6 +658,9 @@ class Program {
     required this.weekdays,
     required this.days,
     this.active = true,
+    this.templateId,
+    this.prefer = const [],
+    this.quiet = false,
   });
 
   int get doneCount => days.where((d) => d.done).length;
@@ -665,6 +689,9 @@ class Program {
         'weekdays': weekdays,
         'days': days.map((d) => d.toJson()).toList(),
         'active': active,
+        if (templateId != null) 'tpl': templateId,
+        if (prefer.isNotEmpty) 'prefer': prefer,
+        if (quiet) 'quiet': true,
       };
 
   factory Program.fromJson(Map<String, dynamic> j) => Program(
@@ -675,6 +702,71 @@ class Program {
         weeks: (j['weeks'] as num).toInt(),
         weekdays: ((j['weekdays'] as List?) ?? const [1, 3, 5]).map((e) => (e as num).toInt()).toList(),
         days: ((j['days'] as List?) ?? const []).map((e) => ProgramDay.fromJson((e as Map).cast<String, dynamic>())).toList(),
+        active: j['active'] != false,
+        templateId: j['tpl'] as String?,
+        prefer: ((j['prefer'] as List?) ?? const []).cast<String>(),
+        quiet: j['quiet'] == true,
+      );
+}
+
+/// Test formy: maksymalne wyniki i regeneracja tętna.
+class FitTest {
+  final DateTime at;
+  final int? pushups, squats, plank, restHr, hrr;
+
+  FitTest(this.at, {this.pushups, this.squats, this.plank, this.restHr, this.hrr});
+
+  /// Składowe 0–100 (proste skale, ważne do porównania z samym sobą).
+  Map<String, int> get parts => {
+        if (pushups != null) 'Pompki': (pushups! * 2.5).round().clamp(0, 100),
+        if (squats != null) 'Przysiady': (squats! * 100 / 55).round().clamp(0, 100),
+        if (plank != null) 'Deska': (plank! * 100 / 180).round().clamp(0, 100),
+        if (restHr != null) 'Tętno spoczynkowe': ((90 - restHr!) * 100 / 45).round().clamp(0, 100),
+        if (hrr != null) 'Regeneracja tętna': (hrr! * 100 / 40).round().clamp(0, 100),
+      };
+
+  int get score {
+    final p = parts.values;
+    return p.isEmpty ? 0 : (p.reduce((a, b) => a + b) / p.length).round();
+  }
+
+  Map<String, dynamic> toJson() => {
+        'at': at.toIso8601String(),
+        if (pushups != null) 'pu': pushups,
+        if (squats != null) 'sq': squats,
+        if (plank != null) 'pl': plank,
+        if (restHr != null) 'rhr': restHr,
+        if (hrr != null) 'hrr': hrr,
+      };
+
+  factory FitTest.fromJson(Map<String, dynamic> j) => FitTest(
+        DateTime.parse(j['at'] as String),
+        pushups: (j['pu'] as num?)?.toInt(),
+        squats: (j['sq'] as num?)?.toInt(),
+        plank: (j['pl'] as num?)?.toInt(),
+        restHr: (j['rhr'] as num?)?.toInt(),
+        hrr: (j['hrr'] as num?)?.toInt(),
+      );
+}
+
+/// Postęp w wyzwaniu: dni zaliczone kolejno (pominięty dzień nie psuje wyzwania).
+class ChallengeProgress {
+  final String id;
+  final DateTime start;
+  final Map<int, String> done; // dzień → id treningu
+  bool active;
+
+  ChallengeProgress(this.id, this.start, {Map<int, String>? done, this.active = true}) : done = done ?? {};
+
+  int get nextDay => done.isEmpty ? 1 : done.keys.reduce((a, b) => a > b ? a : b) + 1;
+
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'start': start.toIso8601String(), 'done': done.map((k, v) => MapEntry('$k', v)), 'active': active};
+
+  factory ChallengeProgress.fromJson(Map<String, dynamic> j) => ChallengeProgress(
+        j['id'] as String,
+        DateTime.parse(j['start'] as String),
+        done: ((j['done'] as Map?) ?? const {}).map((k, v) => MapEntry(int.parse(k as String), v as String)),
         active: j['active'] != false,
       );
 }

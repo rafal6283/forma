@@ -1,11 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:forma/core/catalog.dart';
 import 'package:forma/core/figure.dart';
 import 'package:forma/core/library.dart';
 import 'package:forma/core/models.dart';
 import 'package:forma/core/tcx.dart';
 import 'package:forma/core/trainer.dart';
+import 'package:forma/core/voice_commands.dart';
 
 void main() {
   final lib = Library.parse(File('assets/exercises.json').readAsStringSync());
@@ -149,6 +151,42 @@ void main() {
     final w = make(Profile(), sessions: [s]).weeklySets();
     expect(w['klatka'], 2);
     expect(w['nogi'], 1);
+  });
+
+  test('komendy głosowe', () {
+    expect(VoiceCommands.parse('dalej')!.$1, VoiceCmd.next);
+    expect(VoiceCommands.parse('to jest za trudne')!.$1, VoiceCmd.harder);
+    expect(VoiceCommands.parse('pauza')!.$1, VoiceCmd.pause);
+    expect(VoiceCommands.parse('boli mnie kolano')!.$1, VoiceCmd.pain);
+    expect(VoiceCommands.parse('12'), (VoiceCmd.setReps, 12));
+    expect(VoiceCommands.parse('ile zostało')!.$1, VoiceCmd.remaining);
+    expect(VoiceCommands.parse('dzień dobry'), isNull);
+  });
+
+  test('gotowe programy i wyzwania mają poprawne ćwiczenia', () {
+    for (final t in programTemplates) {
+      for (final id in t.prefer) {
+        expect(lib[id], isNotNull, reason: '${t.id}: $id');
+      }
+      final p = make(Profile()).buildProgram(weeks: t.weeks, weekdays: List.generate(t.week.length, (i) => i + 1),
+          minutes: t.minutes, week: t.week, name: t.name, templateId: t.id, prefer: t.prefer);
+      expect(p.days.length, t.weeks * t.week.length, reason: t.id);
+    }
+    for (final c in challengeDefs) {
+      expect(lib[c.exId], isNotNull, reason: c.id);
+      expect(c.target(c.days), greaterThan(c.target(1)), reason: c.id);
+      final total = c.target(10);
+      expect(c.split(total).fold(0, (a, b) => a + b), total, reason: c.id);
+      expect(c.split(total).every((x) => x <= c.perSet), isTrue, reason: c.id);
+    }
+  });
+
+  test('wynik testu formy', () {
+    final t = FitTest(DateTime(2026, 10, 31), pushups: 20, squats: 44, plank: 90);
+    expect(t.parts['Pompki'], 50);
+    expect(t.parts['Przysiady'], 80);
+    expect(t.parts['Deska'], 50);
+    expect(t.score, 60);
   });
 
   test('ograniczenia i brak sprzętu są respektowane', () {

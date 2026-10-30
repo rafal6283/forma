@@ -12,9 +12,16 @@ class Voice {
   bool beeps = true;
   bool _ready = false;
 
+  /// Trener właśnie mówi — rozpoznawanie mowy w tym czasie milknie, żeby nie słyszało samego siebie.
+  final speaking = ValueNotifier<bool>(false);
+
   Future<void> init() async {
     if (_ready) return;
     try {
+      _tts.setStartHandler(() => speaking.value = true);
+      _tts.setCompletionHandler(() => speaking.value = false);
+      _tts.setCancelHandler(() => speaking.value = false);
+      _tts.setErrorHandler((_) => speaking.value = false);
       await _tts.setLanguage('pl-PL');
       await _tts.setSpeechRate(0.5);
       await _tts.awaitSpeakCompletion(false);

@@ -41,6 +41,8 @@ class Store extends ChangeNotifier {
   final List<Measurement> measurements = [];
   final Map<String, ExStat> stats = {};
   Program? program; // plan wielotygodniowy (aktywny lub zakończony)
+  final List<FitTest> tests = [];
+  final Map<String, ChallengeProgress> challenges = {};
   HealthSnapshot health = HealthSnapshot.empty;
 
   // --- osoby
@@ -99,6 +101,8 @@ class Store extends ChangeNotifier {
     measurements.clear();
     stats.clear();
     program = null;
+    tests.clear();
+    challenges.clear();
     health = HealthSnapshot.empty;
   }
 
@@ -118,6 +122,8 @@ class Store extends ChangeNotifier {
         'measurements': measurements.map((m) => m.toJson()).toList(),
         'stats': stats.map((k, v) => MapEntry(k, v.toJson())),
         if (program != null) 'program': program!.toJson(),
+        'tests': tests.map((t) => t.toJson()).toList(),
+        'challenges': challenges.map((k, v) => MapEntry(k, v.toJson())),
       });
 
   void _applyUser(String raw) {
@@ -145,6 +151,13 @@ class Store extends ChangeNotifier {
       ..addAll(((j['stats'] as Map?) ?? const {})
           .map((k, v) => MapEntry(k as String, ExStat.fromJson((v as Map).cast<String, dynamic>()))));
     program = j['program'] == null ? null : Program.fromJson((j['program'] as Map).cast<String, dynamic>());
+    tests
+      ..clear()
+      ..addAll(list('tests', FitTest.fromJson));
+    challenges
+      ..clear()
+      ..addAll(((j['challenges'] as Map?) ?? const {})
+          .map((k, v) => MapEntry(k as String, ChallengeProgress.fromJson((v as Map).cast<String, dynamic>()))));
   }
 
   // ------------------------------------------------------------ kopia całej rodziny
@@ -313,6 +326,13 @@ class Store extends ChangeNotifier {
       }
       if (pr.next == null) pr.active = false;
     }
+    final ch = s.challenge;
+    if (ch != null && ch.contains(':')) {
+      final id = ch.split(':').first;
+      final day = int.tryParse(ch.split(':').last);
+      final cp = challenges[id];
+      if (cp != null && day != null) cp.done[day] = s.id;
+    }
     for (final d in s.done) {
       final st = stat(d.exId);
       st.count++;
@@ -335,6 +355,13 @@ class Store extends ChangeNotifier {
 extension ProgramStore on Store {
   Future<void> setProgram(Program? p) async {
     program = p;
+    await save();
+  }
+}
+
+extension TestsStore on Store {
+  Future<void> addTest(FitTest t) async {
+    tests.add(t);
     await save();
   }
 }

@@ -298,6 +298,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
             SwitchListTile(
+              title: const Text('Sterowanie głosem'),
+              subtitle: const Text('„Dalej”, „pauza”, „za trudne”, „boli”, „gotowe”, „ile zostało” — bez dotykania telefonu',
+                  style: TextStyle(color: C.muted)),
+              value: p.voiceControl,
+              onChanged: (v) {
+                p.voiceControl = v;
+                _save();
+              },
+            ),
+            SwitchListTile(
+              title: const Text('Sterowanie tętnem'),
+              subtitle: const Text('Dłuższa przerwa przy wysokim tętnie, podpowiedzi tempa i pomiar regeneracji po treningu',
+                  style: TextStyle(color: C.muted)),
+              value: p.hrControl,
+              onChanged: (v) {
+                p.hrControl = v;
+                _save();
+              },
+            ),
+            SwitchListTile(
               title: const Text('Sygnały i wibracje'),
               subtitle: const Text('Odliczanie ostatnich sekund', style: TextStyle(color: C.muted)),
               value: p.beeps,
@@ -332,7 +352,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
         ),
         const SizedBox(height: 24),
-        const Center(child: Text('Forma 1.3 · trener działa na telefonie, bez chmury', style: TextStyle(color: C.muted, fontSize: 12))),
+        const Center(child: Text('Forma 1.4 · trener działa na telefonie, bez chmury', style: TextStyle(color: C.muted, fontSize: 12))),
       ]),
     );
   }
