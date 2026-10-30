@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../core/figure.dart';
 import '../core/models.dart';
+import 'mannequin.dart';
 import 'theme.dart';
 
 /// Animowana postać wykonująca ćwiczenie.
@@ -59,10 +60,18 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
     super.dispose();
   }
 
+  /// Pozycja trzymana (deska, rozciąganie) — postać „oddycha”, żeby nie była martwa.
+  bool get _still => widget.exercise.isStatic || widget.exercise.anim.keys.length == 1;
+
   @override
   Widget build(BuildContext context) => RepaintBoundary(
         child: CustomPaint(
-          painter: _FigurePainter(_scene, widget.exercise.anim.at(_t, speed: widget.speed), widget.showFloor),
+          painter: _FigurePainter(
+            _scene,
+            widget.exercise.anim.at(_t, speed: widget.speed),
+            widget.showFloor,
+            breath: _still ? math.sin(_t * 2 * math.pi / 3.6) : 0,
+          ),
           size: Size.infinite,
         ),
       );
@@ -129,7 +138,10 @@ class _FigurePainter extends CustomPainter {
   final _Scene scene;
   final Pose pose;
   final bool floor;
-  _FigurePainter(this.scene, this.pose, this.floor);
+
+  /// Faza oddechu (-1…1) — widoczna w pozycjach statycznych.
+  final double breath;
+  _FigurePainter(this.scene, this.pose, this.floor, {this.breath = 0});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -140,7 +152,6 @@ class _FigurePainter extends CustomPainter {
     Offset P(Offset p) => Offset(p.dx * s + dx, p.dy * s + dy);
 
     final j = Joints.grounded(pose, hands: scene.ex.anim.hands);
-    final limbW = math.max(3.0, s * 0.055);
 
     if (floor && !scene.ex.anim.hands) {
       final y = P(Offset.zero).dy;
@@ -149,6 +160,7 @@ class _FigurePainter extends CustomPainter {
             .createShader(Rect.fromLTWH(0, y, size.width, 2))
         ..strokeWidth = 2;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), fp);
+      Mannequin(canvas, j, P, s).floorShadow();
     }
 
     final propPaint = Paint()
@@ -173,50 +185,13 @@ class _FigurePainter extends CustomPainter {
       }
     }
 
-    Paint limb(Color c) => Paint()
-      ..color = c
-      ..strokeWidth = limbW
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-
-    void chain(List<String> keys, Paint p) {
-      final path = Path()..moveTo(P(j[keys.first]).dx, P(j[keys.first]).dy);
-      for (final k in keys.skip(1)) {
-        path.lineTo(P(j[k]).dx, P(j[k]).dy);
-      }
-      canvas.drawPath(path, p);
-    }
-
     final front = pose.front;
-    final far = limb(front ? C.figure : C.figureFar);
-    final near = limb(C.figure);
-    final body = limb(C.figure)..strokeWidth = limbW * 1.7;
-
-    chain(['hpF', 'knF', 'anF', 'toF'], far);
-    chain(['shF', 'elF', 'haF'], far);
-    if (front) {
-      canvas.drawLine(P(j['shN']), P(j['shF']), body..strokeWidth = limbW * 1.3);
-      canvas.drawLine(P(j['hpN']), P(j['hpF']), body);
-      body.strokeWidth = limbW * 1.7;
-    }
-    canvas.drawLine(P(j['hip']), P(j['neck']), body);
-    final head = P(j['head']);
-    canvas.drawLine(P(j['neck']), Offset.lerp(P(j['neck']), head, 0.4)!, near);
-    canvas.drawCircle(head, Body.headR * s, Paint()..color = C.figure);
-    if (!front) {
-      // kierunek twarzy: kropka „nosa” po stronie, w którą patrzy postać
-      final hd = Offset(math.sin(pose.h * math.pi / 180), math.cos(pose.h * math.pi / 180));
-      var face = Offset(-hd.dy, hd.dx);
-      if (pose.back) face = -face;
-      canvas.drawCircle(head + face * (Body.headR * s * 0.75), Body.headR * s * 0.22, Paint()..color = C.accent);
-    }
-    chain(['hpN', 'knN', 'anN', 'toN'], near);
-    chain(['shN', 'elN', 'haN'], near);
+    final man = Mannequin(canvas, j, P, s, breath: breath);
+    man.paint();
 
     final hold = scene.ex.hold;
     if (hold != null) {
-      final hp = Paint()..color = C.accent;
+      final hp = Paint()..color = const Color(0xFF4A5262);
       final single = hold == 'kb' || hold == 'db1';
       for (final k in single ? ['haN'] : (front ? ['haN', 'haF'] : ['haF', 'haN'])) {
         final c = P(j[k]);
