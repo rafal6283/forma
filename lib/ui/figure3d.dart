@@ -73,10 +73,12 @@ class _Part {
   final bool sphere, shadow, edge;
   _Part(this.a, this.b, this.ra, this.rb, this.color, {this.tag, this.bias = 0, this.shadow = true, this.edge = true})
       : sphere = false;
-  _Part.ball(this.a, this.ra, this.color, {this.tag, this.bias = 0, this.shadow = true, this.edge = true})
+  _Part.ball(this.a, this.ra, this.color, {this.tag, this.bias = 0})
       : b = a,
         rb = ra,
-        sphere = true;
+        sphere = true,
+        shadow = true,
+        edge = true;
 }
 
 /// Rekwizyty sceny w układzie 3D.
