@@ -54,7 +54,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           Text(t, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, height: 1.15)),
           if (sub != null) ...[
             const SizedBox(height: 8),
-            Text(sub, style: const TextStyle(color: C.muted, fontSize: 15, height: 1.35)),
+            Text(sub, style: TextStyle(color: C.muted, fontSize: 15, height: 1.35)),
           ],
         ]),
       );
@@ -237,7 +237,7 @@ class _Option extends StatelessWidget {
                   Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
-                    Text(subtitle!, style: const TextStyle(color: C.muted)),
+                    Text(subtitle!, style: TextStyle(color: C.muted)),
                   ],
                 ]),
               ),

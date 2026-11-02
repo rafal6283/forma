@@ -102,7 +102,7 @@ class _HrvScreenState extends State<HrvScreen> {
                   style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w800),
                 ),
                 Text(result != null ? 'ms RMSSD' : (running ? '${rr.length} uderzeń' : 'spokojnie, w leżeniu'),
-                    style: const TextStyle(color: C.muted)),
+                    style: TextStyle(color: C.muted)),
               ]),
             ),
           ),
@@ -128,7 +128,7 @@ class _HrvScreenState extends State<HrvScreen> {
             ]),
           ],
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Mierz rano, zaraz po przebudzeniu, zawsze w tej samej pozycji. Trener porównuje wynik z Twoją normą z ostatnich '
             'tygodni — liczy się trend, nie pojedyncza liczba. Niższe HRV niż zwykle oznacza zwykle, że organizm '
             'jeszcze się regeneruje.',
@@ -141,7 +141,7 @@ class _HrvScreenState extends State<HrvScreen> {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 title: Text('${h.rmssd.round()} ms'),
-                subtitle: Text('${fmtDate(h.at)}, ${fmtTime(h.at)}', style: const TextStyle(color: C.muted)),
+                subtitle: Text('${fmtDate(h.at)}, ${fmtTime(h.at)}', style: TextStyle(color: C.muted)),
                 trailing: Text(h.restHr > 0 ? '${h.restHr} bpm' : ''),
               ),
           ],

@@ -5,17 +5,35 @@ import 'package:flutter/scheduler.dart';
 
 import '../core/figure.dart';
 import '../core/models.dart';
+import '../core/app_settings.dart';
+import 'figure3d.dart';
 import 'mannequin.dart';
+import 'technique.dart';
 import 'theme.dart';
 
-/// Animowana postać wykonująca ćwiczenie.
+/// Animowana postać wykonująca ćwiczenie: 2D (profil) albo 3D z obrotem kamery,
+/// z podświetleniem pracujących mięśni i strzałką ruchu.
 class FigureView extends StatefulWidget {
   final Exercise exercise;
   final bool playing;
   final double speed;
   final bool showFloor;
 
-  const FigureView(this.exercise, {super.key, this.playing = true, this.speed = 1, this.showFloor = true});
+  /// Wskazówki techniki: świecące mięśnie i strzałka kierunku ruchu.
+  final bool hints;
+
+  /// Duży widok: 3D (wg ustawień), obrót palcem, przełącznik 2D/3D.
+  final bool interactive;
+
+  const FigureView(
+    this.exercise, {
+    super.key,
+    this.playing = true,
+    this.speed = 1,
+    this.showFloor = true,
+    this.hints = false,
+    this.interactive = false,
+  });
 
   @override
   State<FigureView> createState() => _FigureViewState();
@@ -26,6 +44,13 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
   double _t = 0;
   Duration _last = Duration.zero;
   late _Scene _scene;
+  final settings = AppSettings.instance;
+
+  // kamera 3D
+  static const _pitch = 0.2;
+  double _yaw = 0.55;
+  bool _dragged = false;
+  final _frames = <int, Rect>{};
 
   @override
   void initState() {
@@ -44,6 +69,7 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
     super.didUpdateWidget(old);
     if (old.exercise.id != widget.exercise.id) {
       _scene = _Scene(widget.exercise);
+      _frames.clear();
       _t = 0;
     }
     if (widget.playing && !_ticker.isActive) {
@@ -63,16 +89,111 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
   /// Pozycja trzymana (deska, rozciąganie) — postać „oddycha”, żeby nie była martwa.
   bool get _still => widget.exercise.isStatic || widget.exercise.anim.keys.length == 1;
 
+  bool get _is3d => widget.interactive && settings.anim3d;
+
+  double get _yawNow => _dragged ? _yaw : _yaw + 0.12 * math.sin(_t * 0.45);
+
+  Rect _frame(Cam cam) {
+    final key = (cam.yaw * 30).round(); // co ~2°
+    return _frames.putIfAbsent(key, () => frame3d(_scene.samples, cam, floor: widget.showFloor && !_scene.ex.anim.hands));
+  }
+
   @override
-  Widget build(BuildContext context) => RepaintBoundary(
-        child: CustomPaint(
-          painter: _FigurePainter(
-            _scene,
-            widget.exercise.anim.at(_t, speed: widget.speed),
-            widget.showFloor,
-            breath: _still ? math.sin(_t * 2 * math.pi / 3.6) : 0,
+  Widget build(BuildContext context) {
+    final a = widget.exercise.anim;
+    final pose = a.at(_t, speed: widget.speed);
+    final breath = _still ? math.sin(_t * 2 * math.pi / 3.6) : 0.0;
+    final j = Joints.grounded(pose, hands: a.hands);
+
+    // wskazówki techniki
+    var glow = const <String, double>{};
+    (Offset, Offset, double)? arrow;
+    if (widget.hints && settings.technique) {
+      final (target, move) = a.motion(_t, speed: widget.speed);
+      final level = _still ? 0.55 + 0.2 * breath : 0.2 + 0.8 * move;
+      glow = _scene.glow.map((k, v) => MapEntry(k, v * level));
+      if (move > 0.08) {
+        final m = moveArrow(j, Joints.grounded(target, hands: a.hands));
+        if (m != null) arrow = (m.$2, m.$3, move);
+      }
+    }
+
+    final CustomPainter painter;
+    if (_is3d) {
+      final cam = Cam(_yawNow, _pitch, _scene.cx, 0);
+      painter = Figure3DPainter(
+        j: j,
+        cam: cam,
+        bounds: _frame(cam),
+        floor: widget.showFloor,
+        hands: a.hands,
+        hold: widget.exercise.hold,
+        props: [for (final p in _scene.props) Prop3(p.type, p.rect)],
+        breath: breath,
+        glow: glow,
+        arrow: arrow,
+      );
+    } else {
+      painter = _FigurePainter(_scene, pose, widget.showFloor, breath: breath, glow: glow, arrow: arrow);
+    }
+    Widget view = RepaintBoundary(child: CustomPaint(painter: painter, size: Size.infinite));
+    if (!widget.interactive) return view;
+    return Stack(children: [
+      Positioned.fill(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragUpdate: _is3d
+              ? (d) => setState(() {
+                    if (!_dragged) _yaw = _yawNow;
+                    _dragged = true;
+                    _yaw -= d.delta.dx / 120;
+                  })
+              : null,
+          onDoubleTap: _is3d
+              ? () => setState(() {
+                    _dragged = false;
+                    _yaw = 0.55;
+                  })
+              : null,
+          child: view,
+        ),
+      ),
+      Positioned(
+        top: 0,
+        right: 0,
+        child: _ModeChip(
+          is3d: _is3d,
+          onTap: () {
+            settings.set(anim3d: !settings.anim3d);
+            setState(() {});
+          },
+        ),
+      ),
+    ]);
+  }
+}
+
+/// Mały przełącznik 2D/3D w rogu animacji.
+class _ModeChip extends StatelessWidget {
+  final bool is3d;
+  final VoidCallback onTap;
+  const _ModeChip({required this.is3d, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: C.surface2.withValues(alpha: 0.85),
+        shape: const StadiumBorder(),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(is3d ? Icons.threed_rotation : Icons.view_in_ar_outlined, size: 16, color: C.text),
+              const SizedBox(width: 4),
+              Text(is3d ? '3D · obróć palcem' : '2D', style: TextStyle(fontSize: 11, color: C.text)),
+            ]),
           ),
-          size: Size.infinite,
         ),
       );
 }
@@ -82,6 +203,9 @@ class _Scene {
   final Exercise ex;
   late final Rect bounds;
   late final List<_Prop> props;
+  late final List<Joints> samples; // pozycje w całym cyklu (kadr 3D)
+  late final Map<String, double> glow = glowFor(ex);
+  late final double cx; // środek sceny (oś obrotu kamery)
 
   _Scene(this.ex) {
     final a = ex.anim;
@@ -91,8 +215,8 @@ class _Scene {
     ];
     var r = Rect.fromPoints(first['hip'], first['hip']);
     // próbkujemy cały cykl
-    for (var i = 0; i <= 24; i++) {
-      final j = Joints.grounded(a.at(a.cycle * i / 24), hands: a.hands);
+    samples = [for (var i = 0; i <= 24; i++) Joints.grounded(a.at(a.cycle * i / 24), hands: a.hands)];
+    for (final j in samples) {
       for (final v in j.p.values) {
         r = r.expandToInclude(Rect.fromCircle(center: v, radius: 0.04));
       }
@@ -105,6 +229,7 @@ class _Scene {
     // minimalny kadr, żeby małe ruchy nie były przeskalowane
     final w = math.max(r.width, 1.2), h = math.max(r.height, 1.3);
     bounds = Rect.fromCenter(center: r.center, width: w + 0.3, height: h + 0.25);
+    cx = r.center.dx;
   }
 }
 
@@ -141,7 +266,9 @@ class _FigurePainter extends CustomPainter {
 
   /// Faza oddechu (-1…1) — widoczna w pozycjach statycznych.
   final double breath;
-  _FigurePainter(this.scene, this.pose, this.floor, {this.breath = 0});
+  final Map<String, double> glow;
+  final (Offset, Offset, double)? arrow;
+  _FigurePainter(this.scene, this.pose, this.floor, {this.breath = 0, this.glow = const {}, this.arrow});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -186,7 +313,7 @@ class _FigurePainter extends CustomPainter {
     }
 
     final front = pose.front;
-    final man = Mannequin(canvas, j, P, s, breath: breath);
+    final man = Mannequin(canvas, j, P, s, breath: breath, glow: glow);
     man.paint();
 
     final hold = scene.ex.hold;
@@ -215,6 +342,9 @@ class _FigurePainter extends CustomPainter {
         );
       }
     }
+
+    final ar = arrow;
+    if (ar != null) paintArrow(canvas, P(ar.$1), P(ar.$2), ar.$3, size.shortestSide);
   }
 
   @override

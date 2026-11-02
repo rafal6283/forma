@@ -8,6 +8,7 @@ import '../core/coach.dart';
 import '../core/hr.dart';
 import '../core/library.dart';
 import '../core/models.dart';
+import '../core/sfx.dart';
 import '../core/store.dart';
 import '../core/trainer.dart';
 import '../core/voice.dart';
@@ -207,6 +208,52 @@ class _PlayerScreenState extends State<PlayerScreen> {
     voice.say('Zamieniam na: ${alt.name}');
     _stepStartMs = _sw.elapsedMilliseconds;
     setState(() {});
+    _offerInjury(cur);
+  }
+
+  /// Po „boli” — propozycja zapisania dolegliwości, żeby trener oszczędzał to miejsce przez 2 tygodnie.
+  void _offerInjury(Exercise e) {
+    final areas = e.stress.where((a) => !profile.activeLimits.contains(a)).toList();
+    if (areas.isEmpty || !mounted) return;
+    final area = areas.first;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      duration: const Duration(seconds: 8),
+      content: Text('Boli przy: ${e.name}. Oszczędzać $area przez 2 tygodnie?'),
+      action: SnackBarAction(
+        label: 'Tak',
+        onPressed: () {
+          profile.limits.add(area);
+          profile.limitUntil[area] = DateTime.now().add(const Duration(days: 14));
+          Store.instance.save();
+          voice.say('Zapisane. Przez dwa tygodnie oszczędzam: $area');
+        },
+      ),
+    ));
+  }
+
+  // ------------------------------------------------------------ rozgrzewka / rozciąganie
+
+  Phase? get _phaseNow => step.item?.phase;
+
+  /// „Pomiń rozgrzewkę”: od razu pierwsze ćwiczenie części głównej.
+  void _skipWarmup() {
+    final j = steps.indexWhere((s) => s.kind == _Kind.work && s.item?.phase == Phase.main, idx);
+    if (j < 0) return;
+    _recordWork();
+    idx = j;
+    _stepStartMs = _sw.elapsedMilliseconds;
+    _lastWhole = -1;
+    voice.say('Pomijam rozgrzewkę.');
+    _enter();
+    setState(() {});
+  }
+
+  /// „Pomiń rozciąganie”: kończymy trening (z pomiarem regeneracji, jeśli jest opaska).
+  void _skipCooldown() {
+    _recordWork();
+    idx = steps.length - 1;
+    _stepStartMs = _sw.elapsedMilliseconds;
+    _next(auto: true);
   }
 
   // ------------------------------------------------------------ zegar
@@ -291,6 +338,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _endRecovery();
       return;
     }
+    if (step.kind == _Kind.work && step.item?.phase == Phase.main && idx < steps.length - 1) Fx.instance.play(Sfx.set);
     _recordWork();
     if (idx >= steps.length - 1) {
       // minuta pomiaru regeneracji tętna, gdy jest opaska
@@ -427,6 +475,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _sw.stop();
     await cmds.stop();
     if (tv) await _setTv(false);
+    if (complete) Fx.instance.play(Sfx.finish);
     if (!spoken) voice.say(complete ? 'Koniec treningu. Świetna robota!' : 'Trening zakończony.');
     final p = profile;
     final valid = hrSec.where((b) => b > 0).toList();
@@ -581,14 +630,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ? Center(child: Icon(Icons.self_improvement, size: 140 * big, color: C.good))
         : e == null
             ? const SizedBox()
-            : Opacity(opacity: work ? 1 : 0.55, child: FigureView(e, playing: !paused));
+            : AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                child: Opacity(
+                  key: ValueKey('${e.id}-$work'),
+                  opacity: work ? 1 : 0.55,
+                  child: FigureView(e, playing: !paused, hints: work, interactive: true),
+                ),
+              );
 
     final info = step.kind == _Kind.recover
         ? Text('Stań lub usiądź spokojnie.\nTętno na końcu pracy: ${_recoverStart ?? '–'}',
             textAlign: TextAlign.center, style: TextStyle(color: C.muted, fontSize: 15 * big))
         : e == null
             ? const SizedBox()
-            : Column(children: [
+            : Column(key: ValueKey('info-$idx'), children: [
                 Text(
                   work ? e.name : 'Następne: ${e.name}',
                   textAlign: TextAlign.center,
@@ -613,7 +669,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ],
                 if (listening && cmds.lastHeard.isNotEmpty && !land) ...[
                   const SizedBox(height: 4),
-                  Text('„${cmds.lastHeard}”', style: const TextStyle(color: C.muted, fontSize: 11, fontStyle: FontStyle.italic)),
+                  Text('„${cmds.lastHeard}”', style: TextStyle(color: C.muted, fontSize: 11, fontStyle: FontStyle.italic)),
                 ],
               ]);
 
@@ -623,7 +679,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
             target: it!.reps!,
             elapsed: stepElapsedMs ~/ 1000,
             scale: big,
-            onChange: (v) => setState(() => repCount = v.clamp(0, 99)),
+            onChange: (v) {
+              Fx.instance.tap();
+              setState(() => repCount = v.clamp(0, 99));
+            },
             onDone: () => _next(),
           )
         : Ring(
@@ -634,6 +693,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
             child: Text(fmtDur(remaining), style: TextStyle(fontSize: 34 * big, fontWeight: FontWeight.w800)),
           );
 
+    final skip = switch (_phaseNow) {
+      Phase.warmup when step.kind != _Kind.recover =>
+        TextButton.icon(onPressed: _skipWarmup, icon: const Icon(Icons.fast_forward), label: const Text('Pomiń rozgrzewkę')),
+      Phase.cooldown when step.kind != _Kind.recover =>
+        TextButton.icon(onPressed: _skipCooldown, icon: const Icon(Icons.flag_outlined), label: const Text('Pomiń rozciąganie')),
+      _ => null,
+    };
+    final animatedInfo = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      transitionBuilder: (c, a) => FadeTransition(
+        opacity: a,
+        child: SlideTransition(position: Tween(begin: const Offset(0, 0.08), end: Offset.zero).animate(a), child: c),
+      ),
+      child: info,
+    );
     final controls = Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
       IconButton.filledTonal(iconSize: 28, onPressed: _prev, icon: const Icon(Icons.skip_previous)),
       IconButton.filled(
@@ -657,7 +731,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(8, 0, 20, 8),
                     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      info,
+                      animatedInfo,
+                      if (skip != null) skip,
                       SizedBox(height: 12 * big),
                       clock,
                       SizedBox(height: 10 * big),
@@ -672,8 +747,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             header,
             progress,
             Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: figure)),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: info),
-            const SizedBox(height: 14),
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: animatedInfo),
+            if (skip != null) skip else const SizedBox(height: 14),
             clock,
             const SizedBox(height: 10),
             Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 16), child: controls),
@@ -716,7 +791,7 @@ class _RepsCounter extends StatelessWidget {
               Text('$count',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 52 * scale, fontWeight: FontWeight.w800, color: count >= target ? C.good : C.text)),
-              Text('cel $target · ${fmtDur(elapsed)}', style: const TextStyle(color: C.muted, fontSize: 12)),
+              Text('cel $target · ${fmtDur(elapsed)}', style: TextStyle(color: C.muted, fontSize: 12)),
             ]),
           ),
           IconButton.filledTonal(onPressed: () => onChange(count + 1), icon: const Icon(Icons.add)),

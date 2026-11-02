@@ -135,7 +135,7 @@ class _StravaScreenState extends State<StravaScreen> {
             ),
             SwitchListTile(
               title: const Text('Uzupełniaj aktywność z zegarka'),
-              subtitle: const Text(
+              subtitle: Text(
                 'Gdy zegarek (np. Huawei Health → Strava) już wysłał trening, Forma dopisze nazwę, rodzaj i listę ćwiczeń, '
                 'a tętno i kalorie zostaną z zegarka. Bez tej opcji Forma tworzy nową aktywność z tętnem z opaski.',
                 style: TextStyle(color: C.muted, fontSize: 12),
@@ -150,7 +150,7 @@ class _StravaScreenState extends State<StravaScreen> {
           ]),
         ),
         const SectionTitle('Jak przygotować'),
-        const Text(
+        Text(
           '1. Na strava.com/settings/api utwórz własną aplikację API. Od czerwca 2026 Strava wymaga do tego '
           'subskrypcji na koncie, które zakłada aplikację.\n'
           '2. W polu „Authorization Callback Domain” wpisz: ${Strava.callbackDomain}\n'

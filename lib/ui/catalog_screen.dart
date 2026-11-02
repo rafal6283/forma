@@ -82,7 +82,7 @@ class _ProgramTile extends StatelessWidget {
                 if (current) const Icon(Icons.check_circle, color: C.good),
               ]),
               const SizedBox(height: 4),
-              Text(t.desc, style: const TextStyle(color: C.muted, height: 1.35)),
+              Text(t.desc, style: TextStyle(color: C.muted, height: 1.35)),
               const SizedBox(height: 10),
               Wrap(spacing: 6, runSpacing: 6, children: [
                 Chip(visualDensity: VisualDensity.compact, label: Text('${t.weeks} tyg.')),
@@ -92,7 +92,7 @@ class _ProgramTile extends StatelessWidget {
                 Chip(visualDensity: VisualDensity.compact, label: Text(['', 'dla początkujących', 'średni', 'zaawansowany'][t.level.clamp(1, 3)])),
               ]),
               const SizedBox(height: 6),
-              Text(kinds, style: const TextStyle(color: C.muted, fontSize: 12)),
+              Text(kinds, style: TextStyle(color: C.muted, fontSize: 12)),
               if (missing.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -182,7 +182,7 @@ class _Challenges extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = Store.instance;
     return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 32), children: [
-      const Text(
+      Text(
         'Jedno ćwiczenie codziennie, z rosnącym celem. Pominięty dzień niczego nie psuje — wracasz tam, gdzie skończyłeś.',
         style: TextStyle(color: C.muted, height: 1.35),
       ),
@@ -223,7 +223,7 @@ class ChallengeTile extends StatelessWidget {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(c.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                if (!compact) Text(c.desc, style: const TextStyle(color: C.muted, fontSize: 13)),
+                if (!compact) Text(c.desc, style: TextStyle(color: C.muted, fontSize: 13)),
                 const SizedBox(height: 6),
                 if (active || finished) ...[
                   ClipRRect(

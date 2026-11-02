@@ -33,7 +33,7 @@ class ProgramCard extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           leading: const Icon(Icons.event_note, color: C.accent),
           title: Text(pr == null ? 'Plan na kilka tygodni' : 'Plan „${pr.name}” zakończony'),
-          subtitle: const Text('Trener rozpisze treningi na tygodnie, z progresją i tygodniami lżejszymi.',
+          subtitle: Text('Trener rozpisze treningi na tygodnie, z progresją i tygodniami lżejszymi.',
               style: TextStyle(color: C.muted)),
           trailing: const Icon(Icons.chevron_right),
           onTap: open,
@@ -51,7 +51,7 @@ class ProgramCard extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Expanded(child: Text(pr.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700))),
-              Text('tydzień $week/${pr.weeks}', style: const TextStyle(color: C.muted)),
+              Text('tydzień $week/${pr.weeks}', style: TextStyle(color: C.muted)),
             ]),
             const SizedBox(height: 10),
             ClipRRect(
@@ -61,7 +61,7 @@ class ProgramCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text('${pr.doneCount} z ${pr.days.length} treningów'
                 '${n != null ? ' · następny: ${kindLabel[n.kind]}, ${formatLabel[n.format]!.toLowerCase()} (${fmtDate(n.date)})' : ''}',
-                style: const TextStyle(color: C.muted)),
+                style: TextStyle(color: C.muted)),
           ]),
         ),
       ),
@@ -120,7 +120,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
       Card(
         child: ListTile(
           title: Text('Cel: ${goalLabel[s.profile.goal]}'),
-          subtitle: const Text('Zmienisz go w Ustawieniach', style: TextStyle(color: C.muted)),
+          subtitle: Text('Zmienisz go w Ustawieniach', style: TextStyle(color: C.muted)),
           leading: const Icon(Icons.flag_outlined, color: C.accent),
         ),
       ),
@@ -153,7 +153,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
         label: '$minutes min',
         onChanged: (v) => setState(() => minutes = v.round()),
       ),
-      Text('$minutes min (mobilność i rozciąganie krócej)', style: const TextStyle(color: C.muted)),
+      Text('$minutes min (mobilność i rozciąganie krócej)', style: TextStyle(color: C.muted)),
       const SectionTitle('Typowy tydzień'),
       Card(
         child: Column(children: [
@@ -162,12 +162,12 @@ class _ProgramScreenState extends State<ProgramScreen> {
               dense: true,
               leading: Text(_dayNames[wd[i] - 1], style: const TextStyle(fontWeight: FontWeight.w700)),
               title: Text(kindLabel[tpl[i % tpl.length].$1]!),
-              subtitle: Text(formatLabel[tpl[i % tpl.length].$2]!, style: const TextStyle(color: C.muted)),
+              subtitle: Text(formatLabel[tpl[i % tpl.length].$2]!, style: TextStyle(color: C.muted)),
             ),
         ]),
       ),
       const SizedBox(height: 8),
-      const Text(
+      Text(
         'Co 4. tydzień jest lżejszy (mniej serii) — w tym czasie mięśnie nadrabiają regenerację. '
         'W pozostałych objętość rośnie z tygodnia na tydzień, a cele powtórzeń idą w górę, gdy robisz wszystkie serie. '
         'Opuszczony trening nie przepada: czeka jako następny.',
@@ -191,7 +191,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
     final next = pr.next;
     return ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 32), children: [
       Text(pr.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-      Text('Od ${fmtDate(pr.start)} · ${pr.doneCount}/${pr.days.length} treningów', style: const TextStyle(color: C.muted)),
+      Text('Od ${fmtDate(pr.start)} · ${pr.doneCount}/${pr.days.length} treningów', style: TextStyle(color: C.muted)),
       const SizedBox(height: 10),
       ClipRRect(
         borderRadius: BorderRadius.circular(4),
@@ -201,7 +201,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
         SectionTitle(
           'Tydzień $w${Trainer.weekLoad(w) < 0.95 ? ' · lżejszy' : ''}',
           trailing: Text('×${Trainer.weekLoad(w).toStringAsFixed(2).replaceAll('.', ',')}',
-              style: const TextStyle(color: C.muted, fontSize: 12)),
+              style: TextStyle(color: C.muted, fontSize: 12)),
         ),
         Card(
           child: Column(children: [
@@ -223,7 +223,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                 subtitle: Text(
                   '${fmtDate(d.date)} · ${d.minutes} min'
                   '${!d.done && !d.skipped && d.date.isBefore(DateTime(today.year, today.month, today.day)) ? ' · zaległy' : ''}',
-                  style: const TextStyle(color: C.muted),
+                  style: TextStyle(color: C.muted),
                 ),
                 trailing: d.done || d.skipped
                     ? (d.skipped

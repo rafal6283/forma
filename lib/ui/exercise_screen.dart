@@ -87,7 +87,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Text('${list.length} ćwiczeń', style: const TextStyle(color: C.muted, fontSize: 12)),
+            child: Text('${list.length} ćwiczeń', style: TextStyle(color: C.muted, fontSize: 12)),
           ),
         ),
         Expanded(
@@ -106,7 +106,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   title: Row(children: [
                     Flexible(child: Text(e.name, style: const TextStyle(fontWeight: FontWeight.w600))),
                     if (st?.favorite == true) const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.star, size: 16, color: C.warn)),
-                    if (st?.hidden == true) const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.block, size: 16, color: C.muted)),
+                    if (st?.hidden == true) Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.block, size: 16, color: C.muted)),
                   ]),
                   subtitle: Text(
                     [
@@ -114,7 +114,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       e.groups.join(', '),
                       if (e.needsEquipment) e.eq.map((q) => q.split('|').map((x) => equipmentLabel[x] ?? x).join(' / ')).join(', '),
                     ].join(' · '),
-                    style: const TextStyle(color: C.muted, fontSize: 12),
+                    style: TextStyle(color: C.muted, fontSize: 12),
                   ),
                   trailing: LevelDots(e.lvl),
                   onTap: () async {
@@ -167,7 +167,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
           height: 300,
           decoration: BoxDecoration(color: C.surface, borderRadius: BorderRadius.circular(20)),
           padding: const EdgeInsets.all(12),
-          child: FigureView(e, speed: speed),
+          child: FigureView(e, speed: speed, hints: true, interactive: true),
         ),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           for (final s in [0.5, 1.0])
@@ -208,12 +208,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         ],
         if (e.aka.isNotEmpty) ...[
           const SectionTitle('W Fitify'),
-          Text(e.aka.join(' · '), style: const TextStyle(color: C.muted)),
+          Text(e.aka.join(' · '), style: TextStyle(color: C.muted)),
         ],
         if (e.stress.isNotEmpty) ...[
           const SectionTitle('Uważaj'),
           Text('Obciąża: ${e.stress.join(', ')}. Przy dolegliwościach zaznacz je w ustawieniach — trener je pominie.',
-              style: const TextStyle(color: C.muted)),
+              style: TextStyle(color: C.muted)),
         ],
         if (easier != null || harder != null) ...[
           const SectionTitle('Progresja'),

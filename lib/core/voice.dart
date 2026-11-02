@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+
+import 'sfx.dart';
 
 /// Komunikaty głosowe trenera (syntezator mowy telefonu, po polsku).
 class Voice {
@@ -48,16 +49,9 @@ class Voice {
   }
 
   /// Krótki sygnał w ostatnich sekundach.
-  void tick() {
-    if (!beeps) return;
-    SystemSound.play(SystemSoundType.click);
-    HapticFeedback.lightImpact();
-  }
+  void tick() => Fx.instance.play(Sfx.tick);
 
-  void go() {
-    if (!beeps) return;
-    HapticFeedback.mediumImpact();
-  }
+  void go() => Fx.instance.play(Sfx.go);
 
   Future<void> stop() async {
     try {

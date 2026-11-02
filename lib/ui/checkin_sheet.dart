@@ -75,7 +75,7 @@ class _CheckInSheetState extends State<_CheckInSheet> {
               Text('Sen: ${sleep.toStringAsFixed(1).replaceAll('.', ',')} h',
                   style: const TextStyle(fontWeight: FontWeight.w700)),
               Slider(value: sleep, min: 3, max: 11, divisions: 16, onChanged: (v) => setState(() => sleep = v)),
-              const Text('Z Health Connect (np. Rytm Snu, zegarek) sen wczyta się sam.',
+              Text('Z Health Connect (np. Rytm Snu, zegarek) sen wczyta się sam.',
                   style: TextStyle(color: C.muted, fontSize: 12)),
             ],
             const SizedBox(height: 16),

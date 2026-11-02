@@ -71,7 +71,7 @@ class _HrScreenState extends State<HrScreen> {
                             HrState.off => 'Bluetooth wyłączony',
                             HrState.idle => p.hrDeviceId == null ? 'Nie połączono' : 'Zapamiętane, rozłączone',
                           },
-                          style: const TextStyle(color: C.muted),
+                          style: TextStyle(color: C.muted),
                         ),
                       ]),
                     ),
@@ -127,7 +127,7 @@ class _HrScreenState extends State<HrScreen> {
                         hr.state == HrState.scanning
                             ? 'Załóż opaskę (zwilż elektrody) albo włącz w zegarku udostępnianie tętna.'
                             : 'Nic nie znaleziono. Dotknij „Szukaj”.',
-                        style: const TextStyle(color: C.muted),
+                        style: TextStyle(color: C.muted),
                       ),
                     )
                   : Card(
@@ -136,7 +136,7 @@ class _HrScreenState extends State<HrScreen> {
                           ListTile(
                             leading: const Icon(Icons.favorite_border, color: C.accent),
                             title: Text(c.name),
-                            subtitle: Text('Sygnał ${c.rssi} dBm', style: const TextStyle(color: C.muted)),
+                            subtitle: Text('Sygnał ${c.rssi} dBm', style: TextStyle(color: C.muted)),
                             trailing: hr.state == HrState.connecting && hr.deviceName == c.name
                                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                                 : const Icon(Icons.chevron_right),
@@ -146,7 +146,7 @@ class _HrScreenState extends State<HrScreen> {
                     ),
             ),
             const SectionTitle('Co działa'),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(horizontal: 4),
               child: Text(
                 'Opaski na klatkę i ramię z Bluetooth: Polar H9/H10/Verity Sense, Garmin HRM, Wahoo, Coospo, Magene i inne.\n\n'

@@ -5,6 +5,7 @@ import 'package:forma/core/catalog.dart';
 import 'package:forma/core/figure.dart';
 import 'package:forma/core/library.dart';
 import 'package:forma/core/models.dart';
+import 'package:forma/core/report.dart';
 import 'package:forma/core/tcx.dart';
 import 'package:forma/core/trainer.dart';
 import 'package:forma/core/voice_commands.dart';
@@ -234,5 +235,77 @@ void main() {
     final rr = [for (var i = 0; i < 60; i++) i.isEven ? 1000.0 : 1040.0];
     expect(Trainer.rmssd(rr), closeTo(40, 0.01));
     expect(Trainer.rmssd([1000, 1000]), isNull);
+  });
+
+  test('rozgrzewka pod partie, rozciąganie pod pracujące mięśnie, można je wyłączyć', () {
+    final t = make(Profile(minutes: 30, level: 3));
+    final plan = t.generate(kind: WorkoutKind.lower, readiness: const Readiness(70, [], false), seed: 3);
+    final warm = plan.items.where((i) => i.phase == Phase.warmup).toList();
+    final cool = plan.items.where((i) => i.phase == Phase.cooldown).toList();
+    expect(warm, isNotEmpty);
+    expect(cool, isNotEmpty);
+    final coolGroups = {for (final i in cool) ...lib[i.exId]!.groups};
+    expect(coolGroups.intersection({'nogi', 'pośladki'}), isNotEmpty);
+    final bare = t.generate(
+        kind: WorkoutKind.lower, readiness: const Readiness(70, [], false), seed: 3, warmup: false, cooldown: false);
+    expect(bare.items.where((i) => i.phase != Phase.main), isEmpty);
+    final secs = bare.items.fold(0, (a, i) => a + i.work + i.rest);
+    expect(secs, greaterThan(30 * 60 * 0.75));
+  });
+
+  test('dolegliwość czasowa wygasa, a ćwiczenia programu dostają zamienniki', () {
+    final p = Profile(level: 3, limits: {'nadgarstki'}, limitUntil: {'nadgarstki': DateTime(2099)});
+    expect(p.activeLimits, contains('nadgarstki'));
+    final old = Profile(limits: {'kolana'}, limitUntil: {'kolana': DateTime(2020)});
+    expect(old.activeLimits, isEmpty);
+    final t = make(p);
+    final plan = t.generate(
+      kind: WorkoutKind.upper,
+      readiness: const Readiness(70, [], false),
+      seed: 5,
+      prefer: {'pushups', 'diamond_pushups'},
+    );
+    for (final it in plan.items) {
+      expect(lib[it.exId]!.stress, isNot(contains('nadgarstki')), reason: it.exId);
+    }
+    expect(plan.items.any((i) => i.tag?.startsWith('zamiast:') == true), isTrue);
+    expect(plan.reasons.join(' '), contains('Oszczędzam'));
+  });
+
+  test('raport tygodnia: liczby, rekordy i prognoza', () {
+    Session sess(DateTime d, int reps) => Session(
+          id: '${d.millisecondsSinceEpoch}',
+          start: d,
+          end: d.add(const Duration(minutes: 25)),
+          kind: WorkoutKind.upper,
+          title: 'Góra',
+          done: [DoneItem('pushups', 60, 0, reps: reps, target: 10)],
+          kcal: 150,
+          rpe: 6,
+          plannedSeconds: 60,
+        );
+    final sessions = [
+      sess(DateTime(2026, 10, 20, 18), 10), // poprzedni tydzień
+      sess(DateTime(2026, 10, 27, 18), 12),
+      sess(DateTime(2026, 10, 29, 18), 14),
+    ];
+    final t = make(Profile(daysPerWeek: 3), sessions: sessions);
+    final r = WeekReport.of(t, weeksAgo: 0);
+    expect(r.sessions, 2);
+    expect(r.prevSessions, 1);
+    expect(r.reps, 26);
+    expect(r.records.single.value, 14);
+    expect(r.forecast, isNotEmpty);
+    expect(r.testDue, isTrue);
+    expect(WeekReport.of(t, weeksAgo: 1).sessions, 1);
+  });
+
+  test('ruch w animacji: przytrzymanie i przejście', () {
+    final e = lib['squat']!;
+    final (_, still) = e.anim.motion(0.01);
+    expect(still, 0);
+    final per = e.anim.cycle / e.anim.keys.length;
+    final (_, mid) = e.anim.motion(per * (0.22 + 0.78 / 2));
+    expect(mid, closeTo(1, 0.01));
   });
 }

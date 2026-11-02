@@ -111,7 +111,7 @@ class _Side extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(children: [
         Expanded(child: CustomPaint(painter: _MapPainter(shapes, front, load), size: Size.infinite)),
-        Text(label, style: const TextStyle(color: C.muted, fontSize: 11)),
+        Text(label, style: TextStyle(color: C.muted, fontSize: 11)),
       ]);
 }
 

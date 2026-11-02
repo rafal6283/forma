@@ -1,0 +1,37 @@
+name: Check
+
+# Szybka kontrola gałęzi roboczej: analiza i testy bez budowania aplikacji.
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analiza kodu
+        run: |
+          flutter analyze --no-fatal-infos --no-fatal-warnings > analyze.log 2>&1 || true
+          grep -E "^\s*(error|warning) •" analyze.log | head -60 | while IFS= read -r l; do echo "::warning title=analyze::$l"; done
+          tail -n 2 analyze.log
+          ! grep -qE "^\s*error •" analyze.log
+      - name: Testy
+        if: always()
+        run: |
+          if ! flutter test --reporter expanded > test.log 2>&1; then
+            msg=$(grep -v '^\s*$' test.log | tail -n 80 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')
+            echo "::warning title=Testy::$msg"
+            exit 1
+          fi
+          tail -n 3 test.log

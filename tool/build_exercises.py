@@ -8,6 +8,7 @@ w powietrzu ani nie wchodziło w podłogę.
 Uruchom:  python3 tool/build_exercises.py && python3 tool/render_preview.py
 """
 import json
+import re
 from pathlib import Path
 
 from figure import FOOT, SHIN, THIGH, full, grounded, joints
@@ -1284,6 +1285,31 @@ for e in E:
     for rel in ("easier", "harder"):
         if rel in e:
             assert e[rel] in ids, f"{e['id']}: {rel} → {e[rel]}"
+
+# Dodatkowe obszary do oszczędzania przy dolegliwościach (łokcie, kostki, biodra, szyja) — z reguł.
+_HIPS = re.compile(r"lunge|cossack|sumo|pigeon|butterfly|frog|curtsy|split_squat|skaters|warrior2|figure_four|"
+                   r"wide_fold|hip_flexor|deep_squat_hold|leg_circles|fire_hydrant|worlds_greatest")
+_NECK = {"crunches", "sit_ups", "bicycle", "v_ups", "roll_up", "hundred", "toe_touches", "crunch_legs_up", "side_crunch",
+         "teaser", "plow", "shoulder_stand", "fish_pose", "handstand_pushup", "prisoner_squat", "rolling_ball"}
+_ELBOW = re.compile(r"dips|diamond|skull|kickback|pushdown|triceps_ext|pullups|chin_ups|curl|clap_pushup|kpush_narrow")
+for e in E:
+    st = list(e.get("stress", []))
+    m = e.get("m", {})
+
+    def _add(area):
+        if area not in st:
+            st.append(area)
+
+    if e.get("impact") or (m.get("calves", 0) >= 1 and e["type"] not in ("stretch", "warmup", "mobility")):
+        _add("kostki")
+    if _ELBOW.search(e["id"]) and e["type"] == "strength":
+        _add("łokcie")
+    if _HIPS.search(e["id"]):
+        _add("biodra")
+    if e["id"] in _NECK:
+        _add("szyja")
+    if st:
+        e["stress"] = st
 
 # Ustawienie stóp tam, gdzie nie podano go ręcznie (fp = 0):
 #  - leżenie przodem i klęk (biodra lub golenie na podłodze): stopy wyprostowane, grzbietem do podłogi,

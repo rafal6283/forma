@@ -50,7 +50,7 @@ Future<void> showUserSheet(BuildContext context) => showModalBottomSheet(
                 },
               ),
             ListTile(
-              leading: const CircleAvatar(backgroundColor: C.surface2, child: Icon(Icons.person_add_alt, color: C.text)),
+              leading: CircleAvatar(backgroundColor: C.surface2, child: Icon(Icons.person_add_alt, color: C.text)),
               title: const Text('Dodaj osobę'),
               onTap: () async {
                 Navigator.pop(c);
@@ -60,7 +60,7 @@ Future<void> showUserSheet(BuildContext context) => showModalBottomSheet(
                 await s.addUser(name);
               },
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
               child: Text(
                 'Każda osoba ma swój profil, poziom, treningi i pomiary. Health Connect włącz tylko u właściciela telefonu.',
@@ -86,7 +86,7 @@ class UserChip extends StatelessWidget {
         padding: const EdgeInsets.all(2),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           UserAvatar(s.profile.name, size: 34),
-          if (s.users.length > 1) const Icon(Icons.expand_more, size: 18, color: C.muted),
+          if (s.users.length > 1) Icon(Icons.expand_more, size: 18, color: C.muted),
         ]),
       ),
     );

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../core/figure.dart';
+import 'technique.dart';
 
 /// Realistyczna postać rysowana na szkielecie [Joints]: kończyny zwężające się jak mięśnie,
 /// sylwetka tułowia, głowa z włosami, dłonie, stopy w butach, ubranie i światłocień.
@@ -51,7 +52,16 @@ class Mannequin {
   /// Oddech w pozycjach statycznych: -1…1.
   final double breath;
 
-  Mannequin(this.c, this.j, this.P, this.s, {this.breath = 0});
+  /// Podświetlenie pracujących mięśni: część ciała → siła 0…1 (już przemnożona przez fazę ruchu).
+  final Map<String, double> glow;
+
+  Mannequin(this.c, this.j, this.P, this.s, {this.breath = 0, this.glow = const {}});
+
+  void _glow(Path path, String? tag) {
+    final g = tag == null ? 0.0 : (glow[tag] ?? 0);
+    if (g <= 0.02) return;
+    c.drawPath(path, Paint()..color = glowColor(0.55 * g));
+  }
 
   static Offset _dir(double a) {
     final r = a * math.pi / 180;
@@ -125,19 +135,21 @@ class Mannequin {
     ..color = const Color(0x40000000)
     ..strokeWidth = 1;
 
-  void _limbPart(Color col, Color far, bool isFar, Offset a, Offset b, double ra, double rb, {bool edge = true}) {
+  void _limbPart(Color col, Color far, bool isFar, Offset a, Offset b, double ra, double rb,
+      {bool edge = true, String? tag}) {
     final path = _capsule(a, b, ra, rb);
     c.drawPath(path, _shade(isFar ? far : col, P(a), P(b), math.max(ra, rb) * s));
+    _glow(path, tag);
     if (edge && !isFar) c.drawPath(path, _edge);
   }
 
   void _arm(String side, bool far) {
     final sh = j['sh$side'], el = j['el$side'], ha = j['ha$side'];
-    _limbPart(skin, skinFar, far, el, ha, armLo.$1, armLo.$2);
-    _limbPart(skin, skinFar, far, sh, el, armUp.$1, armUp.$2);
-    // rękaw koszulki
+    _limbPart(skin, skinFar, far, el, ha, armLo.$1, armLo.$2, tag: 'forearm');
+    _limbPart(skin, skinFar, far, sh, el, armUp.$1, armUp.$2, tag: 'upperArm');
+    // rękaw koszulki (bark)
     final mid = Offset.lerp(sh, el, 0.38)!;
-    _limbPart(shirt, shirtFar, far, sh, mid, armUp.$1 + 0.005, armUp.$1 - 0.002);
+    _limbPart(shirt, shirtFar, far, sh, mid, armUp.$1 + 0.005, armUp.$1 - 0.002, tag: 'shoulder');
     // dłoń
     final u = _unit(ha - el);
     final hc = P(ha + u * 0.03);
@@ -147,11 +159,11 @@ class Mannequin {
 
   void _leg(String side, bool far) {
     final hp = j['hp$side'], kn = j['kn$side'], an = j['an$side'];
-    _limbPart(skin, skinFar, far, kn, an, legLo.$1, legLo.$2);
-    _limbPart(skin, skinFar, far, hp, kn, legUp.$1, legUp.$2);
+    _limbPart(skin, skinFar, far, kn, an, legLo.$1, legLo.$2, tag: 'shin');
+    _limbPart(skin, skinFar, far, hp, kn, legUp.$1, legUp.$2, tag: 'thigh');
     // nogawka spodenek
     final mid = Offset.lerp(hp, kn, 0.45)!;
-    _limbPart(shorts, shortsFar, far, hp, mid, legUp.$1 + 0.006, (legUp.$1 + legUp.$2) / 2 + 0.006);
+    _limbPart(shorts, shortsFar, far, hp, mid, legUp.$1 + 0.006, (legUp.$1 + legUp.$2) / 2 + 0.006, tag: 'thigh');
     _foot(side, far);
   }
 
@@ -218,6 +230,8 @@ class Mannequin {
     }
     final path = _smooth(pts);
     c.drawPath(path, _shade(shirt, P(hip), P(neck), 0.15 * s));
+    final tg = math.max(glow['chest'] ?? 0, glow['abs'] ?? 0);
+    if (tg > 0.02) c.drawPath(path, Paint()..color = glowColor(0.5 * tg));
     c.drawPath(path, _edge);
     _shorts(hip, u, len);
   }
@@ -247,6 +261,7 @@ class Mannequin {
     final sp = pts.map(P).toList();
     final path = Path()..addPolygon(sp, true);
     c.drawPath(path, _shade(shorts, P(hip - u * 0.07), P(hip + u * (len * 0.2)), 0.12 * s));
+    _glow(path, 'pelvis');
     // gumka w pasie
     c.drawLine(
       sp[0],

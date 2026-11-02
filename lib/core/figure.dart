@@ -217,4 +217,16 @@ class FigAnim {
     final e = 0.5 - math.cos(k * math.pi) / 2;
     return Pose.lerp(keys[i], keys[(i + 1) % keys.length], e);
   }
+
+  /// Bieżący odcinek ruchu: poza docelowa i „prędkość” 0…1 (0 w przytrzymaniu, 1 w połowie przejścia).
+  (Pose to, double move) motion(double seconds, {double speed = 1}) {
+    if (keys.length == 1) return (keys.first, 0);
+    final per = cycle / keys.length;
+    final t = (seconds * speed) % cycle;
+    final i = (t / per).floor() % keys.length;
+    final f = (t - i * per) / per;
+    const hold = 0.22;
+    final k = f < hold ? 0.0 : (f - hold) / (1 - hold);
+    return (keys[(i + 1) % keys.length], f < hold ? 0 : math.sin(k * math.pi));
+  }
 }

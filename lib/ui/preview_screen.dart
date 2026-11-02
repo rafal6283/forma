@@ -89,7 +89,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                 WorkoutFormat.sets || WorkoutFormat.supersets => '${phaseLabel[ph]} · ${formatLabel[plan.format]!.toLowerCase()}',
                 _ => rounds > 1 ? '${phaseLabel[ph]} · $rounds × obwód' : phaseLabel[ph]!,
               },
-        trailing: Text(fmtMin(secs), style: const TextStyle(color: C.muted)),
+        trailing: Text(fmtMin(secs), style: TextStyle(color: C.muted)),
       ));
       final shown = <String>{};
       final rows = <Widget>[];
@@ -120,7 +120,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
               if (approx != null && !e.uni && rounds == 1 && n == 1) '~$approx powt.',
               if (rest > 5 && ph == Phase.main && plan.format != WorkoutFormat.tabata) 'przerwa $rest s',
             ].join(' · '),
-            style: const TextStyle(color: C.muted),
+            style: TextStyle(color: C.muted),
           ),
           trailing: IconButton(icon: const Icon(Icons.swap_horiz), tooltip: 'Zamień', onPressed: () => _swap(it.exId)),
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExerciseScreen(exercise: e))),

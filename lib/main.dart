@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:koofr_backup_ui/koofr_backup_ui.dart';
 
+import 'core/app_settings.dart';
 import 'core/backup.dart';
 import 'core/library.dart';
 import 'core/store.dart';
@@ -15,6 +16,7 @@ import 'ui/onboarding_screen.dart';
 import 'ui/muscle_map.dart';
 import 'ui/profile_screen.dart';
 import 'ui/settings_screen.dart';
+import 'ui/splash.dart';
 import 'ui/theme.dart';
 
 /// Kopia na Koofr w tle (Android) — osobny proces, więc dane wczytujemy od nowa.
@@ -29,6 +31,7 @@ Future<void> main() async {
   await Library.load();
   await MuscleShapes.load();
   await Store.instance.load();
+  await AppSettings.instance.load();
   final p = Store.instance.profile;
   Voice.instance
     ..enabled = p.voice
@@ -52,29 +55,66 @@ class FormaApp extends StatefulWidget {
   State<FormaApp> createState() => _FormaAppState();
 }
 
-class _FormaAppState extends State<FormaApp> {
+class _FormaAppState extends State<FormaApp> with WidgetsBindingObserver {
+  final settings = AppSettings.instance;
+  bool _splash = true;
+
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'Forma',
-        debugShowCheckedModeBanner: false,
-        theme: formaTheme(),
-        darkTheme: formaTheme(),
-        themeMode: ThemeMode.dark,
-        locale: const Locale('pl'),
-        supportedLocales: const [Locale('pl')],
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        // przełączenie osoby podmienia cały ekran (nowa osoba zaczyna od wprowadzenia)
-        home: ListenableBuilder(
-          listenable: Store.instance,
-          builder: (context, _) => Store.instance.profile.onboarded
-              ? Shell(key: ValueKey(Store.instance.userId))
-              : OnboardingScreen(key: ValueKey('ob-${Store.instance.userId}'), onDone: () => setState(() {})),
-        ),
-      );
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    settings.addListener(_onSettings);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    settings.removeListener(_onSettings);
+    super.dispose();
+  }
+
+  void _onSettings() => setState(() {});
+
+  @override
+  void didChangePlatformBrightness() {
+    if (settings.theme == 'system') setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final platform = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    C.light = resolveLight(settings.theme, platform);
+    final theme = formaTheme();
+    // klucz z motywem: zmiana motywu przebudowuje wszystkie ekrany z nową paletą
+    return MaterialApp(
+      key: ValueKey('theme-${C.light}'),
+      title: 'Forma',
+      debugShowCheckedModeBanner: false,
+      theme: theme,
+      darkTheme: theme,
+      themeMode: C.light ? ThemeMode.light : ThemeMode.dark,
+      locale: const Locale('pl'),
+      supportedLocales: const [Locale('pl')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      // przełączenie osoby podmienia cały ekran (nowa osoba zaczyna od wprowadzenia)
+      home: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 450),
+        child: _splash
+            ? SplashScreen(key: const ValueKey('splash'), onDone: () => setState(() => _splash = false))
+            : ListenableBuilder(
+                key: const ValueKey('app'),
+                listenable: Store.instance,
+                builder: (context, _) => Store.instance.profile.onboarded
+                    ? Shell(key: ValueKey(Store.instance.userId))
+                    : OnboardingScreen(key: ValueKey('ob-${Store.instance.userId}'), onDone: () => setState(() {})),
+              ),
+      ),
+    );
+  }
 }
 
 class Shell extends StatefulWidget {
@@ -85,7 +125,10 @@ class Shell extends StatefulWidget {
 }
 
 class _ShellState extends State<Shell> {
-  int tab = 0;
+  // zapamiętana karta — zmiana motywu przebudowuje aplikację, a użytkownik zostaje w ustawieniach
+  static int _tab = 0;
+  int get tab => _tab;
+  set tab(int v) => _tab = v;
 
   @override
   Widget build(BuildContext context) => Scaffold(

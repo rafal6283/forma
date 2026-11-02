@@ -14,6 +14,7 @@ import 'program_screen.dart';
 import 'catalog_screen.dart';
 import 'fit_test_screen.dart';
 import '../core/catalog.dart';
+import 'report_screen.dart';
 import 'theme.dart';
 import 'users.dart';
 import 'widgets.dart';
@@ -58,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final s = Store.instance;
     final sig = '${s.sessions.length}|${s.todayCheckIn?.at}|${s.todayHrv?.at}|${s.health.sleepHours}|'
         '${s.health.restingHr}|${s.profile.level}|${s.profile.minutes}|${s.profile.equipment}|${s.profile.limits}|'
-        '${s.profile.goal}|${s.profile.noJumping}|${s.program?.id}|${s.program?.doneCount}|${s.program?.active}';
+        '${s.profile.goal}|${s.profile.noJumping}|${s.profile.warmup}|${s.profile.cooldown}|${s.profile.activeLimits}|${s.program?.id}|${s.program?.doneCount}|${s.program?.active}';
     if (sig != _lastSig) {
       if (s.sessions.length != _lastSessions && _lastSessions >= 0) {
         _kind = null;
@@ -95,6 +96,8 @@ class _HomeScreenState extends State<HomeScreen> {
         reason: _reason,
         load: light ? day.load * 0.7 : day.load,
         programDay: day.id,
+        prefer: pr.prefer.toSet(),
+        quiet: pr.quiet,
       );
     } else {
       var kind = _kind;
@@ -144,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(children: [
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(fmtDate(now), style: const TextStyle(color: C.muted)),
+                    Text(fmtDate(now), style: TextStyle(color: C.muted)),
                     Text(s.profile.name.isEmpty ? hello : '$hello, ${s.profile.name}',
                         style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
                   ]),
@@ -166,6 +169,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const _Extras(),
               const SectionTitle('Ten tydzień'),
               _WeekCard(sessions: s.sessions, target: s.profile.daysPerWeek),
+              const SizedBox(height: 10),
+              const ReportCard(),
             ],
           ),
         ),
@@ -199,12 +204,12 @@ class _ReadinessCard extends StatelessWidget {
             const SizedBox(width: 16),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Gotowość', style: TextStyle(color: C.muted)),
+                Text('Gotowość', style: TextStyle(color: C.muted)),
                 Text(r.tier, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color)),
                 const SizedBox(height: 4),
                 Text(
                   r.hasData ? 'Na podstawie snu, tętna, samopoczucia i ostatnich treningów.' : 'Brak danych — szacunek.',
-                  style: const TextStyle(color: C.muted, fontSize: 12),
+                  style: TextStyle(color: C.muted, fontSize: 12),
                 ),
               ]),
             ),
@@ -295,11 +300,11 @@ class _PlanCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 3, right: 8),
                     child: Icon(Icons.auto_awesome, size: 14, color: C.muted),
                   ),
-                  Expanded(child: Text(line, style: const TextStyle(color: C.muted, height: 1.35))),
+                  Expanded(child: Text(line, style: TextStyle(color: C.muted, height: 1.35))),
                 ]),
               ),
             const SizedBox(height: 12),
@@ -370,7 +375,7 @@ class _KindSheetState extends State<_KindSheet> {
           if (format != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text(formatHint[format]!, style: const TextStyle(color: C.muted, fontSize: 12)),
+              child: Text(formatHint[format]!, style: TextStyle(color: C.muted, fontSize: 12)),
             ),
           const SizedBox(height: 16),
           const Text('Czas', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -379,7 +384,28 @@ class _KindSheetState extends State<_KindSheet> {
             for (final m in [10, 15, 20, 25, 30, 40, 50, 60])
               ChoiceChip(label: Text('$m min'), selected: minutes == m, onSelected: (_) => setState(() => minutes = m)),
           ]),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Rozgrzewka'),
+            subtitle: Text('Dobrana do partii, które dziś pracują', style: TextStyle(color: C.muted, fontSize: 12)),
+            value: Store.instance.profile.warmup,
+            onChanged: (v) => setState(() {
+              Store.instance.profile.warmup = v;
+              Store.instance.save();
+            }),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Rozciąganie na koniec'),
+            subtitle: Text('Wyciszenie mięśni, które pracowały', style: TextStyle(color: C.muted, fontSize: 12)),
+            value: Store.instance.profile.cooldown,
+            onChanged: (v) => setState(() {
+              Store.instance.profile.cooldown = v;
+              Store.instance.save();
+            }),
+          ),
+          const SizedBox(height: 8),
           FilledButton(
             onPressed: () => Navigator.pop(context, (kind, format, minutes)),
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
@@ -498,7 +524,7 @@ class _Extras extends StatelessWidget {
                 : testDue
                     ? 'Minęły 4 tygodnie — czas sprawdzić postęp'
                     : 'Następny za ${28 - DateTime.now().difference(lastTest.at).inDays} dni',
-            style: const TextStyle(color: C.muted),
+            style: TextStyle(color: C.muted),
           ),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FitTestScreen())),

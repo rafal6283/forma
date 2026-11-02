@@ -13,6 +13,7 @@ import '../core/tcx.dart';
 import 'muscle_map.dart';
 import 'session_widgets.dart';
 import 'stats_screen.dart';
+import 'report_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -33,12 +34,19 @@ class HistoryScreen extends StatelessWidget {
             child: Scaffold(
             appBar: AppBar(
               title: const Text('Postępy'),
+              actions: [
+                IconButton(
+                  tooltip: 'Raport tygodnia',
+                  icon: const Icon(Icons.assignment_outlined),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen())),
+                ),
+              ],
               bottom: const TabBar(tabs: [Tab(text: 'Przegląd'), Tab(text: 'Treningi')]),
             ),
             body: TabBarView(children: [
               const StatsView(),
               list.isEmpty
-                ? const Center(
+                ? Center(
                     child: Padding(
                       padding: EdgeInsets.all(32),
                       child: Text('Tu pojawią się Twoje treningi.', style: TextStyle(color: C.muted)),
@@ -49,7 +57,7 @@ class HistoryScreen extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Text('Ostatnie 30 dni', style: TextStyle(color: C.muted)),
+                          Text('Ostatnie 30 dni', style: TextStyle(color: C.muted)),
                           const SizedBox(height: 10),
                           Row(children: [
                             Expanded(child: Stat('treningi', '${month.length}')),
@@ -59,7 +67,7 @@ class HistoryScreen extends StatelessWidget {
                           ]),
                           const SizedBox(height: 10),
                           Text('Seria: ${_streakWeeks(s.sessions, s.profile.daysPerWeek)} tyg. z celem ${s.profile.daysPerWeek} treningów',
-                              style: const TextStyle(color: C.muted, fontSize: 12)),
+                              style: TextStyle(color: C.muted, fontSize: 12)),
                         ]),
                       ),
                     ),
@@ -73,7 +81,7 @@ class HistoryScreen extends StatelessWidget {
                             subtitle: Text(
                               '${fmtDate(x.start)}, ${fmtTime(x.start)} · ${fmtDur(x.duration.inSeconds)} · ${x.kcal.round()} kcal'
                               '${x.avgHr != null ? ' · ♥ ${x.avgHr}' : ''}',
-                              style: const TextStyle(color: C.muted, fontSize: 12),
+                              style: TextStyle(color: C.muted, fontSize: 12),
                             ),
                             trailing: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                               Text('RPE ${x.rpe}', style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -157,7 +165,7 @@ class _SessionScreenState extends State<SessionScreen> {
         ),
       ]),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 32), children: [
-        Text('${fmtDate(s.start)}, ${fmtTime(s.start)}–${fmtTime(s.end)}', style: const TextStyle(color: C.muted)),
+        Text('${fmtDate(s.start)}, ${fmtTime(s.start)}–${fmtTime(s.end)}', style: TextStyle(color: C.muted)),
         const SizedBox(height: 12),
         Card(
           child: Padding(
@@ -194,7 +202,7 @@ class _SessionScreenState extends State<SessionScreen> {
                   if (s.feedback[e.key] == 1) const Text('trudne  ', style: TextStyle(color: C.bad)),
                   if (s.feedback[e.key] == -1) const Text('łatwe  ', style: TextStyle(color: C.good)),
                   Text(repsBy[e.key] != null ? '${repsBy[e.key]!.join('/')} powt.' : fmtDur(e.value),
-                      style: const TextStyle(color: C.muted)),
+                      style: TextStyle(color: C.muted)),
                 ]),
               ),
           ]),
@@ -302,7 +310,7 @@ class _StravaCardState extends State<_StravaCard> {
             ),
           ]),
           if (connected == false)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text('Połącz Stravę w Ustawieniach albo wgraj plik TCX na strava.com/upload.',
                   style: TextStyle(color: C.muted, fontSize: 12)),

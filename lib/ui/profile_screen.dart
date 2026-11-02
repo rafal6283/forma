@@ -69,10 +69,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(p.name.isEmpty ? 'Bez imienia' : p.name,
                             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                         Text('${p.age} lat · ${p.heightCm} cm · ${goalLabel[p.goal]}',
-                            style: const TextStyle(color: C.muted)),
+                            style: TextStyle(color: C.muted)),
                       ]),
                     ),
-                    if (s.users.length > 1) const Icon(Icons.swap_horiz, color: C.muted),
+                    if (s.users.length > 1) Icon(Icons.swap_horiz, color: C.muted),
                   ]),
                 ),
               ),
@@ -116,7 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           points.isEmpty
                               ? 'Dodaj pomiar, żeby śledzić zmiany${p.healthConnect ? ' (waga wczytuje się też z Health Connect)' : ''}.'
                               : 'Jeszcze jeden pomiar i pokażę wykres.',
-                          style: const TextStyle(color: C.muted),
+                          style: TextStyle(color: C.muted),
                         ),
                       )
                     else
@@ -142,7 +142,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: s.tests.isEmpty
-                      ? const Text('Zrób test formy, a zobaczysz tu wynik 0–100 i jego zmiany co miesiąc.',
+                      ? Text('Zrób test formy, a zobaczysz tu wynik 0–100 i jego zmiany co miesiąc.',
                           style: TextStyle(color: C.muted))
                       : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Row(children: [
@@ -176,7 +176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: load.isEmpty
-                      ? const Text('Po pierwszym treningu zobaczysz tu, które mięśnie pracowały.',
+                      ? Text('Po pierwszym treningu zobaczysz tu, które mięśnie pracowały.',
                           style: TextStyle(color: C.muted))
                       : MuscleMap(load, height: 240),
                 ),
@@ -194,14 +194,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ]),
                     if (topEx.isNotEmpty) ...[
                       const SizedBox(height: 14),
-                      const Text('Najczęściej', style: TextStyle(color: C.muted)),
+                      Text('Najczęściej', style: TextStyle(color: C.muted)),
                       const SizedBox(height: 6),
                       for (final e in topEx.take(5))
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 3),
                           child: Row(children: [
                             Expanded(child: Text(Library.instance[e.key]?.name ?? e.key)),
-                            Text('${e.value.count}×', style: const TextStyle(color: C.muted)),
+                            Text('${e.value.count}×', style: TextStyle(color: C.muted)),
                           ]),
                         ),
                     ],
@@ -249,7 +249,7 @@ class _MeasureSheetState extends State<_MeasureSheet> {
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               const Text('Nowy pomiar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
-              const Text('Wypełnij tylko to, co mierzysz. Obwody najlepiej rano, w tym samym miejscu.',
+              Text('Wypełnij tylko to, co mierzysz. Obwody najlepiej rano, w tym samym miejscu.',
                   style: TextStyle(color: C.muted, fontSize: 12)),
               const SizedBox(height: 12),
               Wrap(spacing: 10, runSpacing: 10, children: [
@@ -310,7 +310,7 @@ class _MeasurementsList extends StatelessWidget {
                           .map((e) =>
                               '${measureLabel[e.key]?.$1 ?? e.key} ${e.value.toStringAsFixed(1).replaceAll('.', ',')} ${measureLabel[e.key]?.$2 ?? ''}')
                           .join(' · '),
-                      style: const TextStyle(color: C.muted),
+                      style: TextStyle(color: C.muted),
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
@@ -401,7 +401,7 @@ class _Badges extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text('$got z ${list.length}', style: const TextStyle(color: C.muted)),
+            child: Text('$got z ${list.length}', style: TextStyle(color: C.muted)),
           ),
           GridView.count(
             crossAxisCount: 4,

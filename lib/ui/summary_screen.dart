@@ -8,6 +8,7 @@ import '../core/library.dart';
 import '../core/models.dart';
 import '../core/store.dart';
 import '../core/strava.dart';
+import 'confetti.dart';
 import 'muscle_map.dart';
 import 'session_widgets.dart';
 import 'theme.dart';
@@ -95,11 +96,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
       },
       child: Scaffold(
         appBar: AppBar(title: Text(s.completion > 0.95 ? 'Brawo! 💪' : 'Podsumowanie'), automaticallyImplyLeading: false),
-        body: ListView(
+        body: Stack(children: [
+          ListView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
           children: [
             Text(s.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            Text('${(s.completion * 100).round()}% planu', style: const TextStyle(color: C.muted)),
+            Text('${(s.completion * 100).round()}% planu', style: TextStyle(color: C.muted)),
             const SizedBox(height: 16),
             Card(
               child: Padding(
@@ -141,7 +143,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     divisions: 9,
                     onChanged: (v) => setState(() => s.rpe = v.round()),
                   ),
-                  const Text('Trener celuje w „ciężko” (7). Lżej — podniesie poprzeczkę, ciężej — odpuści.',
+                  Text('Trener celuje w „ciężko” (7). Lżej — podniesie poprzeczkę, ciężej — odpuści.',
                       style: TextStyle(color: C.muted, fontSize: 12)),
                 ]),
               ),
@@ -179,6 +181,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
             ],
           ],
         ),
+          if (s.completion > 0.8) const Positioned.fill(child: Confetti()),
+        ]),
         bottomNavigationBar: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),

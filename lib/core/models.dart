@@ -24,7 +24,19 @@ const equipmentLabel = {
 };
 
 /// Ograniczenia: ćwiczenia obciążające te miejsca są pomijane.
-const limitLabels = ['kolana', 'plecy', 'nadgarstki', 'barki'];
+const limitLabels = ['kolana', 'plecy', 'nadgarstki', 'barki', 'łokcie', 'kostki', 'biodra', 'szyja'];
+
+/// Czego unika trener przy danej dolegliwości (opis dla użytkownika).
+const limitHints = {
+  'kolana': 'bez skoków, głębokich przysiadów i wykroków',
+  'plecy': 'bez skłonów z obciążeniem, unoszenia nóg w leżeniu i skrętów',
+  'nadgarstki': 'bez podporu na dłoniach — deski i pompki na przedramionach lub pięściach',
+  'barki': 'bez wyciskania nad głowę, pompek w pike i pompek na poręczach',
+  'łokcie': 'bez prostowania ramion z obciążeniem, pompek diamentowych i podciągania',
+  'kostki': 'bez skoków, wspięć na palce i biegu w miejscu',
+  'biodra': 'bez wykroków, szerokich przysiadów i głębokiego rozciągania bioder',
+  'szyja': 'bez brzuszków z dłońmi za głową i pozycji z ciężarem na karku',
+};
 
 const muscleGroups = ['nogi', 'pośladki', 'klatka', 'plecy', 'barki', 'ramiona', 'brzuch'];
 
@@ -197,6 +209,9 @@ class Profile {
   bool voiceControl; // komendy głosowe w trakcie treningu
   bool stravaAuto; // wysyłaj po treningu
   bool stravaMatch; // uzupełnij aktywność z zegarka zamiast tworzyć nową
+  bool warmup; // rozgrzewka dobrana do partii
+  bool cooldown; // rozciąganie na koniec
+  Map<String, DateTime> limitUntil; // dolegliwości czasowe: do kiedy oszczędzać (brak wpisu = na stałe)
 
   Profile({
     this.name = '',
@@ -222,8 +237,18 @@ class Profile {
     this.voiceControl = false,
     this.stravaAuto = true,
     this.stravaMatch = true,
+    this.warmup = true,
+    this.cooldown = true,
+    Map<String, DateTime>? limitUntil,
   })  : equipment = equipment ?? {'chair'},
-        limits = limits ?? {};
+        limits = limits ?? {},
+        limitUntil = limitUntil ?? {};
+
+  /// Dolegliwości obowiązujące dziś (czasowe po terminie przestają działać).
+  Set<String> get activeLimits {
+    final now = DateTime.now();
+    return {for (final l in limits) if (limitUntil[l] == null || limitUntil[l]!.isAfter(now)) l};
+  }
 
   int get age => DateTime.now().year - birthYear;
   int get maxHr => maxHrOverride ?? (208 - 0.7 * age).round();
@@ -252,6 +277,9 @@ class Profile {
         'voiceControl': voiceControl,
         'stravaAuto': stravaAuto,
         'stravaMatch': stravaMatch,
+        'warmup': warmup,
+        'cooldown': cooldown,
+        'limitUntil': limitUntil.map((k, v) => MapEntry(k, v.toIso8601String())),
       };
 
   factory Profile.fromJson(Map<String, dynamic> j) => Profile(
@@ -278,6 +306,12 @@ class Profile {
         voiceControl: j['voiceControl'] == true,
         stravaAuto: j['stravaAuto'] != false,
         stravaMatch: j['stravaMatch'] != false,
+        warmup: j['warmup'] != false,
+        cooldown: j['cooldown'] != false,
+        limitUntil: {
+          for (final e in ((j['limitUntil'] as Map?) ?? const {}).entries)
+            if (DateTime.tryParse('${e.value}') != null) '${e.key}': DateTime.parse('${e.value}'),
+        },
       );
 }
 

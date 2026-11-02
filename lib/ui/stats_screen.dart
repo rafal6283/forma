@@ -108,7 +108,7 @@ class _StatsViewState extends State<StatsView> {
       ),
       const SectionTitle('Kalendarz (12 tygodni)'),
       Card(child: Padding(padding: const EdgeInsets.all(14), child: _Heatmap(s.sessions))),
-      SectionTitle('Serie w tym tygodniu', trailing: Text('cel $target na partię', style: const TextStyle(color: C.muted, fontSize: 12))),
+      SectionTitle('Serie w tym tygodniu', trailing: Text('cel $target na partię', style: TextStyle(color: C.muted, fontSize: 12))),
       Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -152,21 +152,21 @@ class _StatsViewState extends State<StatsView> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Gotowość przed treningiem', style: TextStyle(color: C.muted)),
+              Text('Gotowość przed treningiem', style: TextStyle(color: C.muted)),
               SizedBox(height: 70, child: _Line([for (final x in list) if (x.readiness > 0) x.readiness.toDouble()], C.good)),
               if (list.where((x) => x.avgHr != null).length >= 3) ...[
                 const SizedBox(height: 12),
-                const Text('Średnie tętno na treningu', style: TextStyle(color: C.muted)),
+                Text('Średnie tętno na treningu', style: TextStyle(color: C.muted)),
                 SizedBox(height: 70, child: _Line([for (final x in list) if (x.avgHr != null) x.avgHr!.toDouble()], C.bad)),
               ],
               if (list.where((x) => x.hrr != null).length >= 2) ...[
                 const SizedBox(height: 12),
-                const Text('Regeneracja tętna po treningu (spadek w minutę)', style: TextStyle(color: C.muted)),
+                Text('Regeneracja tętna po treningu (spadek w minutę)', style: TextStyle(color: C.muted)),
                 SizedBox(height: 70, child: _Line([for (final x in list) if (x.hrr != null) x.hrr!.toDouble()], C.good)),
               ],
               if (s.hrv.length >= 3) ...[
                 const SizedBox(height: 12),
-                const Text('HRV rano (ms)', style: TextStyle(color: C.muted)),
+                Text('HRV rano (ms)', style: TextStyle(color: C.muted)),
                 SizedBox(height: 70, child: _Line([for (final h in s.hrv.where((h) => !h.at.isBefore(from))) h.rmssd], C.calm)),
               ],
             ]),
@@ -191,7 +191,7 @@ class _Bars extends StatelessWidget {
         Expanded(
           child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
             if (data[i].$2 > 0)
-              Text('${data[i].$2.round()}', style: const TextStyle(fontSize: 9, color: C.muted)),
+              Text('${data[i].$2.round()}', style: TextStyle(fontSize: 9, color: C.muted)),
             Container(
               height: mx == 0 ? 2 : math.max(2, data[i].$2 / mx * 100),
               margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -202,7 +202,7 @@ class _Bars extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(i % (data.length > 8 ? 2 : 1) == 0 ? data[i].$1 : '',
-                style: const TextStyle(fontSize: 9, color: C.muted), maxLines: 1),
+                style: TextStyle(fontSize: 9, color: C.muted), maxLines: 1),
           ]),
         ),
     ]);
@@ -233,7 +233,7 @@ class _Heatmap extends StatelessWidget {
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Column(children: [
         for (final d in const ['P', 'W', 'Ś', 'C', 'P', 'S', 'N'])
-          SizedBox(height: 18, child: Text(d, style: const TextStyle(fontSize: 10, color: C.muted))),
+          SizedBox(height: 18, child: Text(d, style: TextStyle(fontSize: 10, color: C.muted))),
       ]),
       const SizedBox(width: 6),
       for (var w = 0; w < 12; w++)
@@ -327,7 +327,7 @@ class _Records extends StatelessWidget {
       }
     }
     if (best.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.all(8),
         child: Text('Rekordy pojawią się po treningach z seriami na powtórzenia i ćwiczeniach na czas (np. deska).',
             style: TextStyle(color: C.muted)),
@@ -340,7 +340,7 @@ class _Records extends StatelessWidget {
           ListTile(
             dense: true,
             title: Text(lib[e.key]?.name ?? e.key),
-            subtitle: Text(fmtDate(e.value.$3), style: const TextStyle(color: C.muted)),
+            subtitle: Text(fmtDate(e.value.$3), style: TextStyle(color: C.muted)),
             trailing: Text(e.value.$2 ? '${e.value.$1} powt.' : fmtDur(e.value.$1),
                 style: const TextStyle(fontWeight: FontWeight.w800, color: C.accent)),
             onTap: () => Navigator.push(
@@ -379,12 +379,12 @@ class ExerciseProgressScreen extends StatelessWidget {
           ),
       ]),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 32), children: [
-        Text(usesReps ? 'Najlepsza seria (powtórzenia)' : 'Najdłużej (sekundy)', style: const TextStyle(color: C.muted)),
+        Text(usesReps ? 'Najlepsza seria (powtórzenia)' : 'Najdłużej (sekundy)', style: TextStyle(color: C.muted)),
         const SizedBox(height: 8),
         if (values.length >= 2)
           Card(child: Padding(padding: const EdgeInsets.all(16), child: SizedBox(height: 140, child: _Line(values, C.accent))))
         else
-          const Text('Wykres pojawi się po drugim treningu z tym ćwiczeniem.', style: TextStyle(color: C.muted)),
+          Text('Wykres pojawi się po drugim treningu z tym ćwiczeniem.', style: TextStyle(color: C.muted)),
         const SectionTitle('Treningi'),
         Card(
           child: Column(children: [
@@ -392,7 +392,7 @@ class ExerciseProgressScreen extends StatelessWidget {
               ListTile(
                 dense: true,
                 title: Text(fmtDate(r.$1.start)),
-                subtitle: Text(r.$1.title, style: const TextStyle(color: C.muted)),
+                subtitle: Text(r.$1.title, style: TextStyle(color: C.muted)),
                 trailing: Text(
                   r.$2.map((d) => d.reps != null ? '${d.reps}' : fmtDur(d.seconds)).join(' / '),
                   style: const TextStyle(fontWeight: FontWeight.w700),

@@ -87,7 +87,7 @@ class ZonesBar extends StatelessWidget {
             Row(mainAxisSize: MainAxisSize.min, children: [
               Container(width: 8, height: 8, decoration: BoxDecoration(color: C.zones[i], shape: BoxShape.circle)),
               const SizedBox(width: 4),
-              Text('S${i + 1} ${fmtDur(zones[i])}', style: const TextStyle(color: C.muted, fontSize: 12)),
+              Text('S${i + 1} ${fmtDur(zones[i])}', style: TextStyle(color: C.muted, fontSize: 12)),
             ]),
       ]),
     ]);

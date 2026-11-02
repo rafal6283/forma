@@ -167,7 +167,7 @@ class _FitTestScreenState extends State<FitTestScreen> {
           decoration: BoxDecoration(color: C.surface, borderRadius: BorderRadius.circular(20)),
           child: Column(children: [
             Text('$count', style: const TextStyle(fontSize: 56, fontWeight: FontWeight.w800)),
-            Text(running ? 'dotknij przy każdym powtórzeniu' : 'powtórzeń', style: const TextStyle(color: C.muted)),
+            Text(running ? 'dotknij przy każdym powtórzeniu' : 'powtórzeń', style: TextStyle(color: C.muted)),
           ]),
         ),
       ),
@@ -215,7 +215,7 @@ class _FitTestScreenState extends State<FitTestScreen> {
                   '4. Deska na przedramionach do upadku\n'
                   '5. Regeneracja tętna: minuta pracy i minuta odpoczynku${strap ? '' : ' — wymaga opaski'}\n\n'
                   'Powtarzaj co 4 tygodnie. Wynik 0–100 pokazuje postęp względem Ciebie samego.',
-                  style: const TextStyle(color: C.muted, height: 1.45),
+                  style: TextStyle(color: C.muted, height: 1.45),
                 ),
                 if (prev != null) ...[
                   const SizedBox(height: 10),
@@ -233,7 +233,7 @@ class _FitTestScreenState extends State<FitTestScreen> {
                 const SizedBox(height: 16),
                 _timerBig(),
                 const SizedBox(height: 12),
-                const Text('Siedź spokojnie, nie rozmawiaj.', style: TextStyle(color: C.muted)),
+                Text('Siedź spokojnie, nie rozmawiaj.', style: TextStyle(color: C.muted)),
               ]),
             _Stage.pushups => _counterStage('pushups', 'Pompki — 1 minuta', (v) => pushups = v, _Stage.squats),
             _Stage.squats => _counterStage('squat', 'Przysiady — 1 minuta', (v) => squats = v, _Stage.plank),
@@ -285,7 +285,7 @@ class _FitTestScreenState extends State<FitTestScreen> {
                   FilledButton(onPressed: _run, style: _btn, child: const Text('Start'))
                 else
                   Text(stage == _Stage.hrrRest && _peak != null ? 'Tętno na koniec pracy: $_peak' : '',
-                      style: const TextStyle(color: C.muted)),
+                      style: TextStyle(color: C.muted)),
                 TextButton(onPressed: _finish, child: const Text('Pomiń')),
               ]),
             _Stage.result => _result(prev),
@@ -310,7 +310,7 @@ class _FitTestScreenState extends State<FitTestScreen> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Text('${t.score}', style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w800)),
             Text(prev == null ? 'wynik formy' : '${t.score >= prev.score ? '+' : ''}${t.score - prev.score} od ostatniego',
-                style: const TextStyle(color: C.muted)),
+                style: TextStyle(color: C.muted)),
           ]),
         ),
       ),
@@ -329,7 +329,7 @@ class _FitTestScreenState extends State<FitTestScreen> {
                   'Tętno spoczynkowe' => '$restHr bpm',
                   _ => 'spadek o $hrr bpm w minutę',
                 },
-                style: const TextStyle(color: C.muted),
+                style: TextStyle(color: C.muted),
               ),
               trailing: Text(
                 '${e.value}${pp[e.key] != null ? ' (${e.value - pp[e.key]! >= 0 ? '+' : ''}${e.value - pp[e.key]!})' : ''}',
@@ -342,7 +342,7 @@ class _FitTestScreenState extends State<FitTestScreen> {
       if ((suggested - p.level).abs() >= 0.5)
         Text(
           'Wynik odpowiada poziomowi ${suggested.toStringAsFixed(1).replaceAll('.', ',')} — teraz masz ${p.level.toStringAsFixed(1).replaceAll('.', ',')}.',
-          style: const TextStyle(color: C.muted),
+          style: TextStyle(color: C.muted),
         ),
       const SizedBox(height: 12),
       FilledButton(

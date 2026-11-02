@@ -3,12 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:koofr_backup_ui/koofr_backup_ui.dart';
 
+import '../core/app_settings.dart';
 import '../core/coach.dart';
 import '../core/health_sync.dart';
 import '../core/models.dart';
 import '../core/store.dart';
 import '../core/voice.dart';
 import 'hr_screen.dart';
+import 'injuries_screen.dart';
 import 'strava_screen.dart';
 import 'users.dart';
 import 'theme.dart';
@@ -23,6 +25,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final store = Store.instance;
+  final app = AppSettings.instance;
   Profile get p => store.profile;
 
   Future<void> _save() async {
@@ -221,31 +224,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
               ]),
             ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 6),
-              child: Text('Oszczędzaj', style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-              child: Wrap(spacing: 8, runSpacing: 8, children: [
-                for (final l in limitLabels)
-                  FilterChip(
-                    label: Text(l),
-                    selected: p.limits.contains(l),
-                    onSelected: (v) {
-                      v ? p.limits.add(l) : p.limits.remove(l);
-                      _save();
-                    },
-                  ),
-              ]),
-            ),
-            SwitchListTile(
-              title: const Text('Bez skoków'),
-              subtitle: const Text('Cicho dla sąsiadów', style: TextStyle(color: C.muted)),
-              value: p.noJumping,
-              onChanged: (v) {
-                p.noJumping = v;
-                _save();
+            ListTile(
+              leading: const Icon(Icons.healing_outlined),
+              title: const Text('Dolegliwości i kontuzje'),
+              subtitle: Text(injuriesSummary(p), style: TextStyle(color: C.muted)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                await Navigator.push(context, MaterialPageRoute(builder: (_) => const InjuriesScreen()));
+                setState(() {});
               },
             ),
           ]),
@@ -256,7 +242,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(
               leading: const Icon(Icons.favorite_border),
               title: const Text('Opaska / zegarek'),
-              subtitle: Text(p.hrDeviceName ?? 'Nie połączono', style: const TextStyle(color: C.muted)),
+              subtitle: Text(p.hrDeviceName ?? 'Nie połączono', style: TextStyle(color: C.muted)),
               trailing: const Icon(Icons.chevron_right),
               onTap: () async {
                 await Navigator.push(context, MaterialPageRoute(builder: (_) => const HrScreen()));
@@ -266,7 +252,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(
               title: const Text('Tętno maksymalne'),
               subtitle: Text(p.maxHrOverride == null ? 'Z wieku: ${p.maxHr}' : 'Ustawione ręcznie',
-                  style: const TextStyle(color: C.muted)),
+                  style: TextStyle(color: C.muted)),
               trailing: Text('${p.maxHr}'),
               onTap: () async {
                 final v = await _ask('Tętno maksymalne (puste = z wieku)', p.maxHrOverride?.toString() ?? '',
@@ -280,7 +266,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SwitchListTile(
               secondary: const Icon(Icons.health_and_safety_outlined),
               title: Text(healthName),
-              subtitle: const Text('Zapis treningów; odczyt snu, tętna, HRV i wagi', style: TextStyle(color: C.muted)),
+              subtitle: Text('Zapis treningów; odczyt snu, tętna, HRV i wagi', style: TextStyle(color: C.muted)),
               value: p.healthConnect,
               onChanged: _toggleHealth,
             ),
@@ -299,7 +285,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             SwitchListTile(
               title: const Text('Sterowanie głosem'),
-              subtitle: const Text('„Dalej”, „pauza”, „za trudne”, „boli”, „gotowe”, „ile zostało” — bez dotykania telefonu',
+              subtitle: Text('„Dalej”, „pauza”, „za trudne”, „boli”, „gotowe”, „ile zostało” — bez dotykania telefonu',
                   style: TextStyle(color: C.muted)),
               value: p.voiceControl,
               onChanged: (v) {
@@ -309,7 +295,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             SwitchListTile(
               title: const Text('Sterowanie tętnem'),
-              subtitle: const Text('Dłuższa przerwa przy wysokim tętnie, podpowiedzi tempa i pomiar regeneracji po treningu',
+              subtitle: Text('Dłuższa przerwa przy wysokim tętnie, podpowiedzi tempa i pomiar regeneracji po treningu',
                   style: TextStyle(color: C.muted)),
               value: p.hrControl,
               onChanged: (v) {
@@ -318,13 +304,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
             SwitchListTile(
-              title: const Text('Sygnały i wibracje'),
-              subtitle: const Text('Odliczanie ostatnich sekund', style: TextStyle(color: C.muted)),
+              title: const Text('Sygnały dźwiękowe'),
+              subtitle: Text('Odliczanie, start serii, koniec serii i treningu', style: TextStyle(color: C.muted)),
               value: p.beeps,
               onChanged: (v) {
                 p.beeps = v;
                 _save();
               },
+            ),
+            SwitchListTile(
+              title: const Text('Wibracje'),
+              subtitle: Text('Delikatne stuknięcia przy odliczaniu i końcu serii', style: TextStyle(color: C.muted)),
+              value: app.haptics,
+              onChanged: (v) => setState(() => app.set(haptics: v)),
+            ),
+            SwitchListTile(
+              title: const Text('Rozgrzewka'),
+              subtitle: Text('Dobrana do partii, które pracują w danym treningu', style: TextStyle(color: C.muted)),
+              value: p.warmup,
+              onChanged: (v) {
+                p.warmup = v;
+                _save();
+              },
+            ),
+            SwitchListTile(
+              title: const Text('Rozciąganie na koniec'),
+              subtitle: Text('Wyciszenie mięśni, które pracowały. W trakcie można je pominąć.', style: TextStyle(color: C.muted)),
+              value: p.cooldown,
+              onChanged: (v) {
+                p.cooldown = v;
+                _save();
+              },
+            ),
+          ]),
+        ),
+        const SectionTitle('Wygląd'),
+        Card(
+          child: Column(children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+              child: Row(children: [
+                const Expanded(child: Text('Motyw')),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'system', label: Text('Auto'), icon: Icon(Icons.brightness_auto, size: 18)),
+                    ButtonSegment(value: 'light', label: Text('Jasny'), icon: Icon(Icons.light_mode_outlined, size: 18)),
+                    ButtonSegment(value: 'dark', label: Text('Ciemny'), icon: Icon(Icons.dark_mode_outlined, size: 18)),
+                  ],
+                  selected: {app.theme},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (v) => app.set(theme: v.first),
+                ),
+              ]),
+            ),
+            SwitchListTile(
+              title: const Text('Postać 3D'),
+              subtitle: Text('W podglądzie ćwiczenia i podczas treningu — obracasz ją palcem', style: TextStyle(color: C.muted)),
+              value: app.anim3d,
+              onChanged: (v) => setState(() => app.set(anim3d: v)),
+            ),
+            SwitchListTile(
+              title: const Text('Wskazówki techniki'),
+              subtitle: Text('Podświetlenie pracujących mięśni i strzałka kierunku ruchu', style: TextStyle(color: C.muted)),
+              value: app.technique,
+              onChanged: (v) => setState(() => app.set(technique: v)),
             ),
           ]),
         ),
@@ -333,7 +376,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: ListTile(
             leading: const Icon(Icons.directions_run),
             title: const Text('Strava'),
-            subtitle: const Text('Uzupełnianie aktywności z zegarka lub wysyłka treningu', style: TextStyle(color: C.muted)),
+            subtitle: Text('Uzupełnianie aktywności z zegarka lub wysyłka treningu', style: TextStyle(color: C.muted)),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StravaScreen())),
           ),
@@ -344,7 +387,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(
               leading: const Icon(Icons.group_outlined),
               title: const Text('Osoby'),
-              subtitle: Text('${store.users.length} · teraz: ${p.name.isEmpty ? '—' : p.name}', style: const TextStyle(color: C.muted)),
+              subtitle: Text('${store.users.length} · teraz: ${p.name.isEmpty ? '—' : p.name}', style: TextStyle(color: C.muted)),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UsersScreen())),
             ),
@@ -352,7 +395,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
         ),
         const SizedBox(height: 24),
-        const Center(child: Text('Forma 1.4 · trener działa na telefonie, bez chmury', style: TextStyle(color: C.muted, fontSize: 12))),
+        Center(child: Text('Forma 1.4 · trener działa na telefonie, bez chmury', style: TextStyle(color: C.muted, fontSize: 12))),
       ]),
     );
   }
@@ -407,7 +450,7 @@ class _SliderTile extends StatelessWidget {
           if (hint != null)
             Padding(
               padding: const EdgeInsets.only(right: 8, bottom: 8),
-              child: Text(hint!, style: const TextStyle(color: C.muted, fontSize: 12)),
+              child: Text(hint!, style: TextStyle(color: C.muted, fontSize: 12)),
             ),
         ]),
       );

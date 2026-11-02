@@ -19,7 +19,7 @@ class SectionTitle extends StatelessWidget {
         child: Row(children: [
           Expanded(
             child: Text(text.toUpperCase(),
-                style: const TextStyle(color: C.muted, fontSize: 12, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
+                style: TextStyle(color: C.muted, fontSize: 12, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
           ),
           if (trailing != null) trailing!,
         ]),
@@ -35,7 +35,7 @@ class Stat extends StatelessWidget {
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color ?? C.text)),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: C.muted, fontSize: 12)),
+        Text(label, style: TextStyle(color: C.muted, fontSize: 12)),
       ]);
 }
 

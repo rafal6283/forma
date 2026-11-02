@@ -234,7 +234,10 @@ class Trainer {
     return (best, why);
   }
 
-  bool get _jumpsOff => profile.noJumping || profile.limits.contains('kolana');
+  bool get _jumpsOff =>
+      profile.noJumping || profile.activeLimits.contains('kolana') || profile.activeLimits.contains('kostki');
+
+  Set<String> get _limits => profile.activeLimits;
 
   // ---------------------------------------------------------------- formaty
 
@@ -362,7 +365,11 @@ class Trainer {
     String? programDay,
     Set<String> prefer = const {},
     bool quiet = false,
+    bool? warmup,
+    bool? cooldown,
   }) {
+    final doWarm = warmup ?? profile.warmup;
+    final doCool = cooldown ?? profile.cooldown;
     final rnd = math.Random(seed == 0 ? now.millisecondsSinceEpoch : seed);
     final fmt = format ?? recommendFormat(kind, readiness);
     final total = (minutes ?? profile.minutes) * 60;
@@ -375,10 +382,25 @@ class Trainer {
     final usable = library.where((e) {
       if (hidden.contains(e.id)) return false;
       if (!e.availableWith(profile.equipment)) return false;
-      if (e.stress.any(profile.limits.contains)) return false;
+      if (e.stress.any(_limits.contains)) return false;
       if (e.impact && (_jumpsOff || r < 45 || quiet)) return false;
       return true;
     }).toList();
+
+    // dolegliwości: ćwiczenia programu, których dziś nie robimy, dostają zamienniki z tej samej partii
+    final swaps = <String, String>{}; // oryginał → zamiennik
+    final preferIds = {...prefer};
+    for (final id in prefer) {
+      final e = _byId(id);
+      if (e == null || usable.any((u) => u.id == id)) continue;
+      if (!e.stress.any(_limits.contains) && !(e.impact && _jumpsOff)) continue;
+      final alt = alternative(e, preferIds, seed: seed);
+      if (alt != null) {
+        swaps[id] = alt.id;
+        preferIds.add(alt.id);
+      }
+    }
+    final swappedFor = {for (final e in swaps.entries) e.value: e.key};
 
     final used = <String>{};
     double score(Exercise e) {
@@ -390,7 +412,7 @@ class Trainer {
       final last = exLast[e.id];
       if (last != null && now.difference(last).inHours < 48) s -= 1.2;
       if (favorites.contains(e.id)) s += 1;
-      if (prefer.contains(e.id)) s += 3.5; // ćwiczenia programu
+      if (preferIds.contains(e.id)) s += 3.5; // ćwiczenia programu (i zamienniki)
       if (e.needsEquipment) s += 0.8;
       // w seriach na powtórzenia unikamy ćwiczeń na czas (deski) i skoków
       if (repsMode && (e.isStatic || e.impact)) s -= 3;
@@ -407,6 +429,8 @@ class Trainer {
 
     final items = <PlanItem>[];
     void add(Exercise e, int work, int rest, Phase p, {int round = 1, int rounds = 1, int? reps, String? tag}) {
+      final orig = swappedFor[e.id];
+      if (orig != null) tag ??= 'zamiast: ${_name(orig)}';
       if (e.uni) {
         final half = reps != null ? work : math.max(15, work ~/ 2 + (e.isStatic ? 5 : 0));
         items.add(PlanItem(exId: e.id, work: half, rest: 5, phase: p, side: 1, round: round, rounds: rounds, reps: reps, tag: tag));
@@ -416,16 +440,23 @@ class Trainer {
       }
     }
 
-    // --- rozgrzewka
-    final warmSec = calm ? 0 : math.max(150, (total * 0.12).round());
+    // --- rozgrzewka: najpierw ogólna (tętno w górę), potem ruchy dla partii, które dziś pracują
+    final cg = _kindGroups[kind]!;
+    bool easy(Exercise e) => e.lvl <= math.max(2, target.round()) && !e.needsEquipment;
+    final warmSec = calm || !doWarm ? 0 : math.max(150, (total * 0.12).round());
     if (warmSec > 0) {
       final n = (warmSec / 30).round().clamp(4, 7);
       final warm = <Exercise>[];
       for (var i = 0; i < n; i++) {
-        final e = pick((e) =>
-            (e.type == ExType.warmup || (e.type == ExType.cardio && e.lvl <= 2) || e.type == ExType.mobility) &&
-            e.lvl <= math.max(2, target.round()) &&
-            !e.needsEquipment);
+        bool general(Exercise e) =>
+            (e.type == ExType.warmup || (e.type == ExType.cardio && e.lvl <= 2) || e.type == ExType.mobility) && easy(e);
+        final e = i < 2
+            ? pick(general)
+            : pick((e) =>
+                    (e.type == ExType.warmup || e.type == ExType.mobility) &&
+                    easy(e) &&
+                    e.groups.any((g) => cg.contains(g) || g == 'całe ciało')) ??
+                pick(general);
         if (e != null) warm.add(e);
       }
       warm.sort((a, b) => a.met.compareTo(b.met));
@@ -434,19 +465,9 @@ class Trainer {
       }
     }
 
-    // --- wyciszenie
-    final coolSec = calm ? 0 : math.max(120, (total * 0.10).round());
+    // --- wyciszenie: liczba pozycji teraz (rezerwa czasu), wybór po części głównej — pod partie, które pracowały
+    final coolN = calm || !doCool ? 0 : (math.max(120, (total * 0.10).round()) / 40).round().clamp(3, 5);
     final cool = <Exercise>[];
-    if (coolSec > 0) {
-      final cg = _kindGroups[kind]!;
-      final n = (coolSec / 40).round().clamp(3, 5);
-      for (var i = 0; i < n; i++) {
-        final g = cg[i % cg.length];
-        final e = pick((e) => e.type == ExType.stretch && (e.groups.contains(g) || i >= cg.length)) ??
-            pick((e) => e.type == ExType.stretch);
-        if (e != null) cool.add(e);
-      }
-    }
 
     // partie z najmniejszą liczbą serii w tym tygodniu idą pierwsze
     final week = weeklySets();
@@ -479,7 +500,7 @@ class Trainer {
       return list;
     }
 
-    final mainSec = total - items.fold(0, (s, i) => s + i.work + i.rest) - cool.length * 40;
+    final mainSec = total - items.fold(0, (s, i) => s + i.work + i.rest) - coolN * 40;
     String intensity;
 
     switch (calm ? WorkoutFormat.flow : fmt) {
@@ -663,6 +684,24 @@ class Trainer {
         intensity = '$work s pracy / $rest s przerwy';
     }
 
+    if (coolN > 0) {
+      // partie z największą pracą w części głównej
+      final gw = <String, int>{};
+      for (final it in items.where((i) => i.phase == Phase.main)) {
+        final e = _byId(it.exId);
+        if (e == null) continue;
+        for (final g in e.groups.contains('całe ciało') ? cg : e.groups) {
+          gw[g] = (gw[g] ?? 0) + it.work;
+        }
+      }
+      final ranked = gw.keys.toList()..sort((a, b) => gw[b]!.compareTo(gw[a]!));
+      if (ranked.isEmpty) ranked.addAll(cg);
+      for (var i = 0; i < coolN; i++) {
+        final g = ranked[i % ranked.length];
+        final e = pick((e) => e.type == ExType.stretch && e.groups.contains(g)) ?? pick((e) => e.type == ExType.stretch);
+        if (e != null) cool.add(e);
+      }
+    }
     for (final e in cool) {
       add(e, 40, 0, Phase.cooldown);
     }
@@ -675,8 +714,11 @@ class Trainer {
       if (!calm && lacking.isNotEmpty && sessions.isNotEmpty)
         'W tym tygodniu najmniej serii: ${lacking.take(2).join(', ')} — od nich zaczynamy.',
       if (load < 0.95) 'Tydzień lżejszy w planie — mniej serii, żeby organizm nadrobił regenerację.',
-      if (profile.limits.isNotEmpty) 'Pomijam ćwiczenia obciążające: ${profile.limits.join(', ')}.',
-      if (_jumpsOff && !profile.limits.contains('kolana')) 'Bez skoków — cicho dla sąsiadów.',
+      if (_limits.isNotEmpty) 'Oszczędzam: ${_limits.map((l) => limitHints[l] == null ? l : '$l (${limitHints[l]})').join('; ')}.',
+      if (swaps.isNotEmpty)
+        'Zamienniki: ${swaps.entries.take(3).map((e) => '${_name(e.value)} zamiast ${_name(e.key)}').join('; ')}.',
+      if (_jumpsOff && !_limits.contains('kolana') && !_limits.contains('kostki')) 'Bez skoków — cicho dla sąsiadów.',
+      if (!doWarm && !calm) 'Bez rozgrzewki — na Twoje życzenie. Zacznij spokojniej.',
     ];
     return WorkoutPlan(
       kind: kind,
@@ -817,12 +859,21 @@ class Trainer {
     return 'Gotowość ${r.score}/100 — trening według planu.';
   }
 
+  Exercise? _byId(String id) {
+    for (final e in library) {
+      if (e.id == id) return e;
+    }
+    return null;
+  }
+
+  String _name(String id) => _byId(id)?.name ?? id;
+
   /// Zamiennik ćwiczenia z tej samej grupy i typu.
   Exercise? alternative(Exercise current, Set<String> inPlan, {int seed = 0}) {
     final rnd = math.Random(seed);
     final c = library.where((e) {
       if (e.id == current.id || inPlan.contains(e.id) || hidden.contains(e.id)) return false;
-      if (!e.availableWith(profile.equipment) || e.stress.any(profile.limits.contains)) return false;
+      if (!e.availableWith(profile.equipment) || e.stress.any(_limits.contains)) return false;
       if (e.impact && _jumpsOff) return false;
       final sameType = e.type == current.type ||
           ({ExType.strength, ExType.core}.contains(e.type) && {ExType.strength, ExType.core}.contains(current.type));
