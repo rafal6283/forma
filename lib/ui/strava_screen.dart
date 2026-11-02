@@ -147,6 +147,22 @@ class _StravaScreenState extends State<StravaScreen> {
                 setState(() {});
               },
             ),
+            SwitchListTile(
+              title: const Text('Serie i mapa mięśni'),
+              subtitle: Text(
+                'Trening siłowy i HIIT idą jako nowa aktywność z listą ćwiczeń, powtórzeniami i czasem serii — '
+                'Strava rysuje z nich mapę pracujących mięśni. Ma pierwszeństwo przed uzupełnianiem aktywności z zegarka: '
+                'jeśli zegarek też wysyła trening, w Stravie będą dwie aktywności (wyłącz wtedy wysyłkę w zegarku '
+                'albo tę opcję). Rozciąganie i mobilność — jak dotąd.',
+                style: TextStyle(color: C.muted, fontSize: 12),
+              ),
+              value: p.stravaSets,
+              onChanged: (v) async {
+                p.stravaSets = v;
+                await Store.instance.save();
+                setState(() {});
+              },
+            ),
           ]),
         ),
         const SectionTitle('Jak przygotować'),

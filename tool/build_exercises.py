@@ -11,6 +11,7 @@ import json
 import re
 from pathlib import Path
 
+from strava_map import FALLBACK, STRAVA, VALID
 from figure import FOOT, SHIN, THIGH, full, grounded, joints
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -1328,6 +1329,14 @@ for _k, _p in P.items():
     kneeling = max(_h("knN"), _h("knF")) < 0.155 and max(_h("anN"), _h("anF")) < 0.16  # golenie na podłodze
     if lying or kneeling:
         _p["fp"] = 70
+
+# typ ćwiczenia w Stravie (serie w treningu siłowym → mapa mięśni Stravy)
+for e in E:
+    sv = STRAVA.get(e["id"], FALLBACK[e["type"]])
+    assert sv in VALID, f"{e['id']}: nieznany typ Stravy {sv}"
+    e["sv"] = sv
+missing = [e["id"] for e in E if e["id"] not in STRAVA]
+assert not missing, f"brak typu Stravy: {missing}"
 
 # pozy bez wartości domyślnych, żeby JSON był krótszy
 DEF = {"t": 180, "fp": 0, "lift": 0, "x": 0, "view": "side", "back": False}

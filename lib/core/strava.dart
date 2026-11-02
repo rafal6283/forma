@@ -20,7 +20,8 @@ class StravaException implements Exception {
 ///
 /// Tryby po treningu:
 /// - uzupełnienie aktywności, którą zegarek (np. Huawei → Strava) już wysłał: nazwa, rodzaj, lista ćwiczeń;
-/// - nowa aktywność z pliku TCX (czas, kalorie, tętno z opaski).
+/// - nowa aktywność z pliku TCX (czas, kalorie, tętno z opaski);
+/// - trening siłowy jako nowa aktywność z seriami (JSON): ćwiczenia, powtórzenia i mapa mięśni Stravy.
 class Strava {
   Strava._();
   static final instance = Strava._();
@@ -195,26 +196,33 @@ class Strava {
   }
 
   /// Nowa aktywność z pliku TCX (z tętnem z opaski, jeśli było).
-  Future<int> upload(Session s) async {
+  Future<int> upload(Session s) => _uploadFile(s, 'tcx', sessionTcx(s), {});
+
+  /// Nowa aktywność z seriami (JSON): Strava pokaże ćwiczenia, powtórzenia i mapę mięśni.
+  Future<int> uploadSets(Session s) =>
+      _uploadFile(s, 'json', sessionSetsJson(s), {'sport_type': setsSportType(s.kind)!}, ext: 'json');
+
+  Future<int> _uploadFile(Session s, String type, String content, Map<String, String> extra, {String? ext}) async {
     final token = await _access();
     final req = http.MultipartRequest('POST', Uri.parse('$_api/uploads'))
       ..headers['Authorization'] = 'Bearer $token'
       ..fields.addAll({
-        'data_type': 'tcx',
+        'data_type': type,
         'name': '${s.title} · Forma',
         'description': sessionDescription(s),
         'trainer': '1',
-        'external_id': 'forma-${s.id}',
+        'external_id': 'forma-${s.id}${type == 'json' ? '-sets' : ''}',
+        ...extra,
       })
-      ..files.add(http.MultipartFile.fromString('file', sessionTcx(s), filename: 'forma-${s.id}.tcx'));
+      ..files.add(http.MultipartFile.fromString('file', content, filename: 'forma-${s.id}.${ext ?? type}'));
     final res = await http.Response.fromStream(await req.send());
     if (res.statusCode != 201 && res.statusCode != 200) {
       throw StravaException('Wysyłka nieudana (${res.statusCode}): ${_err(res)}');
     }
     final up = jsonDecode(res.body) as Map<String, dynamic>;
     final upId = up['id'];
-    for (var i = 0; i < 15; i++) {
-      await Future.delayed(const Duration(seconds: 2));
+    for (var i = 0; i < 20; i++) {
+      await Future.delayed(Duration(seconds: i < 5 ? 1 : 2));
       final r = await http.get(Uri.parse('$_api/uploads/$upId'), headers: {'Authorization': 'Bearer $token'});
       if (r.statusCode != 200) continue;
       final j = jsonDecode(r.body) as Map<String, dynamic>;
@@ -227,10 +235,12 @@ class Strava {
       }
       final aid = (j['activity_id'] as num?)?.toInt();
       if (aid != null) {
-        try {
-          await _update(aid, s, rename: false);
-        } catch (e) {
-          debugPrint('Strava: rodzaj aktywności: $e');
+        if (type != 'json') {
+          try {
+            await _update(aid, s, rename: false);
+          } catch (e) {
+            debugPrint('Strava: rodzaj aktywności: $e');
+          }
         }
         return aid;
       }
@@ -241,6 +251,19 @@ class Strava {
   /// Po treningu: uzupełnij aktywność z zegarka albo wyślij nową. Zwraca opis wyniku.
   Future<String> push(Session s, {bool forceUpload = false}) async {
     final p = Store.instance.profile;
+    // trening siłowy z seriami → nowa aktywność z ćwiczeniami i mapą mięśni
+    if (p.stravaSets && setsSportType(s.kind) != null && s.done.isNotEmpty) {
+      try {
+        final id = await uploadSets(s);
+        s.stravaId = id;
+        s.stravaPending = false;
+        await Store.instance.save();
+        return 'Wysłano trening do Stravy z seriami i mapą mięśni';
+      } on StravaException catch (e) {
+        // np. konto bez dostępu do formatu serii — dalej jak dotąd (opis + tętno)
+        debugPrint('Strava serie: $e');
+      }
+    }
     if (!forceUpload && p.stravaMatch) {
       final a = await findWatchActivity(s);
       if (a != null) {

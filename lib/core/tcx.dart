@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'library.dart';
 import 'models.dart';
 
@@ -72,4 +74,51 @@ String sessionDescription(Session s) {
       if (s.avgHr != null) 'śr. tętno ${s.avgHr}',
     ].join(' · '),
   ].join('\n');
+}
+
+/// Typ aktywności Stravy, który przyjmuje serie (JSON upload) — dla rozciągania/mobilności null.
+String? setsSportType(WorkoutKind k) => switch (k) {
+      WorkoutKind.hiit => 'HighIntensityIntervalTraining',
+      WorkoutKind.stretch || WorkoutKind.mobility => null,
+      _ => 'WeightTraining',
+    };
+
+/// Trening jako plik JSON Stravy z seriami: rodzaj ćwiczenia, powtórzenia, czas; tętno z opaski jako strumień.
+/// Strava z rodzajów ćwiczeń rysuje mapę pracujących mięśni.
+String sessionSetsJson(Session s) {
+  final lib = Library.instance;
+  String t(DateTime d) => d.toUtc().toIso8601String().replaceFirst(RegExp(r'\.\d+Z$'), 'Z');
+  final sets = <Map<String, dynamic>>[];
+  var active = 0;
+  for (final d in s.done) {
+    final e = lib[d.exId];
+    if (e == null || d.seconds <= 0) continue;
+    active += d.seconds;
+    sets.add({
+      'exercise_type': e.strava,
+      if (d.reps != null && d.reps! > 0) 'repetitions': d.reps,
+      'duration': d.seconds,
+    });
+  }
+  final secs = s.duration.inSeconds;
+  final time = <int>[], hr = <int>[];
+  for (var i = 0; i < s.hr.length; i++) {
+    final at = i * 5;
+    if (at > secs) break;
+    if (s.hr[i] > 0) {
+      time.add(at);
+      hr.add(s.hr[i]);
+    }
+  }
+  return jsonEncode({
+    'version': '1.0',
+    'start_time': t(s.start),
+    'utc_offset': s.start.timeZoneOffset.inSeconds,
+    'elapsed_time': secs,
+    'active_time': active.clamp(0, secs),
+    'total_calories': s.kcal.round(),
+    'creator': {'name': 'Forma'},
+    if (time.length >= 2) 'streams': {'time': time, 'heartrate': hr},
+    'sets': sets,
+  });
 }

@@ -72,6 +72,7 @@ class Exercise {
   final String? hold, easier, harder;
   final FigAnim anim;
   final Map<String, double> muscles; // 1 = główny, 0,5 = pomocniczy
+  final String strava; // exercise_type Stravy (serie → mapa mięśni)
 
   Exercise({
     required this.id,
@@ -89,6 +90,7 @@ class Exercise {
     required this.isStatic,
     required this.anim,
     this.muscles = const {},
+    this.strava = 'TOTAL_BODY_GENERIC',
     this.hold,
     this.easier,
     this.harder,
@@ -115,6 +117,7 @@ class Exercise {
       harder: j['harder'] as String?,
       anim: FigAnim.fromJson((j['anim'] as Map).cast<String, dynamic>(), lib),
       muscles: ((j['m'] as Map?) ?? const {}).map((k, v) => MapEntry(k as String, (v as num).toDouble())),
+      strava: j['sv'] as String? ?? 'TOTAL_BODY_GENERIC',
     );
   }
 
@@ -209,6 +212,7 @@ class Profile {
   bool voiceControl; // komendy głosowe w trakcie treningu
   bool stravaAuto; // wysyłaj po treningu
   bool stravaMatch; // uzupełnij aktywność z zegarka zamiast tworzyć nową
+  bool stravaSets; // trening siłowy jako nowa aktywność z seriami (mapa mięśni w Stravie)
   bool warmup; // rozgrzewka dobrana do partii
   bool cooldown; // rozciąganie na koniec
   Map<String, DateTime> limitUntil; // dolegliwości czasowe: do kiedy oszczędzać (brak wpisu = na stałe)
@@ -237,6 +241,7 @@ class Profile {
     this.voiceControl = false,
     this.stravaAuto = true,
     this.stravaMatch = true,
+    this.stravaSets = true,
     this.warmup = true,
     this.cooldown = true,
     Map<String, DateTime>? limitUntil,
@@ -277,6 +282,7 @@ class Profile {
         'voiceControl': voiceControl,
         'stravaAuto': stravaAuto,
         'stravaMatch': stravaMatch,
+        'stravaSets': stravaSets,
         'warmup': warmup,
         'cooldown': cooldown,
         'limitUntil': limitUntil.map((k, v) => MapEntry(k, v.toIso8601String())),
@@ -306,6 +312,7 @@ class Profile {
         voiceControl: j['voiceControl'] == true,
         stravaAuto: j['stravaAuto'] != false,
         stravaMatch: j['stravaMatch'] != false,
+        stravaSets: j['stravaSets'] != false,
         warmup: j['warmup'] != false,
         cooldown: j['cooldown'] != false,
         limitUntil: {

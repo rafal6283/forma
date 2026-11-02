@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -307,5 +308,30 @@ void main() {
     final per = e.anim.cycle / e.anim.keys.length;
     final (_, mid) = e.anim.motion(per * (0.22 + 0.78 / 2));
     expect(mid, closeTo(1, 0.01));
+  });
+
+  test('Strava: serie z rodzajem ćwiczenia i tętnem', () {
+    for (final e in lib.all) {
+      expect(e.strava, matches(RegExp(r'^[A-Z0-9_]+$')), reason: e.id);
+    }
+    final s = Session(
+      id: '7',
+      start: DateTime.utc(2026, 11, 2, 18),
+      end: DateTime.utc(2026, 11, 2, 18, 10),
+      kind: WorkoutKind.upper,
+      title: 'Góra',
+      done: [DoneItem('pushups', 40, 0, reps: 12, target: 12), DoneItem('plank', 30, 0)],
+      kcal: 80,
+      hr: [100, 0, 120],
+    );
+    final j = jsonDecode(sessionSetsJson(s)) as Map<String, dynamic>;
+    expect(j['version'], '1.0');
+    expect(j['start_time'], '2026-11-02T18:00:00Z');
+    expect(j['elapsed_time'], 600);
+    final sets = (j['sets'] as List).cast<Map<String, dynamic>>();
+    expect(sets.first, {'exercise_type': 'PUSH_UP_GENERIC', 'repetitions': 12, 'duration': 40});
+    expect(sets.last['exercise_type'], 'PLANK_GENERIC');
+    expect(j['streams'], {'time': [0, 10], 'heartrate': [100, 120]});
+    expect(setsSportType(WorkoutKind.stretch), isNull);
   });
 }
