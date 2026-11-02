@@ -75,9 +75,13 @@ def joints(pose):
         an = add(kn, leg[1], SHIN)
         if front:
             out = perp[0] * sgn
-            toe = (an[0] + out * 0.06, an[1] + 0.02)
+            # but widziany od przodu: przedłużenie goleni (pod kostką, gdy stoi), lekko na zewnątrz
+            sd = d(leg[1])
+            toe = (an[0] + sd[0] * 0.045 + out * 0.02, an[1] + sd[1] * 0.045 + perp[1] * sgn * 0.02)
         else:
-            fa = leg[1] + 90 - p["fp"]  # stopa prostopadle do goleni, fp = wspięcie na palce
+            # stopa prostopadle do goleni, palcami do przodu ciała; fp > 0 = wspięcie na palce / wyprost stopy.
+            # Na plecach (back) postać jest lustrzanym odbiciem, więc „przód” stopy jest po drugiej stronie.
+            fa = leg[1] - 90 + p["fp"] if p["back"] else leg[1] + 90 - p["fp"]
             toe = add(an, fa, FOOT)
         j.update({f"sh{side}": sh, f"el{side}": el, f"ha{side}": ha,
                   f"hp{side}": hp, f"kn{side}": kn, f"an{side}": an, f"to{side}": toe})
@@ -91,9 +95,17 @@ def grounded(pose, anchor="ground", bar_y=-2.3):
     if anchor == "hands":
         dy = bar_y - j["haN"][1]
     else:
-        low = max(max(v[1] for k, v in j.items() if k != "head"), j["head"][1] + HEAD_R)
+        # uwzględniamy grubość ciała (postać ma objętość), żeby nie „wchodziła” w podłogę
+        low = max(v[1] + thickness(k) for k, v in j.items())
         dy = -low - p["lift"]
     return {k: (v[0], v[1] + dy) for k, v in j.items()}
+
+
+def thickness(joint):
+    """Promień ciała wokół stawu (przy opieraniu o podłogę); zgodny z lib/core/figure.dart."""
+    k = joint[:-1] if joint[-1] in "NF" else joint
+    return {"head": HEAD_R + 0.008, "hip": 0.10, "hp": 0.10, "neck": 0.08, "sh": 0.08,
+            "kn": 0.055, "an": 0.045, "to": 0.035}.get(k, 0.04)
 
 
 def resolve(spec, library):

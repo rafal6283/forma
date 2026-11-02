@@ -159,22 +159,27 @@ class Mannequin {
     final an = j['an$side'], to = j['to$side'], kn = j['kn$side'];
     final col = far ? shoeFar : shoe;
     if (j.front) {
-      final path = _capsule(an, to, 0.045, 0.040);
+      // but widziany od przodu: owal w poprzek goleni, tuż pod kostką
+      // stopa na ziemi (goleń w dół) leży płasko; uniesiona — w poprzek goleni
+      final sd = _unit(an - kn);
+      final u = sd.dy > 0.6 ? const Offset(1, 0) : _perp(sd);
+      final v = _perp(u);
+      final ctr = Offset.lerp(an, to, 0.4)!;
+      final pts = [
+        for (var i = 0; i < 20; i++)
+          P(ctr + u * (0.058 * math.cos(2 * math.pi * i / 20)) + v * (0.034 * math.sin(2 * math.pi * i / 20))),
+      ];
+      final path = Path()..addPolygon(pts, true);
       c.drawPath(path, Paint()..color = col);
       if (!far) c.drawPath(path, _edge);
       return;
     }
+    // n = strona grzbietu stopy (podeszwa po przeciwnej), niezależnie od kąta stopy
     final sv = to - an;
-    final l = _unit(an - kn);
-    Offset q(double ks, double kl, [Offset? base]) => P((base ?? an) + sv * ks + l * kl);
-    final pts = [
-      q(-0.2, -0.045),
-      q(-0.45, 0.0),
-      q(-0.4, 0.045),
-      q(0.25, 0.045, to),
-      q(0.35, 0.01, to),
-      q(0.5, -0.035),
-    ];
+    final u = _unit(sv);
+    final n = j.back ? _perp(u) : -_perp(u);
+    const shape = [(-0.35, -0.04), (-0.45, 0.01), (-0.2, 0.05), (0.6, 0.035), (1.25, 0.0), (1.1, -0.04), (0.0, -0.045)];
+    final pts = [for (final (ks, kn) in shape) P(an + sv * ks + n * kn)];
     final path = _smooth(pts);
     c.drawPath(path, Paint()..color = col);
     // podeszwa

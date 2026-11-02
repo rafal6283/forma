@@ -75,7 +75,7 @@ P = {}
 P["stand"] = {}
 P["stand_fwd"] = {"an": [90, 90], "af": [86, 86]}
 P["stand_up"] = {"an": [172, 176], "af": [168, 172]}
-P["jump_up"] = {"an": [168, 175], "af": [164, 170], "lift": 0.16, "ln": [4, 0], "lf": [-4, -2], "fp": -45}
+P["jump_up"] = {"an": [168, 175], "af": [164, 170], "lift": 0.16, "ln": [4, 0], "lf": [-4, -2], "fp": 45}
 P["squat_bot"] = {"t": 148, "an": [90, 90], "af": [86, 86], "ln": [80, -24], "lf": [77, -24]}
 P["squat_mid"] = {"t": 162, "an": [70, 80], "af": [66, 76], "ln": [45, -20], "lf": [42, -20]}
 P["squat_hands"] = solve({"t": 96, "h": 104, "ln": [86, -34], "lf": [84, -34]},
@@ -83,9 +83,9 @@ P["squat_hands"] = solve({"t": 96, "h": 104, "ln": [86, -34], "lf": [84, -34]},
                          "haN", "toN", 0, 89)
 P["goblet_top"] = {"an": [15, 165], "af": [12, 162]}
 P["goblet_bot"] = {"t": 150, "an": [30, 175], "af": [27, 172], "ln": [80, -24], "lf": [77, -24]}
-P["calf_up"] = {"fp": -50, "an": [6, 10], "af": [-6, -2]}
-P["high_knee"] = {"t": 176, "an": [-40, 25], "af": [45, 125], "ln": [100, 5], "lf": [0, 0], "fp": -25}
-P["butt_kick"] = {"t": 176, "an": [-40, 25], "af": [45, 125], "ln": [-12, -165], "lf": [2, 0], "fp": -20}
+P["calf_up"] = {"fp": 50, "an": [6, 10], "af": [-6, -2]}
+P["high_knee"] = {"t": 176, "an": [-40, 25], "af": [45, 125], "ln": [100, 5], "lf": [0, 0], "fp": 25}
+P["butt_kick"] = {"t": 176, "an": [-40, 25], "af": [45, 125], "ln": [-12, -165], "lf": [2, 0], "fp": 20}
 P["march"] = {"an": [-25, 10], "af": [30, 60], "ln": [60, -5], "lf": [0, 0]}
 P["lunge_down"] = {"t": 178, "an": [5, 5], "af": [-5, -5], "ln": [-25, -85], "lf": [80, -5]}
 P["boxing_guard"] = {"t": 172, "an": [35, 155], "af": [30, 150], "ln": [12, -5], "lf": [-14, 0]}
@@ -279,7 +279,7 @@ P["squat_head"] = {"t": 150, "h": 156, "an": [150, -40], "af": [146, -44], "ln":
 P["cossack"] = dict(FR, t=168, an=[10, -120], af=[10, -120], ln=[78, -10], lf=[58, 58])
 P["curtsy"] = dict(FR, t=176, an=[10, -120], af=[10, -120], ln=[30, -8], lf=[-30, -60])
 P["sl_rdl"] = {"t": 96, "h": 100, "an": [0, 0], "af": [4, 4], "ln": [-84, -84], "lf": [6, -2]}
-P["sl_calf"] = {"an": [6, 10], "af": [-6, -2], "ln": [-14, -70], "lf": [0, 0], "fp": -50}
+P["sl_calf"] = {"an": [6, 10], "af": [-6, -2], "ln": [-14, -70], "lf": [0, 0], "fp": 50}
 P["sl_calf_down"] = {"an": [6, 10], "af": [-6, -2], "ln": [-14, -70], "lf": [0, 0]}
 P["pistol_top"] = {"an": [90, 90], "af": [86, 86], "ln": [60, 60], "lf": [0, 0]}
 P["pistol_bot"] = {"t": 140, "an": [90, 90], "af": [86, 86], "ln": [84, 84], "lf": [84, -26]}
@@ -304,9 +304,9 @@ P["wall_hands"] = solve({"t": 140, "an": [70, 70], "af": [68, 68], "ln": [8, 0],
 P["leg_swing_f"] = {"an": [-20, 10], "af": [30, 40], "ln": [70, 70], "lf": [0, 0]}
 P["leg_swing_b"] = {"an": [30, 40], "af": [-20, 10], "ln": [-40, -40], "lf": [0, 0]}
 P["knee_elbow"] = {"t": 168, "h": 160, "an": [150, -60], "af": [146, -64], "ln": [110, 5], "lf": [0, 0]}
-P["jog"] = {"t": 178, "an": [-30, 40], "af": [35, 110], "ln": [55, -40], "lf": [-5, 0], "fp": -30}
+P["jog"] = {"t": 178, "an": [-30, 40], "af": [35, 110], "ln": [55, -40], "lf": [-5, 0], "fp": 30}
 P["tuck"] = {"an": [80, 60], "af": [76, 56], "ln": [140, 10], "lf": [136, 8], "lift": 0.35}
-P["hop"] = {"an": [22, 70], "af": [18, 66], "ln": [3, 0], "lf": [-3, 0], "lift": 0.06, "fp": -40}
+P["hop"] = {"an": [22, 70], "af": [18, 66], "ln": [3, 0], "lf": [-3, 0], "lift": 0.06, "fp": 40}
 P["hop_down"] = {"an": [22, 70], "af": [18, 66], "ln": [3, 0], "lf": [-3, 0]}
 P["punch_up"] = {"t": 176, "an": [176, 178], "af": [35, 155], "ln": [10, -4], "lf": [-12, 0]}
 P["bear"] = clean(solve({"an": [0, 0], "af": [0, 0], "ln": [45, -60], "lf": [45, -60]}, set_t, "haN", "toN", 60, 150))
@@ -461,7 +461,7 @@ P["hs_bot"] = {"t": 10, "h": 4, "an": [-60, 40], "af": [-62, 38], "ln": [178, 17
 P["cross_climb"] = dict(P["pushup_top"], ln=[72, -40])
 P["step_touch"] = dict(FR, x=0.18, an=[150, 160], af=[150, 160], ln=[18, 4], lf=[-4, -4])
 P["front_kick"] = {"an": [10, 10], "af": [95, 95], "ln": [86, 86], "lf": [0, 0]}
-P["hop_one"] = {"an": [20, 60], "af": [18, 58], "ln": [-10, -70], "lf": [0, 0], "fp": -30}
+P["hop_one"] = {"an": [20, 60], "af": [18, 58], "ln": [-10, -70], "lf": [0, 0], "fp": 30}
 P["hop_one_up"] = dict(P["hop_one"], lift=0.1)
 P["feet_hop_a"] = dict(FR, an=[20, 40], af=[20, 40], ln=[3, 3], lf=[3, 3])
 P["feet_hop_b"] = dict(P["feet_hop_a"], x=0.3, lift=0.12)
@@ -1284,6 +1284,24 @@ for e in E:
     for rel in ("easier", "harder"):
         if rel in e:
             assert e[rel] in ids, f"{e['id']}: {rel} → {e[rel]}"
+
+# Ustawienie stóp tam, gdzie nie podano go ręcznie (fp = 0):
+#  - leżenie przodem i klęk (biodra lub golenie na podłodze): stopy wyprostowane, grzbietem do podłogi,
+#  - zwis na drążku: stopy swobodnie opuszczone.
+_hang = {k.rstrip("~") for e in E if e["anim"].get("anchor") == "hands" for k in e["anim"]["k"] if isinstance(k, str)}
+_ground = {k.rstrip("~") for e in E if e["anim"].get("anchor") != "hands" for k in e["anim"]["k"] if isinstance(k, str)}
+for _k, _p in P.items():
+    if _p.get("fp") or _p.get("view") == "front" or _p.get("back"):
+        continue
+    if _k in _hang and _k not in _ground:
+        _p["fp"] = 35
+        continue
+    _j = grounded(_p)
+    _h = lambda n: -_j[n][1]
+    lying = 60 <= _p.get("t", 180) <= 145 and _h("hip") < 0.16  # na brzuchu
+    kneeling = max(_h("knN"), _h("knF")) < 0.155 and max(_h("anN"), _h("anF")) < 0.16  # golenie na podłodze
+    if lying or kneeling:
+        _p["fp"] = 70
 
 # pozy bez wartości domyślnych, żeby JSON był krótszy
 DEF = {"t": 180, "fp": 0, "lift": 0, "x": 0, "view": "side", "back": False}

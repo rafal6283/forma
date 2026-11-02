@@ -10,6 +10,17 @@ class Body {
   static const upper = 0.30, fore = 0.28;
   static const thigh = 0.44, shin = 0.46, foot = 0.10;
   static const shoulderW = 0.17, hipW = 0.09;
+
+  /// Promień ciała wokół stawu (przy opieraniu o podłogę); zgodny z tool/figure.py.
+  static double thickness(String joint) => switch (joint.replaceAll(RegExp(r'[NF]$'), '')) {
+        'head' => headR + 0.008,
+        'hip' || 'hp' => 0.10,
+        'neck' || 'sh' => 0.08,
+        'kn' => 0.055,
+        'an' => 0.045,
+        'to' => 0.035,
+        _ => 0.04,
+      };
 }
 
 class Pose {
@@ -135,9 +146,11 @@ class Joints {
       final an = kn + _dir(leg[1]) * Body.shin;
       final Offset toe;
       if (s.front) {
-        toe = Offset(an.dx + perp.dx * sgn * 0.06, an.dy + 0.02);
+        // but od przodu: przedłużenie goleni (pod kostką, gdy stoi), lekko na zewnątrz
+        toe = an + _dir(leg[1]) * 0.045 + perp * (sgn * 0.02);
       } else {
-        toe = an + _dir(leg[1] + 90 - s.fp) * Body.foot;
+        // palcami do przodu ciała; na plecach postać jest lustrzana. fp > 0 = wspięcie na palce.
+        toe = an + _dir(s.back ? leg[1] - 90 + s.fp : leg[1] + 90 - s.fp) * Body.foot;
       }
       m.addAll({'sh$side': sh, 'el$side': el, 'ha$side': ha, 'hp$side': hp, 'kn$side': kn, 'an$side': an, 'to$side': toe});
     }
@@ -151,9 +164,11 @@ class Joints {
     if (hands) {
       dy = barY - j['haN'].dy;
     } else {
-      var low = j['head'].dy + Body.headR;
+      // uwzględniamy grubość ciała (postać ma objętość), żeby nie „wchodziła” w podłogę
+      var low = -double.infinity;
       j.p.forEach((k, v) {
-        if (k != 'head' && v.dy > low) low = v.dy;
+        final y = v.dy + Body.thickness(k);
+        if (y > low) low = y;
       });
       dy = -low - s.lift;
     }

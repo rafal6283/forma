@@ -68,6 +68,12 @@ def capsule(a, b, ra, rb):
     return pts
 
 
+def oval(c, u, rx, ry, n=20):
+    """Elipsa o osi długiej wzdłuż u."""
+    v = perp(u)
+    return [add(add(c, u, rx * math.cos(2 * math.pi * i / n)), v, ry * math.sin(2 * math.pi * i / n)) for i in range(n)]
+
+
 def lerp(a, b, t):
     return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
 
@@ -109,12 +115,14 @@ def shorts_poly(j, pose):
             add(add(hip, u, -0.07), f, -0.115), add(add(hip, u, L * 0.2), f, -0.1)]
 
 
-def foot_poly(j, side):
-    an, to, kn = j[f"an{side}"], j[f"to{side}"], j[f"kn{side}"]
-    s = sub(to, an)
-    l = norm(sub(an, kn))
-    return [add(add(an, s, -0.2), l, -0.045), add(add(an, s, -0.45), l, 0.0), add(add(an, s, -0.4), l, 0.045),
-            add(add(to, s, 0.25), l, 0.045), add(add(to, s, 0.35), l, 0.01), add(add(an, s, 0.5), l, -0.035)]
+def foot_poly(j, side, back):
+    """But z boku. n = strona grzbietu stopy (podeszwa po przeciwnej) — niezależnie od kąta stopy."""
+    an, to = j[f"an{side}"], j[f"to{side}"]
+    sv = sub(to, an)
+    u = norm(sv)
+    n = perp(u) if back else (-perp(u)[0], -perp(u)[1])
+    pts = [(-0.35, -0.04), (-0.45, 0.01), (-0.2, 0.05), (0.6, 0.035), (1.25, 0.0), (1.1, -0.04), (0.0, -0.045)]
+    return [add(add(an, sv, ks), n, kn) for ks, kn in pts]
 
 
 def shapes(pose, anchor="ground"):
@@ -144,9 +152,12 @@ def shapes(pose, anchor="ground"):
         limb(side, far, LEG_UP, LEG_LO, f"hp{side}", f"kn{side}", f"an{side}", False, True)
         if front:
             a, t = j[f"an{side}"], j[f"to{side}"]
-            out.append(("shoe", 0, capsule(a, add(t, (0, 0.0)), 0.045, 0.04)))
+            sd = norm(sub(a, j[f"kn{side}"]))
+            # stopa na ziemi (goleń w dół) leży płasko; uniesiona — w poprzek goleni
+            u = (1, 0) if sd[1] > 0.6 else perp(sd)
+            out.append(("shoe", 0, oval(lerp(a, t, 0.4), u, 0.058, 0.034)))
         else:
-            out.append(("shoe", 1 if far else 0, foot_poly(j, side)))
+            out.append(("shoe", 1 if far else 0, foot_poly(j, side, pose["back"])))
 
     if front:
         leg("F", False)
@@ -168,12 +179,14 @@ def shapes(pose, anchor="ground"):
     return j, out
 
 
-def render(exs, out_path):
+def load():
     data = json.loads((ROOT / "assets" / "exercises.json").read_text())
-    lib = data["poses"]
-    byid = {e["id"]: e for e in data["exercises"]}
-    S = 150
-    cell = 340
+    return data["poses"], {e["id"]: e for e in data["exercises"]}
+
+
+def render(exs, out_path):
+    lib, byid = load()
+    S, cell = 150, 340
     cols = max(len(byid[i]["anim"]["k"]) for i in exs)
     img = Image.new("RGB", (cols * cell, len(exs) * cell), (15, 17, 21))
     d = ImageDraw.Draw(img, "RGBA")
@@ -182,59 +195,94 @@ def render(exs, out_path):
         anchor = e["anim"].get("anchor", "ground")
         for c, k in enumerate(e["anim"]["k"]):
             pose = resolve(k, lib)
-            j, sh = shapes(pose, anchor)
-            ox, oy = c * cell + cell / 2, r * cell + cell - 30 if anchor != "hands" else r * cell + cell - 5
-
-            def P(p):
-                return (ox + p[0] * S, oy + p[1] * S)
-
-            if anchor != "hands":
-                xs = [v[0] for v in j.values()]
-                cx = (min(xs) + max(xs)) / 2
-                w = (max(xs) - min(xs)) / 2 + 0.15
-                d.ellipse([P((cx - w, -0.03)), P((cx + w, 0.03))], fill=(0, 0, 0, 90))
-            for layer, far, geo in sh:
-                if layer == "head":
-                    hx, hy = P(geo)
-                    rx, ry = 0.092 * S, 0.108 * S
-                    d.ellipse([hx - rx, hy - ry, hx + rx, hy + ry], fill=COL["skin"][0])
-                    # włosy: tył i czubek głowy (po stronie przeciwnej do twarzy)
-                    if pose["view"] == "front":
-                        d.chord([hx - rx, hy - ry, hx + rx, hy + ry * 0.6], 180, 360, fill=COL["hair"][0])
-                    else:
-                        f = face_dir(pose["h"], pose["back"])
-                        up = (math.sin(math.radians(pose["h"])), math.cos(math.radians(pose["h"])))
-                        hair = []
-                        for i in range(48):
-                            th = 2 * math.pi * i / 48
-                            v = (math.cos(th), math.sin(th))
-                            if v[0] * up[0] + v[1] * up[1] - 0.75 * (v[0] * f[0] + v[1] * f[1]) > -0.2:
-                                hair.append((hx + v[0] * rx * 1.04, hy + v[1] * ry * 1.04))
-                        if len(hair) > 2:
-                            # kolejność łuku: obróć tak, by zacząć od przerwy
-                            d.polygon(hair, fill=COL["hair"][0])
-                        ex = hx + f[0] * rx * 0.6 + up[0] * ry * 0.1
-                        ey = hy + f[1] * ry * 0.6 + up[1] * ry * 0.1
-                        d.ellipse([ex - 2.2, ey - 2.2, ex + 2.2, ey + 2.2], fill=(40, 30, 26))
-                        nx, ny = hx + f[0] * rx * 0.98 - up[0] * ry * 0.1, hy + f[1] * ry * 0.98 - up[1] * ry * 0.1
-                        d.ellipse([nx - 3.5, ny - 3.5, nx + 3.5, ny + 3.5], fill=COL["skin"][0])
-                    continue
-                color = COL[layer][far]
-                if isinstance(geo, tuple) and geo[0] == "ellipse":
-                    x, y = P(geo[1])
-                    rr = geo[2] * S
-                    d.ellipse([x - rr, y - rr, x + rr, y + rr], fill=color)
-                else:
-                    d.polygon([P(p) for p in geo], fill=color)
-                    if layer in ("skin", "shirt", "shorts") and len(geo) == 14:
-                        # połysk: węższa kapsuła przesunięta ku światłu (lewa-górna)
-                        cx = sum(p[0] for p in geo) / 14; cy = sum(p[1] for p in geo) / 14
-                        hl = [((p[0]-cx)*0.45+cx-0.012, (p[1]-cy)*0.82+cy-0.014) for p in geo]
-                        d.polygon([P(p) for p in hl], fill=(255, 255, 255, 34 if not far else 18))
+            draw(d, pose, anchor, c * cell + cell / 2, r * cell + cell - (5 if anchor == "hands" else 30), S)
     Path(out_path).parent.mkdir(exist_ok=True)
     img.save(out_path)
     print(out_path)
 
 
+def sheet(prefix, per=40):
+    """Arkusze kontrolne: każde ćwiczenie = 1. i środkowa klatka, podpis id."""
+    lib, byid = load()
+    ids = list(byid)
+    S, cw, ch, blocks = 70, 165, 190, 4
+    for n in range(0, len(ids), per):
+        part = ids[n:n + per]
+        rows = (len(part) + blocks - 1) // blocks
+        img = Image.new("RGB", (blocks * 2 * cw, rows * ch), (15, 17, 21))
+        d = ImageDraw.Draw(img, "RGBA")
+        for i, eid in enumerate(part):
+            e = byid[eid]
+            keys = e["anim"]["k"]
+            anchor = e["anim"].get("anchor", "ground")
+            bx, by = (i % blocks) * 2 * cw, (i // blocks) * ch
+            for c, k in enumerate([keys[0], keys[len(keys) // 2]]):
+                draw(d, resolve(k, lib), anchor, bx + c * cw + cw / 2, by + ch - (4 if anchor == "hands" else 22), S)
+            d.text((bx + 4, by + 2), eid, fill=(150, 160, 175))
+            d.line([(bx, by), (bx, by + ch)], fill=(40, 44, 52))
+        out = f"{prefix}{n // per + 1}.png"
+        img.save(out)
+        print(out)
+
+
+def draw(d, pose, anchor, ox, oy, S):
+    j, sh = shapes(pose, anchor)
+
+    def P(p):
+        return (ox + p[0] * S, oy + p[1] * S)
+
+    if anchor != "hands":
+        xs = [v[0] for v in j.values()]
+        cx = (min(xs) + max(xs)) / 2
+        w = (max(xs) - min(xs)) / 2 + 0.15
+        d.ellipse([P((cx - w, -0.03)), P((cx + w, 0.03))], fill=(0, 0, 0, 90))
+    for layer, far, geo in sh:
+        if layer == "head":
+            hx, hy = P(geo)
+            rx, ry = 0.092 * S, 0.108 * S
+            d.ellipse([hx - rx, hy - ry, hx + rx, hy + ry], fill=COL["skin"][0])
+            # włosy: tył i czubek głowy (po stronie przeciwnej do twarzy)
+            if pose["view"] == "front":
+                d.chord([hx - rx, hy - ry, hx + rx, hy + ry * 0.6], 180, 360, fill=COL["hair"][0])
+            else:
+                f = face_dir(pose["h"], pose["back"])
+                up = (math.sin(math.radians(pose["h"])), math.cos(math.radians(pose["h"])))
+                hair = []
+                for i in range(48):
+                    th = 2 * math.pi * i / 48
+                    v = (math.cos(th), math.sin(th))
+                    if v[0] * up[0] + v[1] * up[1] - 0.75 * (v[0] * f[0] + v[1] * f[1]) > -0.2:
+                        hair.append((hx + v[0] * rx * 1.04, hy + v[1] * ry * 1.04))
+                if len(hair) > 2:
+                    # kolejność łuku: obróć tak, by zacząć od przerwy
+                    d.polygon(hair, fill=COL["hair"][0])
+                ex = hx + f[0] * rx * 0.6 + up[0] * ry * 0.1
+                ey = hy + f[1] * ry * 0.6 + up[1] * ry * 0.1
+                d.ellipse([ex - 2.2, ey - 2.2, ex + 2.2, ey + 2.2], fill=(40, 30, 26))
+                nx, ny = hx + f[0] * rx * 0.98 - up[0] * ry * 0.1, hy + f[1] * ry * 0.98 - up[1] * ry * 0.1
+                d.ellipse([nx - 3.5, ny - 3.5, nx + 3.5, ny + 3.5], fill=COL["skin"][0])
+            continue
+        color = COL[layer][far]
+        if isinstance(geo, tuple) and geo[0] == "ellipse":
+            x, y = P(geo[1])
+            rr = geo[2] * S
+            d.ellipse([x - rr, y - rr, x + rr, y + rr], fill=color)
+        elif isinstance(geo, tuple) and geo[0] == "oval":
+            x, y = P(geo[1])
+            d.ellipse([x - geo[2] * S, y - geo[3] * S, x + geo[2] * S, y + geo[3] * S], fill=color)
+        else:
+            d.polygon([P(p) for p in geo], fill=color)
+            if layer in ("skin", "shirt", "shorts") and len(geo) == 14:
+                # połysk: węższa kapsuła przesunięta ku światłu (lewa-górna)
+                cx = sum(p[0] for p in geo) / 14; cy = sum(p[1] for p in geo) / 14
+                hl = [((p[0]-cx)*0.45+cx-0.012, (p[1]-cy)*0.82+cy-0.014) for p in geo]
+                d.polygon([P(p) for p in hl], fill=(255, 255, 255, 34 if not far else 18))
+
+
+
+
 if __name__ == "__main__":
-    render(sys.argv[2:], sys.argv[1])
+    if sys.argv[1] == "--sheet":
+        sheet(sys.argv[2])
+    else:
+        render(sys.argv[2:], sys.argv[1])
