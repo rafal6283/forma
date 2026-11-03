@@ -1337,9 +1337,13 @@ for e in E:
     e["sv"] = sv
 # kategoria/podtyp ćwiczenia w pliku FIT (ręczny eksport do Stravy z seriami); z Garmin FIT SDK
 _FIT = json.loads((Path(__file__).resolve().parent / "fit_map.json").read_text())
+# dokładniejsze ćwiczenie FIT dla naszego ruchu — sama kategoria (bez podtypu) Strava pokazuje jako „nieznane”
+_FIT_OV = json.loads((Path(__file__).resolve().parent / "fit_overrides.json").read_text())
 for e in E:
-    cat, sub = _FIT[e["sv"]]
+    cat, sub = _FIT_OV.get(e["id"]) or _FIT[e["sv"]]
     e["fc"] = [cat] if sub is None else [cat, sub]
+_nosub = [e["id"] for e in E if len(e["fc"]) == 1]
+assert not _nosub, f"ćwiczenia bez podtypu FIT: {_nosub}"
 missing = [e["id"] for e in E if e["id"] not in STRAVA]
 assert not missing, f"brak typu Stravy: {missing}"
 

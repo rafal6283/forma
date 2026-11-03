@@ -93,6 +93,6 @@ def session_fit(start, end, sets, hr, kcal, avg_hr, max_hr, sub_sport, serial, u
 if __name__ == "__main__":
     st = datetime(2026, 11, 2, 18, 0, tzinfo=timezone.utc)
     en = datetime(2026, 11, 2, 18, 10, tzinfo=timezone.utc)
-    data = session_fit(st, en, [(40, 12, 22, None), (30, None, 19, None)], [100, 0, 120], 80, None, None, 20, 7, 0)
+    data = session_fit(st, en, [(40, 12, 22, 77), (30, None, 19, 43)], [100, 0, 120], 80, None, None, 20, 7, 0)
     open(sys.argv[1], "wb").write(data)
     print(len(data), "B")
