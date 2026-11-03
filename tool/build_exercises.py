@@ -1335,6 +1335,11 @@ for e in E:
     sv = STRAVA.get(e["id"], FALLBACK[e["type"]])
     assert sv in VALID, f"{e['id']}: nieznany typ Stravy {sv}"
     e["sv"] = sv
+# kategoria/podtyp ćwiczenia w pliku FIT (ręczny eksport do Stravy z seriami); z Garmin FIT SDK
+_FIT = json.loads((Path(__file__).resolve().parent / "fit_map.json").read_text())
+for e in E:
+    cat, sub = _FIT[e["sv"]]
+    e["fc"] = [cat] if sub is None else [cat, sub]
 missing = [e["id"] for e in E if e["id"] not in STRAVA]
 assert not missing, f"brak typu Stravy: {missing}"
 

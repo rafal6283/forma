@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forma/core/catalog.dart';
 import 'package:forma/core/figure.dart';
+import 'package:forma/core/fit.dart';
 import 'package:forma/core/library.dart';
 import 'package:forma/core/models.dart';
 import 'package:forma/core/report.dart';
@@ -333,5 +334,22 @@ void main() {
     expect(sets.last['exercise_type'], 'PLANK_GENERIC');
     expect(j['streams'], {'time': [0, 10], 'heartrate': [100, 120]});
     expect(setsSportType(WorkoutKind.stretch), isNull);
+  });
+
+  test('plik FIT z seriami: bajt w bajt jak wzorzec (sprawdzony dekoderem Garmina)', () {
+    final s = Session(
+      id: '7',
+      start: DateTime.utc(2026, 11, 2, 18),
+      end: DateTime.utc(2026, 11, 2, 18, 10),
+      kind: WorkoutKind.upper,
+      title: 'Góra',
+      done: [DoneItem('pushups', 40, 0, reps: 12, target: 12), DoneItem('plank', 30, 0)],
+      kcal: 80,
+      hr: [100, 0, 120],
+    );
+    final bytes = sessionFit(s);
+    expect(bytes, File('test/fixtures/session_sets.fit').readAsBytesSync());
+    expect(String.fromCharCodes(bytes.sublist(8, 12)), '.FIT');
+    expect(FitWriter.crc16(bytes), 0); // CRC całego pliku z sumą na końcu = 0
   });
 }

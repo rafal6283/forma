@@ -9,6 +9,7 @@ import '../core/library.dart';
 import '../core/models.dart';
 import '../core/store.dart';
 import '../core/strava.dart';
+import '../core/fit.dart';
 import '../core/tcx.dart';
 import 'muscle_map.dart';
 import 'session_widgets.dart';
@@ -265,6 +266,15 @@ class _StravaCardState extends State<_StravaCard> {
     if (mounted) setState(() => busy = false);
   }
 
+  /// Plik FIT z seriami — do ręcznego wgrania na strava.com/upload (rodzaje ćwiczeń, powtórzenia, mapa mięśni).
+  Future<void> _exportFit() async {
+    final s = widget.session;
+    final dir = await getTemporaryDirectory();
+    final f = File('${dir.path}/forma-${s.start.toIso8601String().substring(0, 16).replaceAll(':', '-')}.fit');
+    await f.writeAsBytes(sessionFit(s));
+    await SharePlus.instance.share(ShareParams(files: [XFile(f.path)], subject: '${s.title} — Forma'));
+  }
+
   Future<void> _exportTcx() async {
     final s = widget.session;
     final dir = await getTemporaryDirectory();
@@ -300,19 +310,23 @@ class _StravaCardState extends State<_StravaCard> {
             ],
             if (connected == true && s.stravaId != null)
               OutlinedButton(
-                onPressed: busy ? null : () => _run(() => Strava.instance.push(s)),
+                onPressed: busy ? null : () => _run(() => Strava.instance.refresh(s)),
                 child: const Text('Zaktualizuj opis'),
               ),
             OutlinedButton.icon(
-              onPressed: _exportTcx,
+              onPressed: _exportFit,
               icon: const Icon(Icons.ios_share, size: 18),
-              label: const Text('Plik TCX'),
+              label: const Text('Plik FIT (serie)'),
             ),
+            TextButton(onPressed: _exportTcx, child: const Text('Plik TCX')),
           ]),
           if (connected == false)
             Padding(
               padding: EdgeInsets.only(top: 8),
-              child: Text('Połącz Stravę w Ustawieniach albo wgraj plik TCX na strava.com/upload.',
+              child: Text(
+                  'Połącz Stravę w Ustawieniach albo wgraj plik na strava.com/upload. Plik FIT ma serie '
+                  '(rodzaj ćwiczenia, powtórzenia, czas) i tętno — Strava powinna pokazać ćwiczenia i mapę mięśni. '
+                  'TCX ma tylko czas, kalorie i tętno.',
                   style: TextStyle(color: C.muted, fontSize: 12)),
             ),
         ]),

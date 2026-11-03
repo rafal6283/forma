@@ -73,6 +73,8 @@ class Exercise {
   final FigAnim anim;
   final Map<String, double> muscles; // 1 = główny, 0,5 = pomocniczy
   final String strava; // exercise_type Stravy (serie → mapa mięśni)
+  final int fitCategory; // exercise_category w pliku FIT
+  final int? fitSubtype; // podtyp w kategorii (gdy jest odpowiednik)
 
   Exercise({
     required this.id,
@@ -91,6 +93,8 @@ class Exercise {
     required this.anim,
     this.muscles = const {},
     this.strava = 'TOTAL_BODY_GENERIC',
+    this.fitCategory = 29,
+    this.fitSubtype,
     this.hold,
     this.easier,
     this.harder,
@@ -118,6 +122,8 @@ class Exercise {
       anim: FigAnim.fromJson((j['anim'] as Map).cast<String, dynamic>(), lib),
       muscles: ((j['m'] as Map?) ?? const {}).map((k, v) => MapEntry(k as String, (v as num).toDouble())),
       strava: j['sv'] as String? ?? 'TOTAL_BODY_GENERIC',
+      fitCategory: ((j['fc'] as List?)?.first as num?)?.toInt() ?? 29,
+      fitSubtype: (j['fc'] as List?) != null && (j['fc'] as List).length > 1 ? ((j['fc'] as List)[1] as num).toInt() : null,
     );
   }
 

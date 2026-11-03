@@ -288,6 +288,14 @@ class Strava {
     return 'Wysłano trening do Stravy';
   }
 
+  /// Odświeżenie opisu już wysłanej aktywności (bez wysyłania jej drugi raz).
+  Future<String> refresh(Session s) async {
+    final id = s.stravaId;
+    if (id == null) return push(s);
+    await _update(id, s, rename: false);
+    return 'Zaktualizowano opis w Stravie';
+  }
+
   /// Ponowne próby dla treningów czekających na aktywność z zegarka (przy otwarciu aplikacji).
   Future<void> retryPending() async {
     if (!await connected()) return;
