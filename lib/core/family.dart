@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:koofr_backup_ui/koofr_backup_ui.dart';
 
 import 'catalog.dart';
-import 'progress.dart';
 import 'store.dart';
 
 /// Wyniki jednej osoby do rodzinnej rywalizacji (tylko liczby — bez szczegółów zdrowia).
