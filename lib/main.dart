@@ -6,7 +6,9 @@ import 'package:koofr_backup_ui/koofr_backup_ui.dart';
 
 import 'core/app_settings.dart';
 import 'core/backup.dart';
+import 'core/family.dart';
 import 'core/library.dart';
+import 'core/reminders.dart';
 import 'core/store.dart';
 import 'core/voice.dart';
 import 'ui/exercise_screen.dart';
@@ -37,6 +39,11 @@ Future<void> main() async {
     ..enabled = p.voice
     ..beeps = p.beeps;
   runApp(const FormaApp());
+  Store.onSessionAdded = () {
+    unawaited(Reminders.instance.reschedule());
+    unawaited(Family.instance.publish());
+  };
+  unawaited(Reminders.instance.reschedule());
   // kopia Koofr — w tle, bez wpływu na start
   unawaited(() async {
     try {

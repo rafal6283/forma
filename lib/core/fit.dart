@@ -120,18 +120,19 @@ Uint8List sessionFit(Session s) {
     if (i * 5 > elapsed) break;
     if (s.hr[i] > 0) w.msg('record', [t0 + i * 5, s.hr[i]]);
   }
-  final sets = <(int, int?, int, int?)>[];
+  final sets = <(int, int?, int, int?, int?)>[];
   for (final d in s.done) {
     final e = lib[d.exId];
     if (e == null || d.seconds <= 0) continue;
-    sets.add((d.seconds, d.reps != null && d.reps! > 0 ? d.reps : null, e.fitCategory, e.fitSubtype));
+    sets.add((d.seconds, d.reps != null && d.reps! > 0 ? d.reps : null, e.fitCategory, e.fitSubtype,
+        d.weight != null && d.weight! > 0 ? (d.weight! * 16).round() : null));
   }
   final work = sets.fold(0, (a, x) => a + x.$1);
   final gap = (elapsed - work).clamp(0, 1 << 30) ~/ (sets.isEmpty ? 1 : sets.length);
   var t = t0;
   for (var i = 0; i < sets.length; i++) {
-    final (sec, reps, cat, sub) = sets[i];
-    w.msg('set', [t + sec, sec * 1000, reps, null, 1, t, cat, sub, i]);
+    final (sec, reps, cat, sub, kg16) = sets[i];
+    w.msg('set', [t + sec, sec * 1000, reps, kg16, 1, t, cat, sub, i]);
     t += sec + gap;
   }
   w.msg('event', [t1, 0, 4]);

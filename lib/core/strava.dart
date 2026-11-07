@@ -148,6 +148,42 @@ class Strava {
         _ => 'WeightTraining',
       };
 
+  // ------------------------------------------------------------ import aktywności
+
+  /// Aktywności z Stravy po danej dacie (bieg, rower…) — bez tych wysłanych z Formy.
+  Future<List<ExternalActivity>> activities(DateTime after) async {
+    final token = await _access();
+    final out = <ExternalActivity>[];
+    final from = after.millisecondsSinceEpoch ~/ 1000;
+    for (var page = 1; page <= 5; page++) {
+      final r = await http.get(
+        Uri.parse('$_api/athlete/activities?after=$from&per_page=100&page=$page'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (r.statusCode != 200) throw StravaException('Strava: ${r.statusCode} ${_err(r)}');
+      final list = (jsonDecode(r.body) as List).cast<Map<String, dynamic>>();
+      for (final a in list) {
+        if ((a['external_id'] as String? ?? '').startsWith('forma-')) continue;
+        final start = DateTime.tryParse(a['start_date'] as String? ?? '');
+        if (start == null) continue;
+        final dist = (a['distance'] as num?)?.toDouble() ?? 0;
+        out.add(ExternalActivity(
+          id: 'strava:${a['id']}',
+          source: 'strava',
+          name: a['name'] as String? ?? '',
+          sport: (a['sport_type'] ?? a['type'] ?? 'Workout') as String,
+          start: start.toLocal(),
+          minutes: (((a['moving_time'] as num?) ?? (a['elapsed_time'] as num?) ?? 0) / 60).round(),
+          avgHr: (a['average_heartrate'] as num?)?.round(),
+          kcal: (a['kilojoules'] as num?)?.round(),
+          km: dist > 0 ? dist / 1000 : null,
+        ));
+      }
+      if (list.length < 100) break;
+    }
+    return out;
+  }
+
   // ------------------------------------------------------------ wysyłka
 
   /// Aktywność z zegarka nachodząca na trening (null = brak).

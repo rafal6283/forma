@@ -1,7 +1,7 @@
 name: forma
 description: "Forma — trening w domu z lokalnym trenerem, tętnem z opasek BLE i Health Connect."
 publish_to: 'none'
-version: 1.7.0+12
+version: 1.8.0+13
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
@@ -23,6 +23,10 @@ dependencies:
   flutter_web_auth_2: ^5.0.0
   speech_to_text: ^7.0.0
   audioplayers: ^6.1.0
+  flutter_local_notifications: 22.3.3
+  timezone: ^0.11.0
+  camera: ^0.11.4
+  google_mlkit_pose_detection: 0.16.1
   koofr_backup_ui:
     git:
       url: https://github.com/rafal6283/nocny-licznik

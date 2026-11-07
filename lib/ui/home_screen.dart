@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../core/activity_import.dart';
 import '../core/coach.dart';
 import '../core/hr.dart';
 import '../core/models.dart';
 import '../core/store.dart';
 import '../core/strava.dart';
 import '../core/trainer.dart';
+import 'calendar_screen.dart';
 import 'checkin_sheet.dart';
-import 'hr_screen.dart';
+import 'custom_screen.dart';
+import 'family_screen.dart';
+import 'fatigue_screen.dart';
 import 'hrv_screen.dart';
+import 'ppg_screen.dart';
 import 'preview_screen.dart';
 import 'program_screen.dart';
 import 'catalog_screen.dart';
@@ -43,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _regen();
     refreshHealth();
     Strava.instance.retryPending();
+    ActivityImport.instance.run().catchError((_) => (0, null));
   }
 
   @override
@@ -156,7 +162,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(width: 8),
                 const UserChip(),
               ]),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              const StreakStrip(),
+              const SizedBox(height: 4),
               _ReadinessCard(r: r),
               const SectionTitle('Trener proponuje'),
               if (plan != null) _PlanCard(plan: plan, onChange: _chooseKind, onShuffle: () {
@@ -246,7 +254,7 @@ class _ReadinessCard extends StatelessWidget {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => HrService.instance.connected ? const HrvScreen() : const HrScreen(),
+                      builder: (_) => HrService.instance.connected ? const HrvScreen() : const PpgScreen(),
                     ),
                   ),
                   icon: Icon(s.todayHrv != null ? Icons.check_circle : Icons.monitor_heart_outlined, size: 18),
@@ -496,6 +504,31 @@ class _Extras extends StatelessWidget {
     final testDue = lastTest == null ? s.sessions.length >= 1 : DateTime.now().difference(lastTest.at).inDays >= 28;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       for (final c in active) ChallengeTile(c: c, progress: s.challenges[c.id], compact: true),
+      FilledButton.tonalIcon(
+        style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PreviewScreen(plan: coach().quick7()))),
+        icon: const Icon(Icons.bolt),
+        label: const Text('Szybkie 7 minut — start bez wyborów'),
+      ),
+      const SizedBox(height: 8),
+      Row(children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomListScreen())),
+            icon: const Icon(Icons.playlist_add, size: 18),
+            label: const Text('Moje treningi'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FamilyScreen())),
+            icon: const Icon(Icons.groups_outlined, size: 18),
+            label: const Text('Rodzina'),
+          ),
+        ),
+      ]),
+      const SizedBox(height: 8),
       Row(children: [
         Expanded(
           child: OutlinedButton.icon(
@@ -514,6 +547,7 @@ class _Extras extends StatelessWidget {
         ),
       ]),
       const SizedBox(height: 8),
+      const FatigueCard(),
       Card(
         child: ListTile(
           leading: Icon(Icons.speed, color: testDue ? C.accent : C.muted),

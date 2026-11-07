@@ -77,6 +77,52 @@ class HealthSync {
     }
   }
 
+  /// Treningi z Health Connect / Zdrowia (np. z Gadgetbridge, zegarka) po danej dacie.
+  Future<List<ExternalActivity>> workouts(DateTime from) async {
+    if (!supported) return const [];
+    await _configure();
+    final pts = await _h.getHealthDataFromTypes(
+      types: const [HealthDataType.WORKOUT],
+      startTime: from,
+      endTime: DateTime.now(),
+    );
+    final out = <ExternalActivity>[];
+    for (final p in pts) {
+      final v = p.value;
+      if (v is! WorkoutHealthValue) continue;
+      if (p.sourceName.toLowerCase().contains('forma') || p.sourceId.toLowerCase().contains('forma')) continue;
+      final t = v.workoutActivityType.name.toLowerCase();
+      final sport = t.contains('run')
+          ? 'Run'
+          : t.contains('bik') || t.contains('cycl')
+              ? 'Ride'
+              : t.contains('walk')
+                  ? 'Walk'
+                  : t.contains('hik')
+                      ? 'Hike'
+                      : t.contains('swim')
+                          ? 'Swim'
+                          : t.contains('yoga')
+                              ? 'Yoga'
+                              : t.contains('strength') || t.contains('weight')
+                                  ? 'WeightTraining'
+                                  : 'Workout';
+      final min = p.dateTo.difference(p.dateFrom).inMinutes;
+      if (min < 5) continue;
+      out.add(ExternalActivity(
+        id: 'health:${p.uuid.isNotEmpty ? p.uuid : p.dateFrom.millisecondsSinceEpoch}',
+        source: 'health',
+        name: p.sourceName,
+        sport: sport,
+        start: p.dateFrom,
+        minutes: min,
+        kcal: v.totalEnergyBurned,
+        km: (v.totalDistance ?? 0) > 0 ? v.totalDistance! / 1000 : null,
+      ));
+    }
+    return out;
+  }
+
   /// Sen ostatniej nocy, tętno spoczynkowe, HRV i waga.
   Future<HealthSnapshot> snapshot() async {
     if (!supported) return HealthSnapshot.empty;

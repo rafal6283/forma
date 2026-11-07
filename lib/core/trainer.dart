@@ -37,6 +37,7 @@ class Trainer {
   final Set<String> favorites;
   final HealthSnapshot health;
   final List<Exercise> library;
+  final List<ExternalActivity> external;
   final DateTime now;
 
   Trainer({
@@ -50,6 +51,7 @@ class Trainer {
     this.hidden = const {},
     this.favorites = const {},
     this.health = HealthSnapshot.empty,
+    this.external = const [],
     DateTime? now,
   }) : now = now ?? DateTime.now();
 
@@ -150,12 +152,21 @@ class Trainer {
       }
     }
 
+    // aktywności spoza Formy (bieg, rower…) z ostatniej doby
+    final ext = external.where((x) => now.difference(x.start).inHours < 30 && x.minutes >= 20).toList();
+    if (ext.isNotEmpty) {
+      final x = ext.reduce((a, b) => a.load >= b.load ? a : b);
+      final e = x.load > 400 ? -8 : x.load > 200 ? -4 : -1;
+      score += e;
+      f.add(Factor(x.sportLabel, '${x.minutes} min${x.km != null ? ', ${x.km!.toStringAsFixed(1)} km' : ''}', e));
+    }
+
     return Readiness(score.clamp(5, 100).round(), f, data);
   }
 
-  double _load(int days) => sessions
-      .where((s) => now.difference(s.end).inDays < days)
-      .fold(0.0, (a, s) => a + s.load);
+  double _load(int days) =>
+      sessions.where((s) => now.difference(s.end).inDays < days).fold(0.0, (a, s) => a + s.load) +
+      external.where((x) => now.difference(x.start).inDays < days).fold(0.0, (a, x) => a + x.load);
 
   /// Zmęczenie grup mięśniowych z ostatnich 3 dni (0 = świeże).
   Map<String, double> fatigue() {
@@ -174,8 +185,68 @@ class Trainer {
         }
       }
     }
+    for (final x in external) {
+      final h = now.difference(x.start).inMinutes / 60 - x.minutes / 60;
+      if (h > 96 || h < -1 || x.groups.isEmpty) continue;
+      final decay = math.exp(-math.max(0, h) / 36);
+      for (final g in x.groups) {
+        out[g] = out[g]! + x.minutes * x.effort / 10 * decay / x.groups.length * 0.6;
+      }
+    }
     return out;
   }
+
+  /// Zmęczenie poszczególnych mięśni (0 = świeże, 1 = mocno zmęczone) z ostatnich 4 dni,
+  /// łącznie z bieganiem i rowerem z zewnątrz. Trener omija mocno zmęczone mięśnie.
+  Map<String, double> muscleFatigue() {
+    final raw = <String, double>{};
+    final byId = {for (final e in library) e.id: e};
+    void addM(Map<String, double> ms, double amount) =>
+        ms.forEach((m, w) => raw[m] = (raw[m] ?? 0) + w * amount);
+    for (final s in sessions) {
+      final h = now.difference(s.end).inMinutes / 60;
+      if (h > 96 || h < 0) continue;
+      final decay = math.exp(-h / 30);
+      for (final d in s.done) {
+        final e = byId[d.exId];
+        if (e == null || e.type == ExType.stretch || e.type == ExType.warmup || e.type == ExType.mobility) continue;
+        final w = d.weight != null ? 1.3 : 1.0;
+        addM(e.muscles, math.min(d.seconds, 90) / 45 * s.rpe / 7 * decay * w);
+      }
+    }
+    for (final x in external) {
+      final h = now.difference(x.start).inMinutes / 60 - x.minutes / 60;
+      if (h > 96 || h < -1) continue;
+      addM(x.muscles, x.minutes / 12 * x.effort / 7 * math.exp(-math.max(0, h) / 30));
+    }
+    return raw.map((k, v) => MapEntry(k, (v / 6).clamp(0.0, 1.0).toDouble()));
+  }
+
+  /// Średnie zmęczenie mięśni ćwiczenia (ważone udziałem mięśnia).
+  double exerciseFatigue(Exercise e, Map<String, double> fat) {
+    var sum = 0.0, wsum = 0.0;
+    e.muscles.forEach((m, w) {
+      sum += (fat[m] ?? 0) * w;
+      wsum += w;
+    });
+    return wsum == 0 ? 0 : sum / wsum;
+  }
+
+  /// Sugerowany ciężar (kg) na podstawie ostatnich serii: wszystkie powtórzenia zrobione → +1–2 kg.
+  double? weightFor(Exercise e) {
+    final hist = lastSets(e.id).where((d) => d.weight != null && d.side != 2).toList();
+    if (hist.isEmpty) return null;
+    final w = hist.map((d) => d.weight!).reduce(math.max);
+    final top = hist.where((d) => d.weight == w).toList();
+    final allHit = top.every((d) => d.reps == null || d.target == null || d.reps! >= d.target!);
+    final fb = _lastFeedback(e.id) ?? 0;
+    final step = w < 10 ? 1.0 : 2.0;
+    if (fb > 0 || !allHit) return w;
+    return w + step;
+  }
+
+  /// Lżejszy ciężar na drop-set (ok. 70%, zaokrąglony do 0,5 kg).
+  static double dropWeight(double w) => math.max(1.0, (w * 0.7 * 2).round() / 2);
 
   // ---------------------------------------------------------------- wybór treningu
 
@@ -245,7 +316,12 @@ class Trainer {
   WorkoutFormat recommendFormat(WorkoutKind kind, Readiness r) {
     if (kind == WorkoutKind.mobility || kind == WorkoutKind.stretch) return WorkoutFormat.flow;
     final opts = switch (profile.goal) {
-      Goal.strength => [WorkoutFormat.sets, WorkoutFormat.supersets, WorkoutFormat.strengthIntervals],
+      Goal.strength => [
+        WorkoutFormat.sets,
+        WorkoutFormat.supersets,
+        if (profile.equipment.contains('db') || profile.equipment.contains('kb')) WorkoutFormat.dropSets,
+        WorkoutFormat.strengthIntervals,
+      ],
       Goal.burn => [WorkoutFormat.hiit, WorkoutFormat.tabata, WorkoutFormat.circuit],
       Goal.fitness => [WorkoutFormat.circuit, WorkoutFormat.hiit, WorkoutFormat.strengthIntervals, WorkoutFormat.tabata],
       Goal.mobility => [WorkoutFormat.circuit, WorkoutFormat.strengthIntervals],
@@ -377,7 +453,7 @@ class Trainer {
     final adj = r < 40 ? -1.5 : r < 60 ? -0.7 : r >= 80 ? 0.3 : 0.0;
     final target = (profile.level + adj + (load - 1) * 2).clamp(1.0, 5.0);
     final calm = fmt == WorkoutFormat.flow || kind == WorkoutKind.mobility || kind == WorkoutKind.stretch;
-    final repsMode = fmt == WorkoutFormat.sets || fmt == WorkoutFormat.supersets;
+    final repsMode = fmt == WorkoutFormat.sets || fmt == WorkoutFormat.supersets || fmt == WorkoutFormat.dropSets;
 
     final usable = library.where((e) {
       if (hidden.contains(e.id)) return false;
@@ -403,6 +479,7 @@ class Trainer {
     final swappedFor = {for (final e in swaps.entries) e.value: e.key};
 
     final used = <String>{};
+    final mFat = muscleFatigue();
     double score(Exercise e) {
       var s = -(e.lvl - target).abs() * 1.6;
       if (e.lvl > target + 1) s -= 2;
@@ -411,7 +488,10 @@ class Trainer {
       if (fb < 0 && e.lvl <= target) s += fb * 0.6;
       final last = exLast[e.id];
       if (last != null && now.difference(last).inHours < 48) s -= 1.2;
-      if (favorites.contains(e.id)) s += 1;
+      if (favorites.contains(e.id)) s += 2;
+      if (e.type != ExType.stretch && e.type != ExType.mobility && e.type != ExType.warmup) {
+        s -= exerciseFatigue(e, mFat) * 4; // zmęczone mięśnie odpoczywają
+      }
       if (preferIds.contains(e.id)) s += 3.5; // ćwiczenia programu (i zamienniki)
       if (e.needsEquipment) s += 0.8;
       // w seriach na powtórzenia unikamy ćwiczeń na czas (deski) i skoków
@@ -552,6 +632,7 @@ class Trainer {
 
       case WorkoutFormat.sets:
       case WorkoutFormat.supersets:
+      case WorkoutFormat.dropSets:
         final sets = (profile.goal == Goal.strength ? 4 : 3) * (load < 0.95 ? 0.67 : 1.0);
         final nSets = sets.round().clamp(2, 5);
         final restSet = profile.goal == Goal.strength ? 75 : 60;
@@ -564,7 +645,57 @@ class Trainer {
           return (reps, estimate(e, reps, 0));
         }
 
-        if (fmt == WorkoutFormat.sets) {
+        if (fmt == WorkoutFormat.dropSets) {
+          // drop-sety: seria do zmęczenia, 10 s i od razu lżej (mniejszy ciężar albo łatwiejsza wersja)
+          const nDrop = 3;
+          Exercise lighter(Exercise e) {
+            if (e.weighted) return e;
+            final easy = e.easier == null ? null : _byId(e.easier!);
+            if (easy != null && usable.any((u) => u.id == easy.id)) return easy;
+            return e;
+          }
+
+          int perEx(Exercise e) {
+            final d = dose(e);
+            final l = lighter(e);
+            return nDrop * ((e.uni ? 2 : 1) * d.$2 + 10 + (l.uni ? 2 : 1) * dose(l).$2 + restSet) + restEx - restSet;
+          }
+
+          final list = <Exercise>[];
+          var spent = 0;
+          for (var i = 0; i < 6; i++) {
+            final e = pick((x) => (x.type == ExType.strength) && !x.isStatic && x.groups.any(groups.contains) && x.weighted) ??
+                pickFor(groups[i % groups.length]);
+            if (e == null) break;
+            if (e.isStatic) {
+              used.remove(e.id);
+              continue;
+            }
+            final need = perEx(e);
+            if (list.length >= 2 && spent + need > mainSec) {
+              used.remove(e.id);
+              break;
+            }
+            list.add(e);
+            spent += need;
+          }
+          for (var i = 0; i < list.length; i++) {
+            final e = list[i];
+            final d = dose(e);
+            final l = lighter(e);
+            final dl = dose(l);
+            final dropReps = l.id == e.id ? math.max(4, ((d.$1 ?? 10) * 0.7).round()) : dl.$1;
+            for (var s = 1; s <= nDrop; s++) {
+              add(e, d.$2, 10, Phase.main, round: s, rounds: nDrop, reps: d.$1, tag: 'Seria $s/$nDrop');
+              final lastSet = s == nDrop;
+              add(l, l.id == e.id && dropReps != null ? math.max(15, (dropReps * l.anim.cycle).round()) : dl.$2,
+                  lastSet ? (i < list.length - 1 ? restEx : 15) : restSet, Phase.main,
+                  round: s, rounds: nDrop, reps: dropReps,
+                  tag: e.weighted ? 'Drop $s/$nDrop · lżej' : (l.id == e.id ? 'Drop $s/$nDrop · do upadku' : 'Drop $s/$nDrop · łatwiej'));
+            }
+          }
+          intensity = '${list.length} ćwiczeń × $nDrop drop-sety, przerwa $restSet s';
+        } else if (fmt == WorkoutFormat.sets) {
           int perEx(Exercise e) {
             final d = dose(e);
             return nSets * ((e.uni ? 2 : 1) * d.$2 + restSet) + restEx - restSet;
@@ -718,6 +849,10 @@ class Trainer {
       if (swaps.isNotEmpty)
         'Zamienniki: ${swaps.entries.take(3).map((e) => '${_name(e.value)} zamiast ${_name(e.key)}').join('; ')}.',
       if (_jumpsOff && !_limits.contains('kolana') && !_limits.contains('kostki')) 'Bez skoków — cicho dla sąsiadów.',
+      if (!calm && mFat.values.any((v) => v >= 0.6))
+        'Zmęczone mięśnie: ${(mFat.entries.where((e) => e.value >= 0.6).toList()..sort((a, b) => b.value.compareTo(a.value))).take(3).map((e) => (muscleLabel[e.key] ?? e.key).toLowerCase()).join(', ')} — dziś je oszczędzam.',
+      if (fmt == WorkoutFormat.dropSets && !calm)
+        'Drop-set: seria do zmęczenia, 10 s przerwy i od razu lżej — ${profile.equipment.contains('db') ? 'odłóż cięższe hantle albo zmniejsz obciążenie o ok. 30%' : 'łatwiejsza wersja ćwiczenia'}.',
       if (!doWarm && !calm) 'Bez rozgrzewki — na Twoje życzenie. Zacznij spokojniej.',
     ];
     return WorkoutPlan(
@@ -729,6 +864,113 @@ class Trainer {
       intensity: intensity,
       reasons: reasons,
       programDay: programDay,
+    );
+  }
+
+  bool _ok(Exercise e) =>
+      !hidden.contains(e.id) &&
+      e.availableWith(profile.equipment) &&
+      !e.stress.any(_limits.contains) &&
+      !(e.impact && _jumpsOff);
+
+  /// Szybki trening 7 minut (klasyczny protokół: 12 ćwiczeń × 30 s, 10 s przerwy) — bez wyborów.
+  /// Dolegliwości, „bez skoków” i wykluczone ćwiczenia są uwzględnione.
+  WorkoutPlan quick7() {
+    const slots = [
+      ['jumping_jacks', 'step_jacks', 'march'],
+      ['wall_sit', 'squat_hold', 'glute_bridge'],
+      ['pushups', 'knee_pushups', 'incline_pushups', 'wall_pushup'],
+      ['crunches', 'dead_bug', 'reverse_crunch'],
+      ['step_ups', 'reverse_lunge', 'glute_bridge'],
+      ['squat', 'box_squat', 'glute_bridge_pulse'],
+      ['triceps_dips', 'floor_dips', 'kpush_narrow'],
+      ['plank', 'bird_dog', 'dead_bug'],
+      ['high_knees', 'march', 'step_touch'],
+      ['reverse_lunge', 'forward_lunge', 'side_leg_raise'],
+      ['t_pushup', 'shoulder_taps', 'superman'],
+      ['side_plank', 'side_plank_knee', 'bird_dog'],
+    ];
+    final items = <PlanItem>[];
+    final taken = <String>{};
+    for (var i = 0; i < slots.length; i++) {
+      Exercise? e;
+      for (final id in slots[i]) {
+        final c = _byId(id);
+        if (c != null && _ok(c) && (!taken.contains(id) || id == slots[i].last)) {
+          e = c;
+          break;
+        }
+      }
+      if (e == null) continue;
+      taken.add(e.id);
+      final last = i == slots.length - 1;
+      if (e.uni) {
+        items.add(PlanItem(exId: e.id, work: 15, rest: 3, phase: Phase.main, side: 1));
+        items.add(PlanItem(exId: e.id, work: 15, rest: last ? 0 : 10, phase: Phase.main, side: 2));
+      } else {
+        items.add(PlanItem(exId: e.id, work: 30, rest: last ? 0 : 10, phase: Phase.main));
+      }
+    }
+    return WorkoutPlan(
+      kind: WorkoutKind.fullBody,
+      format: WorkoutFormat.hiit,
+      title: 'Szybkie 7 minut',
+      items: items,
+      readiness: readiness().score,
+      intensity: '12 × 30 s, 10 s przerwy',
+      reasons: const ['Klasyczny trening 7-minutowy: całe ciało, bez sprzętu poza krzesłem. Daj z siebie dużo — to krótko.'],
+    );
+  }
+
+  /// Plan z własnego treningu (kolejność i dawki od użytkownika). Jednostronne — na każdą stronę.
+  WorkoutPlan customPlan(CustomWorkout w, {bool? warmup, bool? cooldown}) {
+    final items = <PlanItem>[];
+    final rounds = w.rounds.clamp(1, 10);
+    final list = [
+      for (final it in w.items)
+        if (_byId(it.exId) != null && !hidden.contains(it.exId)) (it, _byId(it.exId)!)
+    ];
+    for (var rd = 1; rd <= rounds; rd++) {
+      for (var i = 0; i < list.length; i++) {
+        final (it, e) = list[i];
+        final lastInRound = i == list.length - 1;
+        final rest = lastInRound ? (rd < rounds ? w.roundRest : 0) : it.rest;
+        final work = it.reps != null ? math.max(15, (it.reps! * e.anim.cycle).round()) : it.seconds;
+        if (e.uni) {
+          items.add(PlanItem(exId: e.id, work: work, rest: 5, phase: Phase.main, side: 1, round: rd, rounds: rounds, reps: it.reps));
+          items.add(PlanItem(exId: e.id, work: work, rest: rest, phase: Phase.main, side: 2, round: rd, rounds: rounds, reps: it.reps));
+        } else {
+          items.add(PlanItem(exId: e.id, work: work, rest: rest, phase: Phase.main, round: rd, rounds: rounds, reps: it.reps));
+        }
+      }
+    }
+    final groups = <String, int>{};
+    for (final (_, e) in list) {
+      for (final g in e.groups) {
+        groups[g] = (groups[g] ?? 0) + 1;
+      }
+    }
+    final top = groups.keys.toList()..sort((a, b) => groups[b]!.compareTo(groups[a]!));
+    final kind = top.isEmpty
+        ? WorkoutKind.fullBody
+        : switch (top.first) {
+            'nogi' || 'pośladki' => WorkoutKind.lower,
+            'klatka' || 'barki' => WorkoutKind.upper,
+            'plecy' => WorkoutKind.back,
+            'ramiona' => WorkoutKind.arms,
+            'brzuch' => WorkoutKind.core,
+            _ => WorkoutKind.fullBody,
+          };
+    final allReps = list.isNotEmpty && list.every((p) => p.$1.reps != null);
+    final calm = list.isNotEmpty && list.every((p) => p.$2.type == ExType.stretch || p.$2.type == ExType.mobility);
+    return WorkoutPlan(
+      kind: calm ? WorkoutKind.mobility : kind,
+      format: calm ? WorkoutFormat.flow : (allReps ? WorkoutFormat.sets : WorkoutFormat.circuit),
+      title: w.name,
+      items: items,
+      readiness: readiness().score,
+      intensity: '${list.length} ćwiczeń × $rounds ${rounds == 1 ? 'runda' : 'rundy'}',
+      reasons: const ['Twój własny trening — kolejność i dawki tak, jak je ułożyłeś.'],
     );
   }
 

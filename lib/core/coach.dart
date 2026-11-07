@@ -17,6 +17,7 @@ Trainer coach() {
     hidden: {for (final e in s.stats.entries) if (e.value.hidden) e.key},
     favorites: {for (final e in s.stats.entries) if (e.value.favorite) e.key},
     health: s.health,
+    external: s.external,
   );
 }
 

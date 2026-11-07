@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'figure.dart';
 
 enum ExType { warmup, cardio, strength, core, mobility, stretch }
@@ -132,6 +134,9 @@ class Exercise {
 
   bool get needsEquipment => eq.isNotEmpty;
 
+  /// Ćwiczenie z ciężarem (hantle / kettlebell) — zapisujemy kilogramy i podpowiadamy ciężar.
+  bool get weighted => hold == 'db' || hold == 'db1' || hold == 'kb';
+
   /// Ile mniej więcej powtórzeń w [seconds] (dla podpowiedzi przy ćwiczeniach dynamicznych).
   int? repsFor(int seconds) {
     if (isStatic || type == ExType.stretch) return null;
@@ -166,7 +171,7 @@ const kindLabel = {
 };
 
 /// Format treningu (jak w Fitify): niezależny od partii ciała.
-enum WorkoutFormat { circuit, hiit, tabata, strengthIntervals, sets, supersets, flow }
+enum WorkoutFormat { circuit, hiit, tabata, strengthIntervals, sets, supersets, dropSets, flow }
 
 const formatLabel = {
   WorkoutFormat.circuit: 'Obwód',
@@ -175,6 +180,7 @@ const formatLabel = {
   WorkoutFormat.strengthIntervals: 'Interwały siłowe',
   WorkoutFormat.sets: 'Serie siłowe',
   WorkoutFormat.supersets: 'Superserie',
+  WorkoutFormat.dropSets: 'Drop-sety',
   WorkoutFormat.flow: 'Spokojny przepływ',
 };
 
@@ -185,6 +191,7 @@ const formatHint = {
   WorkoutFormat.strengthIntervals: 'Długa praca siłowa, mniej ćwiczeń',
   WorkoutFormat.sets: 'Serie na powtórzenia z przerwą — klasyczna siłownia',
   WorkoutFormat.supersets: 'Pary ćwiczeń A/B na przemian',
+  WorkoutFormat.dropSets: 'Seria do zmęczenia, potem lżej (mniejszy ciężar albo łatwiejsza wersja) bez przerwy',
   WorkoutFormat.flow: 'Mobilność i rozciąganie w swoim tempie',
 };
 
@@ -219,6 +226,8 @@ class Profile {
   bool stravaAuto; // wysyłaj po treningu
   bool stravaMatch; // uzupełnij aktywność z zegarka zamiast tworzyć nową
   bool stravaSets; // trening siłowy jako nowa aktywność z seriami (mapa mięśni w Stravie)
+  bool reminders; // przypomnienie o treningu (i o zagrożonej serii)
+  int reminderHour;
   bool warmup; // rozgrzewka dobrana do partii
   bool cooldown; // rozciąganie na koniec
   Map<String, DateTime> limitUntil; // dolegliwości czasowe: do kiedy oszczędzać (brak wpisu = na stałe)
@@ -250,6 +259,8 @@ class Profile {
     this.stravaSets = true,
     this.warmup = true,
     this.cooldown = true,
+    this.reminders = false,
+    this.reminderHour = 18,
     Map<String, DateTime>? limitUntil,
   })  : equipment = equipment ?? {'chair'},
         limits = limits ?? {},
@@ -290,6 +301,8 @@ class Profile {
         'stravaMatch': stravaMatch,
         'stravaSets': stravaSets,
         'warmup': warmup,
+        'reminders': reminders,
+        'reminderHour': reminderHour,
         'cooldown': cooldown,
         'limitUntil': limitUntil.map((k, v) => MapEntry(k, v.toIso8601String())),
       };
@@ -320,6 +333,8 @@ class Profile {
         stravaMatch: j['stravaMatch'] != false,
         stravaSets: j['stravaSets'] != false,
         warmup: j['warmup'] != false,
+        reminders: j['reminders'] == true,
+        reminderHour: (j['reminderHour'] as num?)?.toInt() ?? 18,
         cooldown: j['cooldown'] != false,
         limitUntil: {
           for (final e in ((j['limitUntil'] as Map?) ?? const {}).entries)
@@ -415,15 +430,23 @@ class DoneItem {
   final int side;
   final int? reps; // wykonane powtórzenia (serie na powtórzenia)
   final int? target; // cel powtórzeń
-  DoneItem(this.exId, this.seconds, this.side, {this.reps, this.target});
-  Map<String, dynamic> toJson() =>
-      {'ex': exId, 's': seconds, 'sd': side, if (reps != null) 'r': reps, if (target != null) 't': target};
+  final double? weight; // ciężar (kg) przy hantlach / kettlebell
+  DoneItem(this.exId, this.seconds, this.side, {this.reps, this.target, this.weight});
+  Map<String, dynamic> toJson() => {
+        'ex': exId,
+        's': seconds,
+        'sd': side,
+        if (reps != null) 'r': reps,
+        if (target != null) 't': target,
+        if (weight != null) 'w': weight,
+      };
   factory DoneItem.fromJson(Map<String, dynamic> j) => DoneItem(
         j['ex'] as String,
         (j['s'] as num).toInt(),
         (j['sd'] as num?)?.toInt() ?? 0,
         reps: (j['r'] as num?)?.toInt(),
         target: (j['t'] as num?)?.toInt(),
+        weight: (j['w'] as num?)?.toDouble(),
       );
 }
 
@@ -816,4 +839,168 @@ class ChallengeProgress {
         done: ((j['done'] as Map?) ?? const {}).map((k, v) => MapEntry(int.parse(k as String), v as String)),
         active: j['active'] != false,
       );
+}
+
+
+/// Aktywność spoza Formy (Strava, Health Connect) — liczy się do obciążenia, kalendarza i poziomu.
+class ExternalActivity {
+  final String id; // źródło:identyfikator, np. strava:123
+  final String source; // strava / health
+  final String name;
+  final String sport; // Run, Ride, Walk, Workout…
+  final DateTime start;
+  final int minutes;
+  final int? avgHr;
+  final int? kcal;
+  final double? km;
+
+  ExternalActivity({
+    required this.id,
+    required this.source,
+    required this.name,
+    required this.sport,
+    required this.start,
+    required this.minutes,
+    this.avgHr,
+    this.kcal,
+    this.km,
+  });
+
+  /// Obciążenie porównywalne z treningiem Formy (minuty × intensywność).
+  /// W tej samej skali co [Session.load] (minuty × wysiłek 1–10).
+  double get load => minutes * effort;
+
+  /// Szacowany wysiłek 1–10 (z tętna, a bez niego — z rodzaju aktywności).
+  double get effort {
+    final hr = avgHr;
+    if (hr != null && hr > 0) return ((hr - 85) / 9).clamp(2.0, 10.0).toDouble();
+    return switch (sportLabel) { 'Bieg' => 7.0, 'Rower' || 'Pływanie' || 'Trening siłowy' => 6.0, 'Spacer' => 3.0, _ => 5.0 };
+  }
+
+  /// Mięśnie, które pracowały (do mapy zmęczenia).
+  Map<String, double> get muscles => switch (sportLabel) {
+        'Bieg' => const {'calves': 1, 'quads': 0.8, 'hamstrings': 0.7, 'glutes': 0.6},
+        'Rower' => const {'quads': 1, 'glutes': 0.6, 'calves': 0.5, 'hamstrings': 0.4},
+        'Spacer' || 'Wędrówka' => const {'calves': 0.6, 'quads': 0.5, 'glutes': 0.4},
+        'Pływanie' => const {'lats': 1, 'shoulders': 0.9, 'triceps': 0.5, 'chest': 0.5},
+        _ => const {},
+      };
+
+  /// Grupy mięśni (jak w [muscleGroups]).
+  List<String> get groups => switch (sportLabel) {
+        'Bieg' || 'Rower' || 'Spacer' || 'Wędrówka' => const ['nogi', 'pośladki'],
+        'Pływanie' => const ['plecy', 'barki', 'ramiona'],
+        _ => const [],
+      };
+
+  String get sportLabel => switch (sport.toLowerCase()) {
+        'run' || 'trailrun' || 'virtualrun' || 'running' => 'Bieg',
+        'ride' || 'virtualride' || 'ebikeride' || 'mountainbikeride' || 'biking' || 'cycling' => 'Rower',
+        'walk' || 'walking' => 'Spacer',
+        'hike' || 'hiking' => 'Wędrówka',
+        'swim' || 'swimming' => 'Pływanie',
+        'weighttraining' || 'strength_training' => 'Trening siłowy',
+        'yoga' => 'Joga',
+        _ => 'Aktywność',
+      };
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'src': source,
+        'n': name,
+        'sp': sport,
+        'at': start.toIso8601String(),
+        'min': minutes,
+        if (avgHr != null) 'hr': avgHr,
+        if (kcal != null) 'kcal': kcal,
+        if (km != null) 'km': km,
+      };
+
+  factory ExternalActivity.fromJson(Map<String, dynamic> j) => ExternalActivity(
+        id: j['id'] as String,
+        source: j['src'] as String? ?? 'strava',
+        name: j['n'] as String? ?? '',
+        sport: j['sp'] as String? ?? 'Workout',
+        start: DateTime.parse(j['at'] as String),
+        minutes: (j['min'] as num).toInt(),
+        avgHr: (j['hr'] as num?)?.toInt(),
+        kcal: (j['kcal'] as num?)?.toInt(),
+        km: (j['km'] as num?)?.toDouble(),
+      );
+}
+
+/// Pozycja własnego treningu.
+class CustomItem {
+  String exId;
+  int? reps; // null = na czas
+  int seconds; // czas pracy (albo szacunek przy powtórzeniach)
+  int rest;
+  CustomItem({required this.exId, this.reps, this.seconds = 40, this.rest = 20});
+
+  Map<String, dynamic> toJson() => {'ex': exId, if (reps != null) 'r': reps, 's': seconds, 'p': rest};
+  factory CustomItem.fromJson(Map<String, dynamic> j) => CustomItem(
+        exId: j['ex'] as String,
+        reps: (j['r'] as num?)?.toInt(),
+        seconds: (j['s'] as num?)?.toInt() ?? 40,
+        rest: (j['p'] as num?)?.toInt() ?? 20,
+      );
+}
+
+/// Własny trening ułożony z katalogu.
+class CustomWorkout {
+  String id;
+  String name;
+  List<CustomItem> items;
+  int rounds;
+  int roundRest;
+  DateTime created;
+
+  CustomWorkout({
+    required this.id,
+    required this.name,
+    List<CustomItem>? items,
+    this.rounds = 2,
+    this.roundRest = 60,
+    DateTime? created,
+  })  : items = items ?? [],
+        created = created ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'n': name,
+        'it': items.map((e) => e.toJson()).toList(),
+        'r': rounds,
+        'rr': roundRest,
+        'c': created.toIso8601String(),
+      };
+
+  factory CustomWorkout.fromJson(Map<String, dynamic> j) => CustomWorkout(
+        id: j['id'] as String,
+        name: j['n'] as String? ?? 'Mój trening',
+        items: ((j['it'] as List?) ?? const []).map((e) => CustomItem.fromJson((e as Map).cast<String, dynamic>())).toList(),
+        rounds: (j['r'] as num?)?.toInt() ?? 2,
+        roundRest: (j['rr'] as num?)?.toInt() ?? 60,
+        created: DateTime.tryParse(j['c'] as String? ?? ''),
+      );
+}
+
+/// Kod do udostępnienia własnego treningu (np. w wiadomości): „FORMA1:” + base64url(JSON).
+String customCode(CustomWorkout w) {
+  final j = w.toJson()..remove('id')..remove('c');
+  return 'FORMA1:${base64Url.encode(utf8.encode(jsonEncode(j)))}';
+}
+
+/// Odczyt kodu (toleruje tekst dookoła i podziały linii). Null, gdy kod jest niepoprawny.
+CustomWorkout? customFromCode(String text, {required String id, Set<String>? known}) {
+  final m = RegExp(r'FORMA1:([A-Za-z0-9_\-=\s]+)').firstMatch(text);
+  if (m == null) return null;
+  try {
+    final raw = m.group(1)!.replaceAll(RegExp(r'\s'), '');
+    final j = (jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(raw)))) as Map).cast<String, dynamic>();
+    final w = CustomWorkout.fromJson({...j, 'id': id});
+    if (known != null) w.items.removeWhere((i) => !known.contains(i.exId));
+    return w.items.isEmpty ? null : w;
+  } catch (_) {
+    return null;
+  }
 }

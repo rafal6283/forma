@@ -7,6 +7,7 @@ import '../core/hr.dart';
 import '../core/models.dart';
 import '../core/store.dart';
 import '../core/trainer.dart';
+import 'ppg_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -108,8 +109,15 @@ class _HrvScreenState extends State<HrvScreen> {
           ),
           const SizedBox(height: 20),
           if (!hr.connected)
-            const Text('Najpierw połącz opaskę na klatkę (np. Polar H10).',
-                textAlign: TextAlign.center, style: TextStyle(color: C.bad))
+            Column(children: [
+              Text('Bez opaski? Zmierz palcem na aparacie.', textAlign: TextAlign.center, style: TextStyle(color: C.muted)),
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PpgScreen())),
+                icon: const Icon(Icons.fingerprint),
+                label: const Text('HRV aparatem'),
+              ),
+            ])
           else if (!running && result == null)
             FilledButton(onPressed: _start, child: const Text('Rozpocznij pomiar'))
           else if (running)

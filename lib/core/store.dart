@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'models.dart';
+import 'progress.dart';
 
 /// Statystyki ćwiczenia: ile razy, kiedy ostatnio i jak oceniane.
 class ExStat {
@@ -42,6 +43,8 @@ class Store extends ChangeNotifier {
   final Map<String, ExStat> stats = {};
   Program? program; // plan wielotygodniowy (aktywny lub zakończony)
   final List<FitTest> tests = [];
+  final List<CustomWorkout> customs = [];
+  final List<ExternalActivity> external = [];
   final Map<String, ChallengeProgress> challenges = {};
   HealthSnapshot health = HealthSnapshot.empty;
 
@@ -102,6 +105,8 @@ class Store extends ChangeNotifier {
     stats.clear();
     program = null;
     tests.clear();
+    customs.clear();
+    external.clear();
     challenges.clear();
     health = HealthSnapshot.empty;
   }
@@ -124,6 +129,8 @@ class Store extends ChangeNotifier {
         if (program != null) 'program': program!.toJson(),
         'tests': tests.map((t) => t.toJson()).toList(),
         'challenges': challenges.map((k, v) => MapEntry(k, v.toJson())),
+        'customs': customs.map((c) => c.toJson()).toList(),
+        'external': external.map((e) => e.toJson()).toList(),
       });
 
   void _applyUser(String raw) {
@@ -158,6 +165,30 @@ class Store extends ChangeNotifier {
       ..clear()
       ..addAll(((j['challenges'] as Map?) ?? const {})
           .map((k, v) => MapEntry(k as String, ChallengeProgress.fromJson((v as Map).cast<String, dynamic>()))));
+    customs
+      ..clear()
+      ..addAll(list('customs', CustomWorkout.fromJson));
+    external
+      ..clear()
+      ..addAll(list('external', ExternalActivity.fromJson))
+      ..sort((a, b) => a.start.compareTo(b.start));
+  }
+
+  /// Dopisuje aktywności z zewnątrz (bez duplikatów); zwraca liczbę nowych.
+  Future<int> addExternal(Iterable<ExternalActivity> list) async {
+    final have = {for (final e in external) e.id};
+    var n = 0;
+    for (final a in list) {
+      if (have.add(a.id)) {
+        external.add(a);
+        n++;
+      }
+    }
+    if (n > 0) {
+      external.sort((a, b) => a.start.compareTo(b.start));
+      await save();
+    }
+    return n;
   }
 
   // ------------------------------------------------------------ kopia całej rodziny
@@ -262,6 +293,12 @@ class Store extends ChangeNotifier {
 
   void touch() => notifyListeners();
 
+  /// Regularność (dni i tygodnie z rzędu, miesiąc) z treningów i aktywności z zewnątrz.
+  Streaks get streaks => Streaks.of(sessions, external, profile.daysPerWeek);
+
+  /// Poziom za regularność.
+  Level get level => Level.of(xpFrom(sessions, external, profile.daysPerWeek, tests: tests));
+
   ExStat stat(String id) => stats.putIfAbsent(id, () => ExStat());
 
   CheckIn? get todayCheckIn {
@@ -339,7 +376,11 @@ class Store extends ChangeNotifier {
       st.last = s.end;
     }
     await save();
+    onSessionAdded?.call();
   }
+
+  /// Wywoływane po zapisaniu treningu (np. przeplanowanie przypomnień).
+  static void Function()? onSessionAdded;
 
   Future<void> deleteSession(Session s) async {
     sessions.remove(s);

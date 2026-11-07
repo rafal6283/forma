@@ -86,7 +86,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
             ? phaseLabel[ph]!
             : switch (plan.format) {
                 WorkoutFormat.tabata => '${phaseLabel[ph]} · tabata',
-                WorkoutFormat.sets || WorkoutFormat.supersets => '${phaseLabel[ph]} · ${formatLabel[plan.format]!.toLowerCase()}',
+                WorkoutFormat.sets || WorkoutFormat.supersets || WorkoutFormat.dropSets => '${phaseLabel[ph]} · ${formatLabel[plan.format]!.toLowerCase()}',
                 _ => rounds > 1 ? '${phaseLabel[ph]} · $rounds × obwód' : phaseLabel[ph]!,
               },
         trailing: Text(fmtMin(secs), style: TextStyle(color: C.muted)),

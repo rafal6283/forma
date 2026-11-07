@@ -37,6 +37,9 @@ def resize(src, dst, px):
 ANDROID_PERMS = [
     '<uses-permission android:name="android.permission.INTERNET"/>',
     '<uses-permission android:name="android.permission.RECORD_AUDIO"/>',
+    '<uses-permission android:name="android.permission.CAMERA"/>',
+    '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>',
+    '<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>',
     '<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>',
     '<uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>',
     '<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>',
@@ -70,6 +73,17 @@ STRAVA_CALLBACK = '''        <activity
                 <data android:scheme="forma"/>
             </intent-filter>
         </activity>
+'''
+
+NOTIFY_RECEIVERS = '''        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"/>
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
 '''
 
 PERMISSION_ALIAS = '''        <activity-alias
@@ -157,8 +171,18 @@ def patch_android():
                        g, count=1)
     if "isMinifyEnabled = false" not in g and "minifyEnabled false" not in g:
         sys.exit("[patch] BŁĄD: nie udało się wyłączyć R8 w " + gradle.name)
+    # powiadomienia (flutter_local_notifications) wymagają desugaringu bibliotek Javy
+    if "CoreLibraryDesugaring" not in g and "coreLibraryDesugaring" not in g:
+        if kts:
+            g = re.sub(r"(compileOptions\s*\{)", r"\1\n        isCoreLibraryDesugaringEnabled = true", g, count=1)
+            g = g.rstrip("\n") + '\n\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
+        else:
+            g = re.sub(r"(compileOptions\s*\{)", r"\1\n        coreLibraryDesugaringEnabled true", g, count=1)
+            g = g.rstrip("\n") + "\n\ndependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'\n}\n"
+        if "esugaringEnabled" not in g:
+            sys.exit("[patch] BŁĄD: nie udało się włączyć desugaringu w " + gradle.name)
     gradle.write_text(g)
-    log(f"{gradle.name}: minSdk 26, bez R8")
+    log(f"{gradle.name}: minSdk 26, bez R8, desugaring")
 
     props = ROOT / "android" / "gradle.properties"
     pt = props.read_text() if props.exists() else ""
@@ -176,6 +200,8 @@ def patch_android():
         m = re.sub(r'(<activity\s+android:name="\.MainActivity"[^>]*>\n)', lambda mm: mm.group(1) + RATIONALE_FILTER, m, count=1)
     if "flutter_web_auth_2.CallbackActivity" not in m:
         m = m.replace("    </application>", STRAVA_CALLBACK + "    </application>", 1)
+    if "ScheduledNotificationReceiver" not in m:
+        m = m.replace("    </application>", NOTIFY_RECEIVERS + "    </application>", 1)
     if "ViewPermissionUsageActivity" not in m:
         m = m.replace("    </application>", PERMISSION_ALIAS + "    </application>", 1)
     if "com.google.android.apps.healthdata" not in m:
@@ -232,6 +258,10 @@ def patch_ios():
         "Forma odczytuje sen, tętno spoczynkowe, HRV i wagę, żeby dopasować trening do Twojej formy.")
     pl["NSHealthUpdateUsageDescription"] = "Forma zapisuje treningi, tętno i spalone kalorie w aplikacji Zdrowie."
     pl["NSMicrophoneUsageDescription"] = "Forma słucha komend głosowych podczas treningu („dalej”, „pauza”, „za trudne”)."
+    pl["NSCameraUsageDescription"] = (
+        "Forma używa aparatu do liczenia powtórzeń i oceny ruchu oraz do pomiaru HRV palcem na obiektywie. "
+        "Obraz jest analizowany tylko na telefonie."
+    )
     pl["NSSpeechRecognitionUsageDescription"] = "Rozpoznawanie mowy zamienia Twoje komendy w sterowanie treningiem."
     with open(plist_path, "wb") as f:
         plistlib.dump(pl, f)
@@ -241,19 +271,19 @@ def patch_ios():
     pbx = ROOT / "ios" / "Runner.xcodeproj" / "project.pbxproj"
     if pbx.exists():
         t = pbx.read_text()
-        t = re.sub(r"IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;", "IPHONEOS_DEPLOYMENT_TARGET = 14.0;", t)
+        t = re.sub(r"IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;", "IPHONEOS_DEPLOYMENT_TARGET = 15.5;", t)
         if "CODE_SIGN_ENTITLEMENTS" not in t:
             t = re.sub(r"(\n(\s*)PRODUCT_BUNDLE_IDENTIFIER = " + re.escape(PACKAGE) + r";)",
                        lambda m: f"\n{m.group(2)}CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;" + m.group(1), t)
         pbx.write_text(t)
-        log("Xcode: iOS 14, uprawnienia HealthKit")
+        log("Xcode: iOS 15.5, uprawnienia HealthKit")
 
     podfile = ROOT / "ios" / "Podfile"
     if podfile.exists():
         p = podfile.read_text()
-        p = re.sub(r"^#?\s*platform :ios, '[0-9.]+'", "platform :ios, '14.0'", p, flags=re.M)
+        p = re.sub(r"^#?\s*platform :ios, '[0-9.]+'", "platform :ios, '15.5'", p, flags=re.M)
         podfile.write_text(p)
-        log("Podfile: iOS 14")
+        log("Podfile: iOS 15.5")
 
     src = icon_source()
     iconset = runner / "Assets.xcassets" / "AppIcon.appiconset"

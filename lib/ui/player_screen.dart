@@ -8,12 +8,14 @@ import '../core/coach.dart';
 import '../core/hr.dart';
 import '../core/library.dart';
 import '../core/models.dart';
+import '../core/rep_counter.dart';
 import '../core/sfx.dart';
 import '../core/store.dart';
 import '../core/trainer.dart';
 import '../core/voice.dart';
 import '../core/voice_commands.dart';
 import 'figure_view.dart';
+import 'pose_screen.dart';
 import 'summary_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -31,7 +33,7 @@ class _Step {
 (int, int) targetZones(WorkoutFormat f) => switch (f) {
       WorkoutFormat.hiit || WorkoutFormat.tabata => (4, 5),
       WorkoutFormat.circuit || WorkoutFormat.strengthIntervals => (3, 4),
-      WorkoutFormat.sets || WorkoutFormat.supersets => (2, 4),
+      WorkoutFormat.sets || WorkoutFormat.supersets || WorkoutFormat.dropSets => (2, 4),
       WorkoutFormat.flow => (1, 2),
     };
 
@@ -66,6 +68,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final start = DateTime.now();
 
   final hrSec = <int>[];
+  final weights = <String, double>{}; // ciężar (kg) na ćwiczenie w tym treningu
+  Trainer? _trainer;
+  String? romNote;
+  int _romIdx = -1;
   final done = <DoneItem>[];
   final feedback = <String, int>{};
   double metSeconds = 0;
@@ -299,6 +305,70 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  // ------------------------------------------------------------ ciężar i kamera
+
+  bool _isDrop(PlanItem it) => it.tag?.startsWith('Drop') == true;
+
+  /// Ciężar dla pozycji: zapamiętany w treningu albo podpowiedź trenera z poprzednich serii; drop-set lżej.
+  double? _weightOf(PlanItem it) {
+    final e = lib[it.exId];
+    if (e == null || !e.weighted) return null;
+    final w = weights[e.id] ??= (_trainer ??= coach()).weightFor(e) ?? 0;
+    if (w <= 0) return null;
+    return _isDrop(it) ? Trainer.dropWeight(w) : w;
+  }
+
+  Future<void> _editWeight(PlanItem it) async {
+    final e = lib[it.exId]!;
+    var w = weights[e.id] ?? 0;
+    final res = await showModalBottomSheet<double>(
+      context: context,
+      showDragHandle: true,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('Ciężar: ${e.name}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              Text(e.hold == 'kb' ? 'kettlebell' : 'jedna hantla', style: TextStyle(color: C.muted)),
+              const SizedBox(height: 8),
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                IconButton.filledTonal(onPressed: () => set(() => w = (w - 1).clamp(0.0, 80.0)), icon: const Icon(Icons.remove)),
+                IconButton(onPressed: () => set(() => w = (w - 0.5).clamp(0.0, 80.0)), icon: const Text('−½')),
+                SizedBox(
+                  width: 110,
+                  child: Text(w == 0 ? '—' : '${_kg(w)} kg',
+                      textAlign: TextAlign.center, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800)),
+                ),
+                IconButton(onPressed: () => set(() => w = (w + 0.5).clamp(0.0, 80.0)), icon: const Text('+½')),
+                IconButton.filledTonal(onPressed: () => set(() => w = (w + 1).clamp(0.0, 80.0)), icon: const Icon(Icons.add)),
+              ]),
+              if (_isDrop(it) && w > 0)
+                Text('Drop-set: ${_kg(Trainer.dropWeight(w))} kg', style: TextStyle(color: C.muted)),
+              const SizedBox(height: 10),
+              FilledButton(onPressed: () => Navigator.pop(c, w), child: const Text('Zapisz')),
+            ]),
+          ),
+        ),
+      ),
+    );
+    if (res != null) setState(() => weights[e.id] = res);
+  }
+
+  static String _kg(double w) => w == w.roundToDouble() ? '${w.round()}' : w.toStringAsFixed(1).replaceAll('.', ',');
+
+  Future<void> _camera(PlanItem it) async {
+    final e = lib[it.exId]!;
+    final r = await Navigator.push<CamReps>(
+        context, MaterialPageRoute(builder: (_) => PoseScreen(exercise: e, target: it.reps)));
+    if (r == null || !mounted) return;
+    setState(() {
+      if (r.reps > 0 && repsStep) repCount = r.reps;
+      romNote = r.rom == null ? null : 'zakres ${r.rom}%';
+      _romIdx = idx;
+    });
+  }
+
   /// Podpowiedzi w trakcie pracy: za wysoko → zwolnij, za nisko w HIIT → mocniej.
   void _hrControl(int bpm, int sec) {
     if (step.kind != _Kind.work || step.item?.phase != Phase.main) {
@@ -326,11 +396,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (step.kind != _Kind.work) return;
     final s = (stepElapsedMs / 1000).round();
     final it = step.item!;
+    final w = _weightOf(it);
     if (it.reps != null) {
-      if (repCount > 0) done.add(DoneItem(it.exId, s.clamp(1, 600), it.side, reps: repCount, target: it.reps));
+      if (repCount > 0) done.add(DoneItem(it.exId, s.clamp(1, 600), it.side, reps: repCount, target: it.reps, weight: w));
       return;
     }
-    if (s >= 3) done.add(DoneItem(it.exId, s.clamp(0, step.seconds), it.side));
+    if (s >= 3) done.add(DoneItem(it.exId, s.clamp(0, step.seconds), it.side, weight: w));
   }
 
   void _next({bool auto = false}) {
@@ -663,6 +734,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(color: C.muted, fontSize: 14 * big),
                 ),
+                if (work && (e.weighted || (it.reps != null && RepModel.of(e) != null))) ...[
+                  const SizedBox(height: 6),
+                  Wrap(alignment: WrapAlignment.center, spacing: 8, children: [
+                    if (e.weighted)
+                      ActionChip(
+                        avatar: const Icon(Icons.fitness_center, size: 16),
+                        label: Text(_weightOf(it) == null ? 'Ciężar?' : '${_kg(_weightOf(it)!)} kg'),
+                        onPressed: () => _editWeight(it),
+                      ),
+                    if (it.reps != null && RepModel.of(e) != null)
+                      ActionChip(
+                        avatar: const Icon(Icons.videocam_outlined, size: 16),
+                        label: Text(_romIdx == idx && romNote != null ? romNote! : 'Licz kamerą'),
+                        onPressed: () => _camera(it),
+                      ),
+                  ]),
+                ],
                 if (tip != null) ...[
                   const SizedBox(height: 6),
                   Text(tip, textAlign: TextAlign.center, style: TextStyle(color: C.text, fontSize: 15 * big)),

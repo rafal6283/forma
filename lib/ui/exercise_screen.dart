@@ -22,6 +22,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   String? group;
   String query = '';
   bool onlyAvailable = false;
+  int mark = 0; // 0 = wszystkie, 1 = ulubione, 2 = wykluczone
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +31,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
       if (type != null && e.type != type) return false;
       if (group != null && !e.groups.contains(group) && !e.muscles.keys.any((m) => muscleLabel[m] == group)) return false;
       if (onlyAvailable && !e.availableWith(owned)) return false;
+      final stt = Store.instance.stats[e.id];
+      if (mark == 1 && stt?.favorite != true) return false;
+      if (mark == 2 && stt?.hidden != true) return false;
       if (query.isNotEmpty) {
         final q = query.toLowerCase();
         if (!e.name.toLowerCase().contains(q) &&
@@ -64,6 +68,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
               label: const Text('Mam sprzęt'),
               selected: onlyAvailable,
               onSelected: (v) => setState(() => onlyAvailable = v),
+            ),
+            const SizedBox(width: 8),
+            FilterChip(
+              avatar: const Icon(Icons.star, size: 16, color: C.warn),
+              label: const Text('Ulubione'),
+              selected: mark == 1,
+              onSelected: (v) => setState(() => mark = v ? 1 : 0),
+            ),
+            const SizedBox(width: 8),
+            FilterChip(
+              avatar: const Icon(Icons.block, size: 16),
+              label: const Text('Wykluczone'),
+              selected: mark == 2,
+              onSelected: (v) => setState(() => mark = v ? 2 : 0),
             ),
             const SizedBox(width: 8),
             ChoiceChip(label: const Text('Wszystkie'), selected: type == null, onSelected: (_) => setState(() => type = null)),
@@ -106,12 +124,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   title: Row(children: [
                     Flexible(child: Text(e.name, style: const TextStyle(fontWeight: FontWeight.w600))),
                     if (st?.favorite == true) const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.star, size: 16, color: C.warn)),
-                    if (st?.hidden == true) Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.block, size: 16, color: C.muted)),
+                    if (st?.hidden == true) Padding(padding: const EdgeInsets.only(left: 6), child: Icon(Icons.block, size: 16, color: C.muted)),
                   ]),
                   subtitle: Text(
                     [
                       exTypeLabel[e.type]!,
                       e.groups.join(', '),
+                      if (e.uni) 'L/P',
                       if (e.needsEquipment) e.eq.map((q) => q.split('|').map((x) => equipmentLabel[x] ?? x).join(' / ')).join(', '),
                     ].join(' · '),
                     style: TextStyle(color: C.muted, fontSize: 12),
@@ -119,6 +138,37 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   trailing: LevelDots(e.lvl),
                   onTap: () async {
                     await Navigator.push(context, MaterialPageRoute(builder: (_) => ExerciseScreen(exercise: e)));
+                    setState(() {});
+                  },
+                  onLongPress: () async {
+                    final v = await showModalBottomSheet<int>(
+                      context: context,
+                      showDragHandle: true,
+                      builder: (c) => SafeArea(
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          ListTile(
+                            leading: const Icon(Icons.star, color: C.warn),
+                            title: Text(st?.favorite == true ? 'Usuń z ulubionych' : 'Ulubione — trener da częściej'),
+                            onTap: () => Navigator.pop(c, 1),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.block),
+                            title: Text(st?.hidden == true ? 'Przywróć' : 'Wyklucz — trener nigdy nie da'),
+                            onTap: () => Navigator.pop(c, 2),
+                          ),
+                        ]),
+                      ),
+                    );
+                    if (v == null) return;
+                    final x = Store.instance.stat(e.id);
+                    if (v == 1) {
+                      x.favorite = !x.favorite;
+                      if (x.favorite) x.hidden = false;
+                    } else {
+                      x.hidden = !x.hidden;
+                      if (x.hidden) x.favorite = false;
+                    }
+                    await Store.instance.save();
                     setState(() {});
                   },
                 ),

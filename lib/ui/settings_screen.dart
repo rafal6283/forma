@@ -9,6 +9,8 @@ import '../core/health_sync.dart';
 import '../core/models.dart';
 import '../core/store.dart';
 import '../core/voice.dart';
+import 'calendar_screen.dart';
+import 'external_screen.dart';
 import 'hr_screen.dart';
 import 'injuries_screen.dart';
 import 'strava_screen.dart';
@@ -266,7 +268,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SwitchListTile(
               secondary: const Icon(Icons.health_and_safety_outlined),
               title: Text(healthName),
-              subtitle: Text('Zapis treningów; odczyt snu, tętna, HRV i wagi', style: TextStyle(color: C.muted)),
+              subtitle: Text('Zapis treningów; odczyt snu, tętna, HRV, wagi i treningów z zegarka', style: TextStyle(color: C.muted)),
               value: p.healthConnect,
               onChanged: _toggleHealth,
             ),
@@ -379,6 +381,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Text('Uzupełnianie aktywności z zegarka lub wysyłka treningu', style: TextStyle(color: C.muted)),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StravaScreen())),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.directions_bike),
+            title: const Text('Aktywności z zegarka'),
+            subtitle: Text('${Store.instance.external.length} zaimportowanych — bieg i rower liczą się do obciążenia',
+                style: TextStyle(color: C.muted)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const ExternalScreen()));
+              setState(() {});
+            },
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.notifications_outlined),
+            title: const Text('Przypomnienia i seria'),
+            subtitle: Text(p.reminders ? 'Codziennie o ${p.reminderHour}:00' : 'Wyłączone', style: TextStyle(color: C.muted)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const CalendarScreen()));
+              setState(() {});
+            },
           ),
         ),
         const SectionTitle('Dane'),
