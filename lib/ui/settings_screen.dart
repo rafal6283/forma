@@ -359,13 +359,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             SwitchListTile(
               title: const Text('Postać 3D'),
-              subtitle: Text('W podglądzie ćwiczenia i podczas treningu — obracasz ją palcem', style: TextStyle(color: C.muted)),
+              subtitle: Text('Postać z ukosa, obracana palcem (wyłączone: widok z boku)', style: TextStyle(color: C.muted)),
               value: app.anim3d,
               onChanged: (v) => setState(() => app.set(anim3d: v)),
             ),
             SwitchListTile(
               title: const Text('Wskazówki techniki'),
-              subtitle: Text('Podświetlenie pracujących mięśni i strzałka kierunku ruchu', style: TextStyle(color: C.muted)),
+              subtitle: Text('Podświetlenie mięśni, które pracują w danym ruchu', style: TextStyle(color: C.muted)),
               value: app.technique,
               onChanged: (v) => setState(() => app.set(technique: v)),
             ),

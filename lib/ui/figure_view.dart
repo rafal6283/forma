@@ -7,12 +7,11 @@ import '../core/figure.dart';
 import '../core/models.dart';
 import '../core/app_settings.dart';
 import 'figure3d.dart';
-import 'mannequin.dart';
 import 'technique.dart';
 import 'theme.dart';
 
-/// Animowana postać wykonująca ćwiczenie: 2D (profil) albo 3D z obrotem kamery,
-/// z podświetleniem pracujących mięśni i strzałką ruchu.
+/// Animowana, realistyczna postać wykonująca ćwiczenie: widok z boku albo 3D z obrotem kamery,
+/// z podświetleniem pracujących mięśni.
 class FigureView extends StatefulWidget {
   final Exercise exercise;
   final bool playing;
@@ -94,7 +93,7 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
   double get _yawNow => _dragged ? _yaw : _yaw + 0.12 * math.sin(_t * 0.45);
 
   Rect _frame(Cam cam) {
-    final key = (cam.yaw * 30).round(); // co ~2°
+    final key = (cam.yaw * 30).round() * 100 + (cam.pitch * 50).round(); // co ~2°
     return _frames.putIfAbsent(key, () => frame3d(_scene.samples, cam, floor: widget.showFloor && !_scene.ex.anim.hands));
   }
 
@@ -105,38 +104,30 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
     final breath = _still ? math.sin(_t * 2 * math.pi / 3.6) : 0.0;
     final j = Joints.grounded(pose, hands: a.hands);
 
-    // wskazówki techniki
+    // wskazówki techniki: pracujące mięśnie świecą w trakcie ruchu
     var glow = const <String, double>{};
-    (Offset, Offset, double)? arrow;
     if (widget.hints && settings.technique) {
-      final (target, move) = a.motion(_t, speed: widget.speed);
+      final (_, move) = a.motion(_t, speed: widget.speed);
       final level = _still ? 0.55 + 0.2 * breath : 0.2 + 0.8 * move;
       glow = _scene.glow.map((k, v) => MapEntry(k, v * level));
-      if (move > 0.08) {
-        final m = moveArrow(j, Joints.grounded(target, hands: a.hands));
-        if (m != null) arrow = (m.$2, m.$3, move);
-      }
     }
 
-    final CustomPainter painter;
-    if (_is3d) {
-      final cam = Cam(_yawNow, _pitch, _scene.cx, 0);
-      painter = Figure3DPainter(
-        j: j,
-        cam: cam,
-        bounds: _frame(cam),
-        floor: widget.showFloor,
-        hands: a.hands,
-        hold: widget.exercise.hold,
-        props: [for (final p in _scene.props) Prop3(p.type, p.rect)],
-        breath: breath,
-        glow: glow,
-        arrow: arrow,
-      );
-    } else {
-      painter = _FigurePainter(_scene, pose, widget.showFloor, breath: breath, glow: glow, arrow: arrow);
-    }
-    Widget view = RepaintBoundary(child: CustomPaint(painter: painter, size: Size.infinite));
+    // jedna realistyczna postać: obracana (3D) albo z boku (2D); miniatury — lekko z ukosa
+    final cam = _is3d
+        ? Cam(_yawNow, _pitch, _scene.cx, 0)
+        : Cam(widget.interactive ? 0 : 0.35, widget.interactive ? 0.08 : 0.14, _scene.cx, 0);
+    final painter = Figure3DPainter(
+      j: j,
+      cam: cam,
+      bounds: _frame(cam),
+      floor: widget.showFloor,
+      hands: a.hands,
+      hold: widget.exercise.hold,
+      props: [for (final p in _scene.props) Prop3(p.type, p.rect)],
+      breath: breath,
+      glow: glow,
+    );
+    final view = RepaintBoundary(child: CustomPaint(painter: painter, size: Size.infinite));
     if (!widget.interactive) return view;
     return Stack(children: [
       Positioned.fill(
@@ -191,7 +182,7 @@ class _ModeChip extends StatelessWidget {
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(is3d ? Icons.threed_rotation : Icons.view_in_ar_outlined, size: 16, color: C.text),
               const SizedBox(width: 4),
-              Text(is3d ? '3D · obróć palcem' : '2D', style: TextStyle(fontSize: 11, color: C.text)),
+              Text(is3d ? '3D · obróć palcem' : 'Z boku', style: TextStyle(fontSize: 11, color: C.text)),
             ]),
           ),
         ),
@@ -259,99 +250,6 @@ class _Prop {
   }
 }
 
-class _FigurePainter extends CustomPainter {
-  final _Scene scene;
-  final Pose pose;
-  final bool floor;
-
-  /// Faza oddechu (-1…1) — widoczna w pozycjach statycznych.
-  final double breath;
-  final Map<String, double> glow;
-  final (Offset, Offset, double)? arrow;
-  _FigurePainter(this.scene, this.pose, this.floor, {this.breath = 0, this.glow = const {}, this.arrow});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final b = scene.bounds;
-    final s = math.min(size.width / b.width, size.height / b.height);
-    final dx = (size.width - b.width * s) / 2 - b.left * s;
-    final dy = (size.height - b.height * s) / 2 - b.top * s;
-    Offset P(Offset p) => Offset(p.dx * s + dx, p.dy * s + dy);
-
-    final j = Joints.grounded(pose, hands: scene.ex.anim.hands);
-
-    if (floor && !scene.ex.anim.hands) {
-      final y = P(Offset.zero).dy;
-      final fp = Paint()
-        ..shader = LinearGradient(colors: [C.line.withValues(alpha: 0), C.line, C.line.withValues(alpha: 0)])
-            .createShader(Rect.fromLTWH(0, y, size.width, 2))
-        ..strokeWidth = 2;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), fp);
-      Mannequin(canvas, j, P, s).floorShadow();
-    }
-
-    final propPaint = Paint()
-      ..color = C.prop
-      ..strokeWidth = math.max(2.0, s * 0.03)
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    for (final p in scene.props) {
-      final r = Rect.fromPoints(P(p.rect.topLeft), P(p.rect.bottomRight));
-      switch (p.type) {
-        case 'chair':
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(Rect.fromLTWH(r.left, r.top, r.width, s * 0.05), Radius.circular(s * 0.02)),
-            Paint()..color = C.prop,
-          );
-          canvas.drawLine(Offset(r.left + s * 0.03, r.top), Offset(r.left + s * 0.03, r.bottom), propPaint);
-          canvas.drawLine(Offset(r.right - s * 0.03, r.top), Offset(r.right - s * 0.03, r.bottom), propPaint);
-        case 'wall':
-          canvas.drawRect(r, Paint()..color = C.surface2);
-        case 'bar':
-          canvas.drawLine(r.centerLeft, r.centerRight, propPaint..strokeWidth = math.max(3.0, s * 0.035));
-      }
-    }
-
-    final front = pose.front;
-    final man = Mannequin(canvas, j, P, s, breath: breath, glow: glow);
-    man.paint();
-
-    final hold = scene.ex.hold;
-    if (hold != null) {
-      final hp = Paint()..color = const Color(0xFF4A5262);
-      final single = hold == 'kb' || hold == 'db1';
-      for (final k in single ? ['haN'] : (front ? ['haN', 'haF'] : ['haF', 'haN'])) {
-        final c = P(j[k]);
-        switch (hold) {
-          case 'kb':
-            canvas.drawCircle(c + Offset(0, s * 0.07), s * 0.07, hp);
-          case 'band':
-            break;
-          default:
-            final r = Rect.fromCenter(center: c, width: s * 0.16, height: s * 0.06);
-            canvas.drawRRect(RRect.fromRectAndRadius(r, Radius.circular(s * 0.02)), hp);
-        }
-      }
-      if (hold == 'band') {
-        canvas.drawLine(
-          P(j['haN']),
-          P(j['haF']),
-          Paint()
-            ..color = C.accent
-            ..strokeWidth = math.max(2.0, s * 0.02),
-        );
-      }
-    }
-
-    final ar = arrow;
-    if (ar != null) paintArrow(canvas, P(ar.$1), P(ar.$2), ar.$3, size.shortestSide);
-  }
-
-  @override
-  bool shouldRepaint(_FigurePainter old) => true;
-}
-
-/// Statyczna miniatura (pierwsza poza) — tanie w listach.
 class FigureThumb extends StatelessWidget {
   final Exercise exercise;
   final double size;
