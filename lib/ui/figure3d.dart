@@ -86,7 +86,7 @@ const _armLo = <(double, double, double, double)>[(0, .043, 0, 0), (.22, .045, .
 const _legUp = <(double, double, double, double)>[(0, .094, 0, 0), (.3, .089, .012, .007), (.75, .07, .005, .004), (1, .055, 0, 0)];
 const _legLo = <(double, double, double, double)>[(0, .055, 0, 0), (.25, .052, .002, .019), (.62, .044, 0, .007), (1, .036, 0, 0)];
 const _neck = <(double, double, double, double)>[(0, .046, 0, 0), (1, .04, 0, 0)];
-const _shoe = <(double, double, double, double)>[(0, .044, 0, 0), (.3, .046, 0, 0), (1, .034, 0, 0)];
+const _shoeProf = <(double, double, double, double)>[(0, .044, 0, 0), (.3, .046, 0, 0), (1, .034, 0, 0)];
 const _sole = <(double, double, double, double)>[(0, .04, 0, 0), (1, .032, 0, 0)];
 const _handle = <(double, double, double, double)>[(0, .016, 0, 0), (1, .016, 0, 0)];
 const _plate = <(double, double, double, double)>[(0, .045, 0, 0), (1, .045, 0, 0)];
@@ -402,7 +402,7 @@ class Figure3DPainter extends CustomPainter {
     final heel = an - d * 0.04, tip = to + d * 0.015;
     const down = V3(0, 0.012, 0);
     _limb(heel + down, tip + down, _sole, front, sole, z, edge: false);
-    _limb(heel, tip, _shoe, front, shoe, z);
+    _limb(heel, tip, _shoeProf, front, shoe, z);
   }
 
   // ------------------------------------------------------------------ sprzęt i rekwizyty

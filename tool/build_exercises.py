@@ -1174,6 +1174,174 @@ E += [
        m="abs | calves", tips=["Stopy razem, ciężar równo", "Spokojny oddech"]),
 ]
 
+# ============================================================ v3: rozszerzenie katalogu
+import copy as _copy
+
+P["skater_sq"] = {"t": 150, "h": 156, "an": [90, 90], "af": [86, 86], "ln": [-35, -100], "lf": [78, -22]}
+P["high_pull"] = {"t": 176, "an": [80, 170], "af": [76, 166], "ln": [12, -6], "lf": [10, -6]}
+P["straight_pull_up"] = {"t": 174, "an": [140, 140], "af": [136, 136], "ln": [8, -4], "lf": [6, -4]}
+P["straight_pull_down"] = {"t": 174, "an": [-12, -12], "af": [-14, -14], "ln": [8, -4], "lf": [6, -4]}
+P["plank_knee"] = dict(P["pushup_top"], ln=[20, -55])
+P["bear_tap"] = dict(P["bear"], an=[40, 150])
+P["low_lunge"] = dict(P["kneel_lunge"], t=184, h=190)
+P["happy_baby"] = dict(SUP, an=[165, 178], af=[160, 176], ln=[148, 178], lf=[146, 176])
+P["puppy"] = {"t": 60, "h": 66, "an": [72, 72], "af": [70, 70], "ln": [0, -90], "lf": [0, -90], "fp": 70}
+P["camel"] = {"t": 202, "h": 228, "an": [-30, -30], "af": [-32, -32], "ln": [-6, -90], "lf": [-6, -90], "fp": 70}
+P["lying_quad"] = dict(PRONE, h=96, an=[-135, -150], af=[92, 92], ln=[-90, 150], lf=[-90, -90])
+P["runner_stretch"] = {"t": 118, "h": 120, "an": [0, 0], "af": [0, 0], "ln": [0, -90], "lf": [80, 80], "fp": 0}
+P["kick_back"] = {"t": 168, "an": [20, 60], "af": [10, 40], "ln": [-40, -45], "lf": [0, 0]}
+P["knee_strike"] = dict(P["knee_up"], t=172, an=[35, 155], af=[30, 150], ln=[115, 20])
+P["squat_db"] = dict(P["squat_bot"], an=[4, 4], af=[2, 2])
+P["farmer"] = {"an": [4, 4], "af": [2, 2]}
+P["sumo_hold"] = dict(P["sumo_bot"])
+
+
+def _variant(base, id, name, **kw):
+    """Nowe ćwiczenie na bazie istniejącego (ta sama animacja, inne parametry)."""
+    b = _copy.deepcopy(next(e for e in E if e["id"] == base))
+    for k in ("aka", "easier", "harder", "stress", "tips", "hold", "static", "uni", "impact"):
+        b.pop(k, None) if k in ("aka", "easier", "harder") else None
+    b["id"], b["name"] = id, name
+    for k in ("keys", "s", "props", "anchor"):
+        if k in kw:
+            v = kw.pop(k)
+            b["anim"]["k" if k == "keys" else k] = list(v) if k == "keys" else v
+    if "m" in kw:
+        b["m"] = parse_m(kw.pop("m"))
+    for k, v in kw.items():
+        b[k] = list(v) if isinstance(v, tuple) else v
+    return b
+
+
+E += [
+    # --- nogi i pośladki
+    ex("squat_hold", "Przysiad izometryczny", "strength", [], 2, 4.0, ["squat_bot", dict(P["squat_bot"], h=152)], 3.0,
+       static=True, stress=["kolana"], m="quads glutes | adductors hamstrings",
+       tips=["Uda prawie równolegle do podłogi", "Ciężar na piętach, klatka w górę"], harder="wall_sit_march"),
+    ex("sumo_pulse", "Przysiad sumo pulsujący", "strength", [], 2, 4.8,
+       ["sumo_bot", dict(P["sumo_bot"], ln=[54, 12], lf=[54, 12])], 0.9, stress=["kolana", "biodra"],
+       m="quads adductors glutes", tips=["Zostań nisko, małe ruchy", "Kolana na zewnątrz nad stopami"]),
+    ex("sumo_squat_hold", "Przysiad sumo izometryczny", "strength", [], 2, 3.8, ["sumo_hold", dict(P["sumo_hold"], ln=[64, 12], lf=[64, 12])],
+       3.0, static=True, stress=["biodra"], m="adductors quads glutes", tips=["Stopy szeroko, palce na zewnątrz", "Plecy proste"]),
+    ex("squat_jacks", "Pajacyki w przysiadzie", "cardio", ["całe ciało"], 3, 8.0, ["squat_jack_in", "sumo_bot"], 1.0, impact=True,
+       stress=["kolana"], m="quads glutes adductors | calves", tips=["Ląduj miękko w szerokim przysiadzie", "Biodra nisko przez cały czas"]),
+    ex("walking_lunge", "Wykroki w marszu", "strength", [], 2, 5.0, ["stand", "lunge_fwd", "stand", "lunge_fwd~"], 3.2,
+       stress=["kolana"], m="quads glutes | hamstrings adductors calves", tips=["Krok tak długi, by oba kolana miały ok. 90°", "Tułów pionowo"]),
+    ex("lunge_pulse", "Wykrok pulsujący", "strength", [], 2, 4.6,
+       ["lunge_down", dict(P["lunge_down"], ln=[-20, -70], lf=[64, -6])], 1.0, uni=True, stress=["kolana"],
+       m="quads glutes | hamstrings", tips=["Krótki ruch w dolnej pozycji", "Tylne kolano tuż nad podłogą"]),
+    ex("skater_squat", "Przysiad łyżwiarza", "strength", [], 4, 5.5, ["stand_fwd", "skater_sq"], 3.0, uni=True, stress=["kolana"],
+       m="quads glutes | hamstrings abs", tips=["Tylne kolano schodzi za piętę", "Ręce do przodu dla równowagi"], easier="split_squat"),
+    ex("wall_sit_march", "Krzesełko z unoszeniem nóg", "strength", [], 3, 4.5,
+       ["wall_sit", dict(P["wall_sit"], ln=[112, 20]), "wall_sit", dict(P["wall_sit"], lf=[110, 20])], 2.4,
+       stress=["kolana"], props=[{"type": "wall", "x": -0.06}], m="quads | glutes abs", tips=["Plecy płasko przy ścianie", "Uda równolegle"]),
+    ex("glute_bridge_pulse", "Mostek pulsujący", "strength", [], 1, 3.8, ["bridge_up", dict(P["bridge_up"], t=74, h=88)], 0.9,
+       m="glutes | hamstrings", tips=["Biodra wysoko, krótki ruch", "Napinaj pośladki na górze"]),
+    ex("bridge_hold_sl", "Mostek na jednej nodze — utrzymanie", "strength", [], 3, 3.8, ["sbridge_up", dict(P["sbridge_up"], t=68)], 3.0,
+       static=True, uni=True, m="glutes | hamstrings abs", tips=["Biodra równo, nie opadają", "Pięta podporowej nogi wbita w podłogę"]),
+    ex("calf_raise_hold", "Wspięcie na palce — utrzymanie", "strength", [], 1, 3.0, ["calf_up", dict(P["calf_up"], h=182)], 3.0,
+       static=True, m="calves", tips=["Wysoko na palcach", "Ciało proste"]),
+    ex("glute_kickback_standing", "Wymach nogi w tył stojąc", "strength", [], 1, 3.2, ["stand", "kick_back"], 1.8, uni=True,
+       m="glutes | hamstrings lower_back", tips=["Ruch z biodra, plecy nieruchomo", "Dłonie na krześle lub ścianie dla równowagi"]),
+
+    # --- góra ciała
+    ex("negative_pushups", "Pompki negatywne", "strength", [], 2, 4.6, ["pushup_top", "pushup_bot"], 4.0, stress=["nadgarstki", "barki"],
+       m="chest triceps | shoulders abs", tips=["Opuszczaj się 3–4 sekundy", "Wróć na górę z kolan, jeśli trzeba"],
+       easier="knee_pushups", harder="pushups"),
+    ex("pushup_hold", "Pompka — utrzymanie na dole", "strength", [], 3, 4.5, ["pushup_bot", dict(P["pushup_bot"], h=P["pushup_bot"].get("h", 100) + 4)],
+       3.0, static=True, stress=["nadgarstki", "barki"], m="chest triceps | shoulders abs", tips=["Klatka tuż nad podłogą", "Łokcie blisko ciała"]),
+    ex("tricep_pushups", "Pompki tricepsowe", "strength", [], 3, 5.0, ["pushup_top", "pushup_bot"], 2.4, stress=["nadgarstki", "łokcie"],
+       m="triceps chest | shoulders", tips=["Łokcie wzdłuż tułowia", "Dłonie pod barkami"], easier="kpush_narrow"),
+    ex("wall_handstand", "Stanie na rękach przy ścianie", "strength", [], 5, 5.0, ["hs_top", dict(P["hs_top"], h=4)], 3.0, static=True,
+       stress=["nadgarstki", "barki", "szyja"], props=[{"type": "wall", "at": "toN", "dx": -0.08}],
+       m="shoulders triceps | abs traps", tips=["Ręce proste, barki przy uszach", "Wejdź i zejdź spokojnie"]),
+    ex("ytw_raises", "Unoszenie Y-T-W leżąc", "strength", [], 1, 3.0, ["prone", "y_raise", "prone", "prone_t_up", "prone", "prone_w"], 6.0,
+       m="upper_back traps | shoulders lower_back", tips=["Kciuki w górę", "Ściągaj łopatki, szyja długa"]),
+    ex("chin_hold", "Zwis z brodą nad drążkiem", "strength", [], 4, 5.0, ["chin_top", dict(P["chin_top"], h=184)], 3.0, static=True,
+       eq=["bar"], anchor="hands", props=[{"type": "bar"}], stress=["łokcie"], m="biceps lats | forearms upper_back",
+       tips=["Broda nad drążkiem", "Łokcie blisko ciała"]),
+    ex("l_hang", "Zwis z nogami w L", "core", [], 4, 4.5, ["hang_legs_up", dict(P["hang_legs_up"], h=184)], 3.0, static=True,
+       eq=["bar"], anchor="hands", props=[{"type": "bar"}], m="abs | forearms lats", tips=["Nogi proste, w poziomie", "Barki aktywne"]),
+
+    # --- brzuch
+    ex("forearm_plank_rock", "Deska z kołysaniem", "core", [], 2, 4.0, ["plank", dict(P["plank"], x=0.1)], 1.6,
+       m="abs | shoulders", tips=["Przesuwaj ciało na łokciach w przód i w tył", "Biodra w linii"]),
+    ex("bear_hold", "Niedźwiedź — utrzymanie", "core", [], 2, 4.0, ["bear", dict(P["bear"], h=P["bear"]["h"] + 4)], 3.0, static=True,
+       stress=["nadgarstki"], m="abs quads | shoulders", tips=["Kolana 3 cm nad podłogą", "Plecy płaskie jak stół"]),
+    ex("bear_shoulder_tap", "Niedźwiedź z dotykaniem barków", "core", [], 3, 4.5, ["bear", "bear_tap", "bear", "bear_tap~"], 1.8,
+       stress=["nadgarstki"], m="abs | shoulders obliques", tips=["Biodra nie bujają się", "Kolana tuż nad podłogą"]),
+    ex("plank_knee_elbow", "Deska z kolanem do łokcia", "core", [], 3, 5.0, ["pushup_top", "plank_knee", "pushup_top", "plank_knee~"], 1.6,
+       stress=["nadgarstki"], m="abs obliques | shoulders", tips=["Kolano do tego samego łokcia", "Biodra nisko"]),
+    ex("superman_hold", "Superman — utrzymanie", "strength", [], 1, 3.0, ["superman", dict(P["superman"], t=102)], 3.0, static=True,
+       stress=["plecy"], m="lower_back glutes | upper_back hamstrings", tips=["Ręce i nogi lekko nad podłogą", "Patrz w podłogę"]),
+    ex("mountain_slow", "Wspinacz wolny", "core", [], 1, 4.5, ["climber", "pushup_top", "climber~", "pushup_top"], 2.4,
+       stress=["nadgarstki"], m="abs | shoulders quads", tips=["Kolano pod klatkę, powoli", "Biodra w linii z barkami"], harder="mountain_climbers"),
+    ex("hollow_rock", "Kołyska w pozycji łódki", "core", [], 4, 5.0, ["hollow", dict(P["hollow"], t=112, h=118, ln=[-96, -96], lf=[-97, -97])], 1.0,
+       m="abs | lower_back", tips=["Ciało jak banan, lędźwie przy podłodze", "Kołysz się bez zginania"], easier="hollow_hold"),
+    ex("leg_raise_hold", "Nogi nad podłogą — utrzymanie", "core", [], 2, 3.6, ["legs_low", dict(P["legs_low"], h=92)], 3.0, static=True,
+       stress=["plecy"], m="abs | quads", tips=["Lędźwie dociśnięte", "Nogi proste, 15 cm nad podłogą"]),
+
+    # --- kardio
+    ex("fast_feet", "Szybkie stopy", "cardio", ["całe ciało"], 2, 8.0, ["jog", "jog~"], 0.35, impact=True,
+       m="calves quads | glutes", tips=["Na palcach, bardzo szybko", "Lekko ugięte kolana"]),
+    ex("boxer_shuffle", "Przeskoki bokserskie", "cardio", ["całe ciało"], 2, 7.5, ["boxing_guard", dict(P["boxing_guard"], lift=0.06, ln=[-12, 0], lf=[14, -5])], 0.6,
+       impact=True, m="calves | shoulders quads", tips=["Lekko na palcach", "Gardę trzymaj wysoko"]),
+    ex("knee_strikes", "Ciosy kolanem", "cardio", ["całe ciało"], 2, 7.0, ["boxing_guard", "knee_strike"], 0.9, uni=True,
+       m="abs quads | glutes shoulders", tips=["Przyciągnij ręce do kolana", "Wydech przy uderzeniu"]),
+    ex("sprint_in_place", "Sprint w miejscu", "cardio", ["całe ciało"], 3, 11.0, ["high_knee", "high_knee~"], 0.42, impact=True,
+       stress=["kolana"], m="quads calves | glutes abs", tips=["Pełne tempo przez cały interwał", "Pracuj rękami"], easier="high_knees"),
+    ex("burpee_tuck", "Burpees z przyciąganiem kolan", "cardio", ["całe ciało"], 5, 11.0,
+       ["stand", "squat_hands", "pushup_top", "squat_hands", "tuck"], 3.2, impact=True, stress=["kolana", "nadgarstki"],
+       m="quads chest glutes | shoulders abs triceps", tips=["Na górze kolana do klatki", "Ląduj miękko"], easier="burpees"),
+
+    # --- mobilność i rozciąganie
+    ex("low_lunge", "Niski wypad", "stretch", [], 1, 2.3, ["low_lunge", dict(P["low_lunge"], t=188, h=194)], 5.0, static=True, uni=True,
+       m="quads | abs", tips=["Biodra w dół i do przodu", "Ręce w górę, barki nisko"]),
+    ex("happy_baby", "Szczęśliwe dziecko", "stretch", [], 1, 2.0, ["happy_baby", dict(P["happy_baby"], ln=[152, 178], lf=[150, 176])], 4.0,
+       static=True, m="adductors glutes | lower_back", tips=["Kolana do pach", "Kość ogonowa przy podłodze"]),
+    ex("puppy_pose", "Pozycja szczeniaka", "stretch", [], 1, 2.0, ["puppy", dict(P["puppy"], t=56, h=62)], 5.0, static=True,
+       m="lats shoulders | upper_back", tips=["Biodra nad kolanami", "Klatka w stronę podłogi"]),
+    ex("camel", "Wielbłąd", "stretch", [], 3, 2.3, ["camel", dict(P["camel"], t=206)], 5.0, static=True, stress=["plecy", "szyja"],
+       m="quads abs | chest", tips=["Biodra do przodu", "Dłonie na piętach, szyja długa"]),
+    ex("lying_quad", "Rozciąganie uda leżąc na brzuchu", "stretch", [], 1, 2.0, ["lying_quad", dict(P["lying_quad"], ln=[-90, 158])], 5.0,
+       static=True, uni=True, m="quads", tips=["Pięta do pośladka", "Biodra przyklejone do podłogi"]),
+    ex("runner_stretch", "Rozciąganie biegacza", "stretch", [], 1, 2.0, ["runner_stretch", dict(P["runner_stretch"], t=112)], 5.0,
+       static=True, uni=True, m="hamstrings calves", tips=["Przednia noga prosta, palce w górę", "Plecy długie"]),
+]
+
+# warianty z obciążeniem i wersje ćwiczeń
+E += [
+    _variant("squat", "db_squat", "Przysiad z hantlami", keys=["stand", "squat_db"], eq=["db"], hold="db", lvl=2, met=5.5,
+             m="quads glutes | adductors hamstrings forearms", tips=["Hantle wzdłuż tułowia", "Biodra w tył, plecy proste"]),
+    _variant("split_squat", "db_bulgarian", "Przysiad bułgarski z hantlami", eq=["chair", "db"], hold="db", lvl=4, met=6.0,
+             tips=["Przednie kolano nad stopą", "Tułów lekko do przodu"]),
+    _variant("sl_rdl", "db_sl_rdl", "Martwy ciąg na jednej nodze z hantlą", eq=["db"], hold="db1", lvl=3, met=4.5,
+             tips=["Biodro w tył, plecy proste", "Hantla blisko nogi"]),
+    _variant("goblet_squat", "kb_goblet", "Przysiad goblet z kettlebell", eq=["kb"], hold="kb", tips=["Kettlebell przy klatce", "Łokcie między kolanami"]),
+    ex("kb_sumo_dl", "Martwy ciąg sumo z kettlebell", "strength", [], 2, 5.0, ["stand", "kb_dl_bot"], 2.6, eq=["kb"], hold="kb",
+       stress=["plecy"], m="glutes hamstrings quads | lower_back adductors forearms", tips=["Stopy szeroko, kettlebell między nimi", "Plecy proste, wstań z bioder"]),
+    _variant("db_one_arm_row", "kb_row", "Wiosłowanie kettlebell", eq=["kb"], hold="kb", tips=["Plecy płasko", "Łokieć wzdłuż ciała"]),
+    ex("kb_high_pull", "Wysokie przyciąganie kettlebell", "strength", [], 3, 6.0, ["kb_dl_bot", "high_pull"], 1.8, eq=["kb"], hold="kb",
+       stress=["barki"], m="traps shoulders glutes | upper_back hamstrings biceps", tips=["Wybicie z bioder", "Łokcie wyżej niż dłonie"]),
+    ex("db_upright_row", "Wiosłowanie stojąc hantlami", "strength", [], 2, 4.0, ["stand", "high_pull"], 2.4, eq=["db"], hold="db",
+       stress=["barki"], m="shoulders traps | biceps", tips=["Hantle blisko ciała", "Łokcie do wysokości barków"]),
+    ex("db_farmer_hold", "Trzymanie hantli", "strength", [], 1, 3.5, ["farmer", dict(P["farmer"], h=182)], 3.0, static=True, eq=["db"], hold="db",
+       m="forearms traps | abs", tips=["Barki w dół i w tył", "Ciało wyprostowane"]),
+    _variant("db_triceps_ext", "db_overhead_ext_one", "Prostowanie ramienia hantlą nad głową", hold="db1", uni=True, tips=["Łokieć przy głowie", "Ruch tylko w łokciu"]),
+    _variant("hip_thrust", "db_hip_thrust", "Hip thrust z hantlą", eq=["chair", "db"], hold="db1", lvl=3, met=5.0,
+             tips=["Hantla na biodrach", "Broda przy klatce, pośladki mocno na górze"]),
+    _variant("kb_swing", "kb_swing_one", "Swing kettlebell jednorącz", lvl=4, met=9.5, tips=["Tułów nie skręca się", "Zmieniaj rękę co serię"]),
+    _variant("squat", "band_squat", "Przysiad z gumą", eq=["band"], hold="band", lvl=2, met=5.0, tips=["Guma pod stopami, końce przy barkach", "Kolana nad palcami"]),
+    ex("band_deadlift", "Martwy ciąg z gumą", "strength", [], 2, 4.5, ["stand", "kb_dl_bot"], 2.6, eq=["band"], hold="band", stress=["plecy"],
+       m="glutes hamstrings | lower_back quads", tips=["Guma pod stopami", "Plecy proste, biodra w tył"]),
+    _variant("db_lateral", "band_lateral", "Unoszenie ramion bokiem z gumą", eq=["band"], hold="band", tips=["Guma pod stopami", "Do wysokości barków"]),
+    _variant("db_triceps_ext", "band_overhead_ext", "Prostowanie ramion z gumą nad głową", eq=["band"], hold="band", tips=["Łokcie przy głowie", "Powolny powrót"]),
+    ex("band_straight_pulldown", "Ściąganie gumy prostymi rękami", "strength", [], 1, 3.5, ["straight_pull_up", "straight_pull_down"], 2.4,
+       eq=["band"], hold="band", m="lats | triceps upper_back abs", tips=["Ręce proste", "Ściągnij łopatki na dole"]),
+    _variant("donkey_straight", "band_kickback", "Wymach nogi w tył z gumą", eq=["band"], lvl=2, met=4.0, tips=["Guma wokół stóp", "Plecy nieruchomo"]),
+    _variant("pullups", "wide_pullups", "Podciąganie szerokim chwytem", lvl=5, met=8.5, tips=["Dłonie szerzej niż barki", "Klatka do drążka"]),
+]
+
 # ------------------------------------------------------------ odpowiedniki nazw z Fitify (do wyszukiwania i importu)
 FITIFY = {
     "Chair Squats": "box_squat", "Sumo Chair Squats": "sumo_squat", "Wall Sit": "wall_sit", "Step-Ups": "step_ups",

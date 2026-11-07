@@ -77,6 +77,26 @@ STRAVA = {
     "windmill": "WARM_UP_GENERIC", "standing_backbend": "STRETCH", "upper_back_stretch": "STRETCH",
     "wrist_mobility": "WARM_UP_GENERIC", "ankle_circles": "ANKLE_CIRCLES", "plow": "STRETCH", "shoulder_stand": "STRETCH",
     "fish_pose": "STRETCH", "mountain_pose": "STRETCH",
+    # v3
+    "squat_hold": "AIR_SQUAT", "sumo_pulse": "SUMO_SQUAT", "sumo_squat_hold": "SUMO_SQUAT", "squat_jacks": "JUMPING_JACKS",
+    "walking_lunge": "WALKING_LUNGE", "lunge_pulse": "LUNGE_GENERIC", "skater_squat": "SQUAT_GENERIC",
+    "wall_sit_march": "WALL_SIT", "glute_bridge_pulse": "GLUTE_BRIDGE", "bridge_hold_sl": "SINGLE_LEG_GLUTE_BRIDGE",
+    "calf_raise_hold": "STANDING_CALF_RAISE", "glute_kickback_standing": "HIP_STABILITY_GENERIC",
+    "negative_pushups": "PUSH_UP_GENERIC", "pushup_hold": "PUSH_UP_GENERIC", "tricep_pushups": "PUSH_UP_GENERIC",
+    "wall_handstand": "HANDSTAND_HOLD", "ytw_raises": "SHOULDER_STABILITY_GENERIC", "chin_hold": "CLOSE_GRIP_CHIN_UP",
+    "l_hang": "HANGING_LEG_RAISE", "forearm_plank_rock": "PLANK_GENERIC", "bear_hold": "BEAR_CRAWL",
+    "bear_shoulder_tap": "PLANK_SHOULDER_TAP", "plank_knee_elbow": "PLANK_GENERIC", "superman_hold": "SUPERMAN_FROM_FLOOR",
+    "mountain_slow": "MOUNTAIN_CLIMBER", "hollow_rock": "HOLLOW_ROCK", "leg_raise_hold": "LEG_LIFTS",
+    "fast_feet": "RUNNING", "boxer_shuffle": "CARDIO_GENERIC", "knee_strikes": "CROSS_KNEE_STRIKE",
+    "sprint_in_place": "RUNNING", "burpee_tuck": "BURPEE", "low_lunge": "KNEELING_HIP_FLEXOR_STRETCH",
+    "happy_baby": "STRETCH", "puppy_pose": "CHILDS_POSE_LAT_STRETCH", "camel": "STRETCH", "lying_quad": "PRONE_QUAD_STRETCH",
+    "runner_stretch": "STANDING_HAMSTRING_STRETCH", "db_squat": "DUMBBELL_SQUAT", "db_bulgarian": "DUMBBELL_BULGARIAN_SPLIT_SQUATS",
+    "db_sl_rdl": "SINGLE_LEG_ROMANIAN_DEADLIFTS", "kb_goblet": "KETTLEBELL_SQUAT", "kb_sumo_dl": "KETTLEBELL_DEADLIFT",
+    "kb_row": "KETTLEBELL_ROW", "kb_high_pull": "OLYMPIC_LIFT_GENERIC", "db_upright_row": "SHRUG_GENERIC",
+    "db_farmer_hold": "FARMERS_WALK", "db_overhead_ext_one": "DUMBBELL_SINGLE_ARM_TRICEP_EXTENSION",
+    "db_hip_thrust": "DUMBBELL_HIP_THRUST", "kb_swing_one": "OLYMPIC_LIFT_GENERIC", "band_squat": "SQUAT_GENERIC",
+    "band_deadlift": "DEADLIFT_GENERIC", "band_lateral": "LATERAL_RAISE_GENERIC", "band_overhead_ext": "TRICEPS_EXTENSION_GENERIC",
+    "band_straight_pulldown": "STRAIGHT_ARM_PULLDOWN", "band_kickback": "DONKEY_KICKS", "wide_pullups": "WIDE_PULL_UP",
 }
 
 # identyfikatory potwierdzone na liście Stravy (literówka = odrzucony plik)
@@ -110,6 +130,10 @@ PRESS_UP_POSITION_SHOULDER_TAP HANDSTAND_PUSH_UP CROSS_BODY_MOUNTAIN_CLIMBER WAL
 PIGEON_POSE THREAD_THE_NEEDLE_STRETCH LYING_HAMSTRING_STRETCH SEATED_HAMSTRING_STRETCH SHOULDER_ROTATIONS NECK_TILTS
 ANKLE_CIRCLES TOTAL_BODY_GENERIC
 """.split())
+
+# pełna lista typów ze strony Stravy (docs/uploads „Supported Exercises”)
+from pathlib import Path as _P
+VALID |= set((_P(__file__).resolve().parent / "strava_exercise_types.txt").read_text().replace(",", " ").split())
 
 FALLBACK = {"cardio": "CARDIO_GENERIC", "core": "CORE_GENERIC", "warmup": "WARM_UP_GENERIC",
             "mobility": "WARM_UP_GENERIC", "stretch": "STRETCH", "strength": "TOTAL_BODY_GENERIC"}
