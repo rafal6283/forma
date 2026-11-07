@@ -1344,6 +1344,10 @@ for e in E:
     e["fc"] = [cat] if sub is None else [cat, sub]
 _nosub = [e["id"] for e in E if len(e["fc"]) == 1]
 assert not _nosub, f"ćwiczenia bez podtypu FIT: {_nosub}"
+# Strava czyta FIT według starszego profilu (21.161) — nowsze podtypy pokazuje jako „Nieznane”
+_OLD = json.loads((Path(__file__).resolve().parent / "fit_profile_21161.json").read_text())
+_new = [e["id"] for e in E if e["fc"][1] not in _OLD.get(str(e["fc"][0]), [])]
+assert not _new, f"podtyp FIT spoza profilu 21.161: {_new}"
 missing = [e["id"] for e in E if e["id"] not in STRAVA]
 assert not missing, f"brak typu Stravy: {missing}"
 
