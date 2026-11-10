@@ -47,7 +47,7 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
 
   // kamera 3D
   static const _pitch = 0.2;
-  double _yaw = 0.55;
+  double _yaw = -0.45;
   bool _dragged = false;
   final _frames = <int, Rect>{};
 
@@ -115,7 +115,7 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
     // jedna realistyczna postać: obracana (3D) albo z boku (2D); miniatury — lekko z ukosa
     final cam = _is3d
         ? Cam(_yawNow, _pitch, _scene.cx, 0)
-        : Cam(widget.interactive ? 0 : 0.35, widget.interactive ? 0.08 : 0.14, _scene.cx, 0);
+        : Cam(widget.interactive ? 0 : -0.35, widget.interactive ? 0.08 : 0.14, _scene.cx, 0);
     final painter = Figure3DPainter(
       j: j,
       cam: cam,
@@ -143,7 +143,7 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
           onDoubleTap: _is3d
               ? () => setState(() {
                     _dragged = false;
-                    _yaw = 0.55;
+                    _yaw = -0.45;
                   })
               : null,
           child: view,

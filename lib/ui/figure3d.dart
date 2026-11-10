@@ -71,6 +71,14 @@ class Cam {
   }
 }
 
+/// Fragment ciała do malowania.
+class _Seg {
+  final Path path;
+  final Paint paint;
+  final double glow;
+  const _Seg(this.path, this.paint, this.glow);
+}
+
 /// Rekwizyty sceny w układzie 3D.
 class Prop3 {
   final String type; // chair / wall / bar
@@ -81,25 +89,34 @@ class Prop3 {
 /// Profil kończyny: (t, promień, wypukłość z przodu, wypukłość z tyłu) — brzuśce mięśni.
 typedef _Prof = List<(double, double, double, double)>;
 
-const _armUp = <(double, double, double, double)>[(0, .056, 0, 0), (.35, .053, .009, .01), (.75, .045, .004, .003), (1, .04, 0, 0)];
-const _armLo = <(double, double, double, double)>[(0, .043, 0, 0), (.22, .045, .005, .005), (1, .029, 0, 0)];
-const _legUp = <(double, double, double, double)>[(0, .094, 0, 0), (.3, .089, .012, .007), (.75, .07, .005, .004), (1, .055, 0, 0)];
-const _legLo = <(double, double, double, double)>[(0, .055, 0, 0), (.25, .052, .002, .019), (.62, .044, 0, .007), (1, .036, 0, 0)];
-const _neck = <(double, double, double, double)>[(0, .046, 0, 0), (1, .04, 0, 0)];
-const _shoeProf = <(double, double, double, double)>[(0, .044, 0, 0), (.3, .046, 0, 0), (1, .034, 0, 0)];
-const _sole = <(double, double, double, double)>[(0, .04, 0, 0), (1, .032, 0, 0)];
+const _armUp = <(double, double, double, double)>[(0, .05, 0, 0), (.3, .048, .008, .011), (.72, .042, .004, .004), (1, .038, 0, 0)];
+const _armLo = <(double, double, double, double)>[(0, .04, 0, 0), (.22, .043, .006, .005), (.7, .033, .001, .001), (1, .027, 0, 0)];
+const _legUp = <(double, double, double, double)>[(0, .086, 0, 0), (.3, .081, .013, .008), (.72, .065, .007, .004), (1, .052, 0, 0)];
+const _legLo = <(double, double, double, double)>[
+  (0, .051, 0, 0),
+  (.28, .05, .002, .02),
+  (.62, .041, 0, .008),
+  (.92, .032, 0, 0),
+  (1, .034, 0, 0),
+];
+const _knee = <(double, double, double, double)>[(0, .052, 0, 0), (1, .05, 0, 0)];
+const _handP = <(double, double, double, double)>[(0, .03, 0, 0), (.45, .038, 0, 0), (1, .028, 0, 0)];
+const _neck = <(double, double, double, double)>[(0, .052, 0, 0), (1, .044, 0, 0)];
+const _shoeProf = <(double, double, double, double)>[(0, .046, 0, 0), (.3, .05, 0, 0), (.75, .043, 0, 0), (1, .032, 0, 0)];
+const _sole = <(double, double, double, double)>[(0, .047, 0, 0), (.3, .051, 0, 0), (1, .036, 0, 0)];
 const _handle = <(double, double, double, double)>[(0, .016, 0, 0), (1, .016, 0, 0)];
 const _plate = <(double, double, double, double)>[(0, .045, 0, 0), (1, .045, 0, 0)];
 const _barP = <(double, double, double, double)>[(0, .022, 0, 0), (1, .022, 0, 0)];
 
-/// Przekroje tułowia: (t wzdłuż biodro→szyja, połowa szerokości, przód, tył).
+/// Przekroje tułowia: (t wzdłuż biodro→szyja, połowa szerokości, przód, tył) — miednica, talia, klatka, barki, kark.
 const _torso = <(double, double, double, double)>[
-  (-0.1, .150, .088, .112),
-  (0.12, .146, .086, .102),
-  (0.42, .122, .084, .074),
-  (0.70, .154, .118, .086),
-  (0.86, .200, .094, .088),
-  (1.0, .075, .05, .05),
+  (-0.1, .178, .078, .1),
+  (0.12, .176, .082, .094),
+  (0.42, .124, .08, .07),
+  (0.66, .15, .112, .084),
+  (0.84, .19, .1, .09),
+  (0.94, .15, .07, .078),
+  (1.0, .07, .05, .05),
 ];
 
 List<double> _prof(_Prof p, double t) {
@@ -190,9 +207,73 @@ class Figure3DPainter extends CustomPainter {
       ..shader = ui.Gradient.linear(
         m + n * r,
         m - n * r,
-        [Color.lerp(base, Colors.white, 0.18)!, base, Color.lerp(base, Colors.black, 0.32)!],
-        const [0, 0.42, 1],
+        [
+          Color.lerp(base, Colors.black, 0.22)!, // odbite światło przy krawędzi
+          Color.lerp(base, Colors.white, 0.24)!,
+          base,
+          Color.lerp(base, Colors.black, 0.4)!,
+          Color.lerp(base, Colors.black, 0.32)!,
+        ],
+        const [0, 0.12, 0.45, 0.85, 1],
       );
+  }
+
+  static const _outW = 2.2;
+
+  /// Obrys rysowany pod wypełnieniem — po zamalowaniu zostaje tylko zewnętrzna krawędź (bez szwów w stawach).
+  void _outline(List<Path> paths, {double a = 0.3}) {
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _outW
+      ..strokeJoin = StrokeJoin.round
+      ..color = Colors.black.withValues(alpha: a);
+    for (final path in paths) {
+      _c.drawPath(path, p);
+    }
+  }
+
+  /// Fragment ciała gotowy do malowania: kontur i cieniowanie.
+  _Seg _seg(V3 a, V3 b, _Prof prof, V3 front, Color col, double z, {double grow = 0, double t1 = 1, String? tag}) {
+    final (path, pa, pe, r) = _limbPath(a, b, prof, front, grow: grow, t1: t1);
+    return _Seg(path, _shade(_tint(col, z), pa, pe, r * 1.2), tag == null ? 0 : (glow[tag] ?? 0));
+  }
+
+  void _paintSeg(_Seg s) {
+    _c.drawPath(s.path, s.paint);
+    if (s.glow > 0.02) _c.drawPath(s.path, Paint()..color = glowColor(0.55 * s.glow));
+  }
+
+  /// Noga: udo, kolano i łydka jednym konturem, nogawka spodenek, but.
+  void _leg(V3 hp, V3 kn, V3 an, V3 to, V3 fT, V3 fS, double z, double zf) {
+    final thigh = _seg(hp, kn, _legUp, fT, skin, z, tag: 'thigh');
+    final shin = _seg(kn, an, _legLo, fS, skin, z, tag: 'shin');
+    final knee = _seg(V3.lerp(kn, hp, 0.12), V3.lerp(kn, an, 0.12), _knee, fT, skin, z);
+    _outline([thigh.path, shin.path, knee.path]);
+    _paintSeg(shin);
+    _paintSeg(knee);
+    _paintSeg(thigh);
+    final sh = _seg(hp, kn, _legUp, fT, shorts, z, grow: 0.008, t1: 0.4, tag: 'pelvis');
+    _outline([sh.path], a: 0.25);
+    _paintSeg(sh);
+    _shoe(an, to, zf, fS);
+  }
+
+  /// Ręka: ramię, przedramię i dłoń jednym konturem, kciuk, rękaw.
+  void _arm(V3 sh, V3 el, V3 ha, V3 fA, V3 fF, double z, double facing) {
+    final up = _seg(sh, el, _armUp, fA, skin, z, tag: 'upperArm');
+    final lo = _seg(el, ha, _armLo, fF, skin, z, tag: 'forearm');
+    var d = (ha - el).unit;
+    // dłoń oparta o podłogę: płasko, palcami do przodu
+    if (ha.y > -0.07 && d.y > 0.5) d = j.front ? const V3(0, 0, 1) : V3(facing >= 0 ? 1 : -1, 0, 0);
+    final hand = _seg(ha - d * 0.005, ha + d * 0.095, _handP, fF, skin, z);
+    _outline([up.path, lo.path, hand.path]);
+    _paintSeg(hand);
+    _paintSeg(lo);
+    _paintSeg(up);
+    _ball(ha + d * 0.035 + fF * 0.026, 0.019, skin, edge: false);
+    final sl = _seg(sh, el, _armUp, fA, shirt, z, grow: 0.004, t1: 0.34, tag: 'shoulder');
+    _outline([sl.path], a: 0.25);
+    _paintSeg(sl);
   }
 
   final _edge = Paint()
@@ -315,8 +396,9 @@ class Figure3DPainter extends CustomPainter {
         path,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..color = Colors.black.withValues(alpha: 0.2));
+          ..strokeWidth = _outW
+          ..strokeJoin = StrokeJoin.round
+          ..color = Colors.black.withValues(alpha: 0.3));
     final (ph, _, _) = _pr(q['hip']!);
     final (pn, _, _) = _pr(q['neck']!);
     _c.drawPath(path, _shade(_tint(col, z), ph, pn, 0.17 * _s));
@@ -327,17 +409,21 @@ class Figure3DPainter extends CustomPainter {
     final secs = [
       for (final (t, w, df, db) in _torso) (t, w, t > 0.5 ? df * (1 + 0.04 * breath) : df, db),
     ];
-    final lo = [
-      for (final s in secs)
-        if (s.$1 <= 0.42) (s.$1 < 0.4 ? s.$1 : 0.2, s.$2, s.$3, s.$4),
-    ];
-    _union(q, lo, shorts, z, grow: 0.006, g: glow['pelvis'] ?? 0);
-    final hi = [
-      for (final s in secs)
-        if (s.$1 >= 0.12) s,
-    ];
-    hi[0] = (0.14, hi[0].$2, hi[0].$3, hi[0].$4);
-    _union(q, hi, shirt, z, g: math.max(glow['chest'] ?? 0, glow['abs'] ?? 0));
+    (double, double, double, double) at(double t) {
+      for (var i = 0; i < secs.length - 1; i++) {
+        final a = secs[i], b = secs[i + 1];
+        if (a.$1 <= t && t <= b.$1) {
+          final f = (t - a.$1) / (b.$1 - a.$1);
+          return (t, a.$2 + (b.$2 - a.$2) * f, a.$3 + (b.$3 - a.$3) * f, a.$4 + (b.$4 - a.$4) * f);
+        }
+      }
+      return secs.last;
+    }
+
+    // spodenki od pośladków do pasa; koszulka nachodzi na pas
+    _union(q, [...secs.where((s) => s.$1 < 0.3), at(0.3)], shorts, z, grow: 0.006, g: glow['pelvis'] ?? 0);
+    _union(q, [at(0.22), ...secs.where((s) => s.$1 > 0.22)], shirt, z,
+        g: math.max(glow['chest'] ?? 0, glow['abs'] ?? 0));
   }
 
   // ------------------------------------------------------------------ głowa
@@ -354,55 +440,94 @@ class Figure3DPainter extends CustomPainter {
     final side = up.cross(face).unit;
     final (c, zc, k) = _pr(head);
     final r = 0.1 * _s * k;
-    // żuchwa / broda
-    _ball(head + face * 0.022 - up * 0.045, 0.062, skin, edge: false);
+    final (_, zf, _) = _pr(head + face * 0.1);
+    final toward = ((zf - zc) / 0.1).clamp(-1.0, 1.0);
+    (Offset, double, double) at(double f, double sd, double u) => _pr(head + face * f + side * sd + up * u);
+
+    // szyja
+    final zt = zc - 0.001;
+    _paintSeg(_seg(q['neck']!, V3.lerp(q['neck']!, head, 0.55), _neck, const V3(0, 0, 1), skin, zt));
+    // obrys czaszki z żuchwą pod spodem
+    final jaw = head + face * 0.03 - up * 0.052;
+    final (jc, _, jk) = _pr(jaw);
+    _outline([
+      Path()
+        ..addOval(Rect.fromCircle(center: c, radius: r))
+        ..addOval(Rect.fromCircle(center: jc, radius: 0.064 * _s * jk)),
+    ]);
     // uszy po stronie widza
     for (final sg in [-1.0, 1.0]) {
-      final (e, ze, ke) = _pr(head + side * (0.093 * sg));
+      final (e, ze, ke) = at(-0.005, 0.094 * sg, -0.01);
       if (ze > zc + 0.02) {
         _c.save();
         _c.translate(e.dx, e.dy);
-        _c.scale(0.55, 1);
-        _c.drawCircle(Offset.zero, 0.03 * _s * ke, Paint()..color = _tint(Color.lerp(skin, Colors.black, 0.08)!, ze));
+        _c.scale(0.6, 1);
+        _c.drawCircle(Offset.zero, 0.03 * _s * ke, Paint()..color = _tint(Color.lerp(skin, Colors.black, 0.1)!, ze));
         _c.restore();
       }
     }
-    _ball(head, 0.1, skin);
-    // włosy: koło przesunięte ku potylicy i w górę (w rzucie), przycięte do głowy
+    _ball(jaw, 0.064, skin, edge: false);
+    _ball(head, 0.1, skin, edge: false);
+    // włosy: czapa przesunięta ku potylicy i w górę, z połyskiem, przycięta do nieco większej głowy
     Offset dirv(V3 v) {
       final (p, _, _) = _pr(head + v * 0.1);
-      return (p - c) / (0.1 * _s * k);
+      return (p - c) / r;
     }
 
-    final (_, zf, _) = _pr(head + face * 0.1);
-    final toward = ((zf - zc) / 0.1).clamp(-1.0, 1.0);
-    final hc = c + (dirv(face * -1) * 0.6 + dirv(up) * (0.15 + 1.25 * math.max(0.0, toward))) * r;
+    final hc = c + (dirv(face * -1) * 0.55 + dirv(up) * (0.2 + 1.2 * math.max(0.0, toward))) * r;
     _c.save();
-    _c.clipPath(Path()..addOval(Rect.fromCircle(center: c, radius: r * 1.04)));
-    _c.drawCircle(hc, r, Paint()..color = hair);
+    _c.clipPath(Path()..addOval(Rect.fromCircle(center: c, radius: r * 1.07)));
+    _c.drawCircle(
+      hc,
+      r * 1.04,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          hc + _light * (r * 0.5),
+          r * 1.2,
+          [Color.lerp(hair, Colors.white, 0.28)!, hair, Color.lerp(hair, Colors.black, 0.3)!],
+          const [0, 0.5, 1],
+        ),
+    );
     _c.restore();
-    final (nose, zn, _) = _pr(head + face * 0.1 - up * 0.012);
-    if (zn > zc + 0.01) {
-      _c.drawCircle(nose, r * (0.17 - 0.09 * math.max(0.0, toward)), Paint()..color = _tint(skin, zc));
-    }
+    if (toward < -0.35) return;
+    // twarz: oczy, nos, usta
     for (final sg in [-1.0, 1.0]) {
-      final (e, ze, _) = _pr(head + face * 0.086 + side * (0.034 * sg) + up * 0.02);
-      if (ze > zc + 0.03) _c.drawCircle(e, math.max(1.2, r * 0.1), Paint()..color = eye);
+      final (e, ze, _) = at(0.088, 0.036 * sg, 0.018);
+      if (ze > zc + 0.015) {
+        _c.save();
+        _c.translate(e.dx, e.dy);
+        _c.scale(1, 1.25);
+        _c.drawCircle(Offset.zero, math.max(1.1, r * 0.085), Paint()..color = eye);
+        _c.restore();
+      }
     }
-  }
-
-  void _hand(V3 el, V3 ha) {
-    final d = (ha - el).unit;
-    _ball(ha + d * 0.02, 0.036, skin);
-    _ball(ha + d * 0.055, 0.03, skin, edge: false);
+    final (nose, zn, _) = at(0.104, 0, -0.012);
+    if (zn > zc + 0.01) {
+      _c.drawCircle(nose, r * (0.15 - 0.07 * math.max(0.0, toward)),
+          Paint()..color = Color.lerp(_tint(skin, zc), Colors.black, 0.07)!);
+    }
+    final (m0, zm, _) = at(0.088, -0.022, -0.05);
+    final (m1, _, _) = at(0.088, 0.022, -0.05);
+    if (zm > zc + 0.03) {
+      _c.drawLine(
+          m0,
+          m1,
+          Paint()
+            ..color = const Color(0xCC8C4D40)
+            ..strokeWidth = math.max(1.0, r * 0.063)
+            ..strokeCap = StrokeCap.round);
+    }
   }
 
   void _shoe(V3 an, V3 to, double z, V3 front) {
     final d = (to - an).unit;
-    final heel = an - d * 0.04, tip = to + d * 0.015;
-    const down = V3(0, 0.012, 0);
-    _limb(heel + down, tip + down, _sole, front, sole, z, edge: false);
-    _limb(heel, tip, _shoeProf, front, shoe, z);
+    final heel = an - d * 0.045, tip = to + d * 0.02;
+    const down = V3(0, 0.016, 0);
+    final so = _seg(heel + down, tip + down, _sole, front, sole, z);
+    final body = _seg(heel + const V3(0, -0.008, 0), tip, _shoeProf, front, shoe, z);
+    _outline([so.path, body.path]);
+    _paintSeg(so);
+    _paintSeg(body);
   }
 
   // ------------------------------------------------------------------ sprzęt i rekwizyty
@@ -422,7 +547,7 @@ class Figure3DPainter extends CustomPainter {
     }
     final single = hh == 'kb' || hh == 'db1';
     for (final sd in single ? ['N'] : ['N', 'F']) {
-      final ha = q['ha$sd']! + (q['ha$sd']! - q['el$sd']!).unit * 0.04;
+      final ha = q['ha$sd']! + (q['ha$sd']! - q['el$sd']!).unit * 0.05;
       if (hh == 'kb') {
         _ball(ha + const V3(0, 0.1, 0), 0.075, dark);
         _limb(ha - lat * 0.04, ha + lat * 0.04, _handle, const V3(0, -1, 0), metal, 0);
@@ -504,21 +629,33 @@ class Figure3DPainter extends CustomPainter {
         ),
     );
     _c.restore();
-    // miękkie cienie pod ciałem (światło z góry) — słabsze, gdy część ciała jest wysoko
-    final blur = Paint()..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-    final alpha = C.light ? 0.16 : 0.32;
-    for (final part in ['hip', 'neck', 'knN', 'knF', 'anN', 'anF', 'haN', 'haF', 'elN', 'elF', 'head']) {
-      final v = q[part]!;
+    // cień ciała: rzut sylwetki na podłogę (światło z góry), rozmyty; mocniejszy w punktach styku
+    final shadowPts = <Offset>[
+      for (final v in q.values) _pr(V3(v.x, 0, v.z - math.max(0.0, -v.y) * 0.15)).$1,
+    ];
+    final hullPath = Path()..addPolygon(_hull(shadowPts), true);
+    final dark = C.light ? 0.13 : 0.24;
+    _c.drawPath(
+        hullPath,
+        Paint()
+          ..color = Colors.black.withValues(alpha: dark)
+          ..style = PaintingStyle.fill
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, math.max(2.0, 0.05 * _s)));
+    final contact = Paint()..maskFilter = MaskFilter.blur(BlurStyle.normal, math.max(1.5, 0.02 * _s));
+    q.forEach((key, v) {
+      if (-v.y >= 0.1) return;
+      if (!(key.startsWith('an') || key.startsWith('to') || key.startsWith('ha') || key.startsWith('kn') ||
+          key == 'hip' || key == 'neck' || key == 'head' || key.startsWith('el'))) {
+        return;
+      }
       final (c, _, k) = _pr(V3(v.x, 0, v.z));
-      final lift = math.max(0.0, -v.y);
-      final big = part == 'hip' || part == 'neck' || part == 'head';
-      final rr = (big ? 0.13 : 0.06) * _s * k * (1 + lift * 0.3);
       _c.save();
       _c.translate(c.dx, c.dy);
       _c.scale(1, 0.35);
-      _c.drawCircle(Offset.zero, rr, blur..color = Colors.black.withValues(alpha: alpha * math.max(0.15, 1 - lift * 0.6)));
+      _c.drawCircle(Offset.zero, 0.07 * _s * k,
+          contact..color = Colors.black.withValues(alpha: (C.light ? 0.16 : 0.28) * (1 + v.y * 8).clamp(0.0, 1.0)));
       _c.restore();
-    }
+    });
   }
 
   @override
@@ -532,45 +669,19 @@ class Figure3DPainter extends CustomPainter {
 
     double zof(List<V3> ps) => ps.fold(0.0, (a, p) => a + cam.project(p).$2) / ps.length;
     final items = <(double, void Function())>[];
+    final facing = q['head']!.x - q['hip']!.x;
     for (final sd in ['N', 'F']) {
       final sh = q['sh$sd']!, el = q['el$sd']!, ha = q['ha$sd']!;
       final hp = q['hp$sd']!, kn = q['kn$sd']!, an = q['an$sd']!, to = q['to$sd']!;
       final fA = _anterior((el - sh).unit), fF = _anterior((ha - el).unit);
       final fT = _anterior((kn - hp).unit), fS = _anterior((an - kn).unit);
-      final zA = zof([sh, el]), zF = zof([el, ha]), zT = zof([hp, kn]), zS = zof([kn, an]), zFt = zof([an, to]);
+      final zL = zof([hp, kn, an]), zA = zof([sh, el, ha]), zFt = zof([an, to]);
       items
-        ..add((zS, () => _limb(kn, an, _legLo, fS, skin, zS, tag: 'shin')))
-        ..add((
-          zT + 0.001,
-          () {
-            _limb(hp, kn, _legUp, fT, skin, zT, tag: 'thigh');
-            _limb(hp, kn, _legUp, fT, shorts, zT, grow: 0.007, t1: 0.42, tag: 'pelvis');
-          }
-        ))
-        ..add((zFt + 0.002, () => _shoe(an, to, zFt, fS)))
-        ..add((
-          zF + 0.003,
-          () {
-            _limb(el, ha, _armLo, fF, skin, zF, tag: 'forearm');
-            _hand(el, ha);
-          }
-        ))
-        ..add((
-          zA + 0.004,
-          () {
-            _limb(sh, el, _armUp, fA, skin, zA, tag: 'upperArm');
-            _limb(sh, el, _armUp, fA, shirt, zA, grow: 0.005, t1: 0.38, tag: 'shoulder');
-          }
-        ));
+        ..add((zL, () => _leg(hp, kn, an, to, fT, fS, zL, zFt)))
+        ..add((zA + 0.004, () => _arm(sh, el, ha, fA, fF, zA, facing)));
     }
     final zt = zof([q['hip']!, q['neck']!]);
-    items.add((
-      zt,
-      () {
-        _limb(q['neck']!, V3.lerp(q['neck']!, q['head']!, 0.55), _neck, const V3(0, 0, 1), skin, zt, edge: false);
-        _torsoDraw(q, zt);
-      }
-    ));
+    items.add((zt, () => _torsoDraw(q, zt)));
     items.add((zof([q['head']!]) + 0.002, () => _head(q)));
     items.add((zof([q['haN']!]) + 0.01, () => _holds(q)));
     items.sort((a, b) => a.$1.compareTo(b.$1));

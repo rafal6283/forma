@@ -24,13 +24,18 @@ HAIR = (0.227, 0.165, 0.125)
 EYE = (0.157, 0.118, 0.102)
 
 # profile kończyn: (t, promień, wypukłość z przodu, wypukłość z tyłu)
-ARM_UP = [(0, .056, 0, 0), (.35, .053, .009, .01), (.75, .045, .004, .003), (1, .04, 0, 0)]
-ARM_LO = [(0, .043, 0, 0), (.22, .045, .005, .005), (1, .029, 0, 0)]
-LEG_UP = [(0, .094, 0, 0), (.3, .089, .012, .007), (.75, .07, .005, .004), (1, .055, 0, 0)]
-LEG_LO = [(0, .055, 0, 0), (.25, .052, .002, .019), (.62, .044, 0, .007), (1, .036, 0, 0)]
+ARM_UP = [(0, .05, 0, 0), (.3, .048, .008, .011), (.72, .042, .004, .004), (1, .038, 0, 0)]
+ARM_LO = [(0, .04, 0, 0), (.22, .043, .006, .005), (.7, .033, .001, .001), (1, .027, 0, 0)]
+LEG_UP = [(0, .086, 0, 0), (.3, .081, .013, .008), (.72, .065, .007, .004), (1, .052, 0, 0)]
+LEG_LO = [(0, .051, 0, 0), (.28, .05, .002, .02), (.62, .041, 0, .008), (.92, .032, 0, 0), (1, .034, 0, 0)]
+HAND = [(0, .03, 0, 0), (.45, .038, 0, 0), (1, .028, 0, 0)]
+NECK = [(0, .052, 0, 0), (1, .044, 0, 0)]
+SHOE_P = [(0, .046, 0, 0), (.3, .05, 0, 0), (.75, .043, 0, 0), (1, .032, 0, 0)]
+SOLE_P = [(0, .047, 0, 0), (.3, .051, 0, 0), (1, .036, 0, 0)]
 # przekroje tułowia: (t wzdłuż biodro→szyja, połowa szerokości, przód, tył)
-TORSO = [(-0.1, .150, .088, .112), (0.12, .146, .086, .102), (0.42, .122, .084, .074),
-         (0.70, .154, .118, .086), (0.86, .2, .094, .088), (1.0, .075, .05, .05)]
+TORSO = [(-0.1, .178, .078, .1), (0.12, .176, .082, .094), (0.42, .124, .08, .07),
+         (0.66, .15, .112, .084), (0.84, .19, .1, .09), (0.94, .15, .07, .078), (1.0, .07, .05, .05)]
+ACCENT_SHOE = (1.0, 0.416, 0.239)
 LIGHT = (-0.45, -0.89)
 
 
@@ -137,16 +142,18 @@ class Painter:
             c.line_to(*p)
         c.close_path()
 
-    def shade(s, col, a, b, r, ka=0.18, kd=0.32):
+    def shade(s, col, a, b, r, ka=0.24, kd=0.4):
         u = unit(sub(b, a)) if a != b else (0, -1)
         n = (-u[1], u[0])
         if dot(n, LIGHT) < 0:
             n = mul(n, -1)
         m = mul(add(a, b), 0.5)
         g = cairo.LinearGradient(*add(m, mul(n, r)), *sub(m, mul(n, r)))
-        g.add_color_stop_rgb(0, *[min(1, v + (1 - v) * ka) for v in col])
-        g.add_color_stop_rgb(0.42, *col)
-        g.add_color_stop_rgb(1, *[v * (1 - kd) for v in col])
+        g.add_color_stop_rgb(0, *[v * (1 - kd * .55) for v in col])  # odbite światło na krawędzi
+        g.add_color_stop_rgb(0.12, *[min(1, v + (1 - v) * ka) for v in col])
+        g.add_color_stop_rgb(0.45, *col)
+        g.add_color_stop_rgb(0.85, *[v * (1 - kd) for v in col])
+        g.add_color_stop_rgb(1, *[v * (1 - kd * .8) for v in col])
         return g
 
     def tint(s, col, z):
@@ -200,6 +207,57 @@ class Painter:
         pts, pa, pe, r = s.limb_pts(a, b, profile, front, grow=grow, t1=t1, t0=t0)
         s.fill(pts, s.tint(col, z), pa, pe, r * 1.2, edge)
 
+    OUT = 2.2  # obrys: rysowany pod wypełnieniem, zostaje tylko zewnętrzna krawędź
+
+    def outline(s, polys, col=(0, 0, 0), a=0.3):
+        for pts in polys:
+            s.poly(pts)
+        s.c.set_source_rgba(*col, a)
+        s.c.set_line_width(s.OUT)
+        s.c.set_line_join(cairo.LINE_JOIN_ROUND)
+        s.c.stroke()
+
+    def seg(s, a, b, profile, front, col, z, **kw):
+        pts, pa, pe, r = s.limb_pts(a, b, profile, front, **kw)
+        return pts, (s.tint(col, z), pa, pe, r * 1.2)
+
+    def paint(s, item):
+        pts, (col, pa, pe, r) = item
+        s.poly(pts)
+        s.c.set_source(s.shade(col, pa, pe, r))
+        s.c.fill()
+
+    def leg(s, hp, kn, an, to, fT, fS, z, zf):
+        thigh = s.seg(hp, kn, LEG_UP, fT, SKIN, z)
+        shin = s.seg(kn, an, LEG_LO, fS, SKIN, z)
+        knee = s.seg(lerp(kn, hp, .12), lerp(kn, an, .12), [(0, .052, 0, 0), (1, .05, 0, 0)], fT, SKIN, z)
+        s.outline([thigh[0], shin[0], knee[0]])
+        for it in (shin, knee, thigh):
+            s.paint(it)
+        # nogawka spodenek
+        sh = s.seg(hp, kn, LEG_UP, fT, SHORTS, z, grow=.008, t1=.4)
+        s.outline([sh[0]], a=.25)
+        s.paint(sh)
+        s.shoe(an, to, zf, fS)
+
+    def arm(s, sh, el, ha, fA, fF, z):
+        up = s.seg(sh, el, ARM_UP, fA, SKIN, z)
+        lo = s.seg(el, ha, ARM_LO, fF, SKIN, z)
+        d = unit(sub(ha, el))
+        if ha[1] > -.07 and d[1] > .5:  # dłoń oparta o podłogę: płasko, palcami do przodu
+            d = (0, 0, 1) if s.front_view else (1 if s.facing > 0 else -1, 0, 0)
+        hand = s.seg(sub(ha, mul(d, .005)), add(ha, mul(d, .095)), HAND, fF, SKIN, z)
+        s.outline([up[0], lo[0], hand[0]])
+        for it in (hand, lo, up):
+            s.paint(it)
+        # kciuk
+        th = add(add(ha, mul(d, .035)), mul(fF, .026))
+        s.ball(th, .019, SKIN, edge=False)
+        # rękaw
+        sl = s.seg(sh, el, ARM_UP, fA, SHIRT, z, grow=.004, t1=.34)
+        s.outline([sl[0]], a=.25)
+        s.paint(sl)
+
     def ball(s, p, r, col, edge=True):
         c, z, k = s.pr(p)
         rr = r * s.s * k
@@ -247,14 +305,19 @@ class Painter:
         return pts
 
     def torso(s, q, pose, z, breath=0.0):
-        hip, neck = q["hip"], q["neck"]
         secs = [(t, w, df * (1 + 0.04 * breath if t > .5 else 1), db) for t, w, df, db in TORSO]
-        # spodenki
-        lo = [x for x in secs if x[0] <= 0.42]
-        lo = [(t if t < 0.4 else 0.2, w, df, db) for t, w, df, db in lo]
+
+        def at(t):
+            for a, b in zip(secs, secs[1:]):
+                if a[0] <= t <= b[0]:
+                    f = (t - a[0]) / (b[0] - a[0])
+                    return (t,) + tuple(x + (y - x) * f for x, y in zip(a[1:], b[1:]))
+            return secs[-1]
+
+        # spodenki: od pośladków do pasa, koszulka nachodzi na pas
+        lo = [x for x in secs if x[0] < 0.3] + [at(0.3)]
         s._union(q, pose, lo, SHORTS, z, grow=0.006)
-        hi = [x for x in secs if x[0] >= 0.12]
-        hi[0] = (0.14,) + hi[0][1:]
+        hi = [at(0.22)] + [x for x in secs if x[0] > 0.22]
         s._union(q, pose, hi, SHIRT, z)
 
     def _union(s, q, pose, secs, col, z, grow=0.0):
@@ -267,8 +330,9 @@ class Painter:
         pn, _, _ = s.pr(q["neck"])
         # najpierw obrys (2 px), potem wypełnienie — zostaje tylko zewnętrzna krawędź
         path = c.copy_path()
-        c.set_source_rgba(0, 0, 0, 0.2)
-        c.set_line_width(2)
+        c.set_source_rgba(0, 0, 0, 0.3)
+        c.set_line_width(s.OUT)
+        c.set_line_join(cairo.LINE_JOIN_ROUND)
         c.stroke()
         c.append_path(path)
         c.set_source(s.shade(s.tint(col, z), ph, pn, 0.17 * s.s))
@@ -286,61 +350,93 @@ class Painter:
         side = unit(cross(up, face))
         (c, zc, k) = s.pr(head)
         r = .1 * s.s * k
-        # żuchwa / broda
-        s.ball(add(add(head, mul(face, .022)), mul(up, -.045)), .062, SKIN, edge=False)
+        toward = max(-1, min(1, (s.pr(add(head, mul(face, .1)))[1] - zc) / .1))
+
+        def at(f, sd, u):
+            return s.pr(add(add(add(head, mul(face, f)), mul(side, sd)), mul(up, u)))
+
+        jaw = add(add(head, mul(face, .03)), mul(up, -.052))
+        jc, _, jk = s.pr(jaw)
+        c_ = s.c
+        # obrys czaszki z żuchwą (pod spodem), potem wypełnienie
+        c_.new_sub_path()
+        c_.arc(c[0], c[1], r, 0, 2 * math.pi)
+        c_.new_sub_path()
+        c_.arc(jc[0], jc[1], .064 * s.s * jk, 0, 2 * math.pi)
+        c_.set_source_rgba(0, 0, 0, .3)
+        c_.set_line_width(s.OUT)
+        c_.stroke()
         # uszy (po stronie widza)
         for sg in (-1, 1):
-            e, ze, ke = s.pr(add(head, mul(side, .093 * sg)))
+            e, ze, ke = at(-.005, .094 * sg, -.01)
             if ze > zc + .02:
-                s.c.save()
-                s.c.translate(*e)
-                s.c.scale(.55, 1)
-                s.c.arc(0, 0, .03 * s.s * ke, 0, 2 * math.pi)
-                s.c.restore()
-                s.c.set_source_rgb(*s.tint([v * .92 for v in SKIN], ze))
-                s.c.fill()
-        s.ball(head, .1, SKIN)
-        # włosy
+                c_.save()
+                c_.translate(*e)
+                c_.scale(.6, 1)
+                c_.arc(0, 0, .03 * s.s * ke, 0, 2 * math.pi)
+                c_.restore()
+                c_.set_source_rgb(*s.tint([v * .9 for v in SKIN], ze))
+                c_.fill()
+        s.ball(jaw, .064, SKIN, edge=False)
+        s.ball(head, .1, SKIN, edge=False)
+
+        # włosy: czapa przesunięta ku potylicy i w górę, z połyskiem; przycięta do nieco większej głowy
         def dirv(v):
             pp, _, _ = s.pr(add(head, mul(v, .1)))
-            return ((pp[0] - c[0]) / (.1 * s.s * k), (pp[1] - c[1]) / (.1 * s.s * k))
-        toward = max(-1, min(1, (s.pr(add(head, mul(face, .1)))[1] - zc) / .1))
+            return ((pp[0] - c[0]) / r, (pp[1] - c[1]) / r)
         bf, bu = dirv(mul(face, -1)), dirv(up)
-        w = .15 + 1.25 * max(0, toward)
-        hc = (c[0] + (bf[0] * .6 + bu[0] * w) * r, c[1] + (bf[1] * .6 + bu[1] * w) * r)
-        s.c.save()
-        s.c.arc(c[0], c[1], r * 1.04, 0, 2 * math.pi)
-        s.c.clip()
-        s.c.arc(hc[0], hc[1], r, 0, 2 * math.pi)
-        s.c.set_source_rgb(*HAIR)
-        s.c.fill()
-        s.c.restore()
-        n, zn, _ = s.pr(add(add(head, mul(face, .1)), mul(up, -.012)))
-        if zn > zc + .01:
-            s.c.arc(n[0], n[1], r * (.17 - .09 * max(0, toward)), 0, 2 * math.pi)
-            s.c.set_source_rgb(*s.tint(SKIN, zc))
-            s.c.fill()
+        w = .2 + 1.2 * max(0, toward)
+        hc = (c[0] + (bf[0] * .55 + bu[0] * w) * r, c[1] + (bf[1] * .55 + bu[1] * w) * r)
+        c_.save()
+        c_.arc(c[0], c[1], r * 1.07, 0, 2 * math.pi)
+        c_.clip()
+        c_.arc(hc[0], hc[1], r * 1.04, 0, 2 * math.pi)
+        g = cairo.RadialGradient(hc[0] + LIGHT[0] * r * .5, hc[1] + LIGHT[1] * r * .5, 0, hc[0], hc[1], r * 1.2)
+        g.add_color_stop_rgb(0, *[min(1, v * 1.9) for v in HAIR])
+        g.add_color_stop_rgb(.5, *HAIR)
+        g.add_color_stop_rgb(1, *[v * .7 for v in HAIR])
+        c_.set_source(g)
+        c_.fill()
+        c_.restore()
+        if toward < -.35:
+            return
+        # twarz: brwi, oczy, nos, usta
+        lw = max(1.0, r * .07)
+        c_.set_line_cap(cairo.LINE_CAP_ROUND)
         for sg in (-1, 1):
-            e, ze, _ = s.pr(add(add(add(head, mul(face, .086)), mul(side, .034 * sg)), mul(up, .02)))
-            if ze > zc + .03:
-                s.c.arc(e[0], e[1], max(1.2, r * .1), 0, 2 * math.pi)
-                s.c.set_source_rgb(*EYE)
-                s.c.fill()
-
-    def hand(s, el, ha, z):
-        d = unit(sub(ha, el))
-        s.ball(add(ha, mul(d, .02)), .036, SKIN)
-        s.ball(add(ha, mul(d, .055)), .03, SKIN, edge=False)
+            e, ze, _ = at(.088, .036 * sg, .018)
+            if ze > zc + .015:
+                c_.save()
+                c_.translate(*e)
+                c_.scale(1, 1.25)
+                c_.arc(0, 0, max(1.1, r * .085), 0, 2 * math.pi)
+                c_.restore()
+                c_.set_source_rgb(*EYE)
+                c_.fill()
+        n, zn, _ = at(.104, 0, -.012)
+        if zn > zc + .01:
+            c_.arc(n[0], n[1], r * (.15 - .07 * max(0, toward)), 0, 2 * math.pi)
+            c_.set_source_rgb(*[v * .93 for v in s.tint(SKIN, zc)])
+            c_.fill()
+        m0, zm, _ = at(.088, -.022, -.05)
+        m1, _, _ = at(.088, .022, -.05)
+        if zm > zc + .03:
+            c_.move_to(*m0)
+            c_.line_to(*m1)
+            c_.set_source_rgba(.55, .3, .25, .8)
+            c_.set_line_width(lw * .9)
+            c_.stroke()
 
     def shoe(s, an, to, z, front):
         d = unit(sub(to, an))
-        heel = sub(an, mul(d, .04))
-        tip = add(to, mul(d, .015))
-        prof_ = [(0, .044, 0, 0), (.3, .046, 0, 0), (1, .034, 0, 0)]
-        # podeszwa — przesunięta w dół
-        down = (0, .012, 0)
-        s.limb(add(heel, down), add(tip, down), [(0, .04, 0, 0), (1, .032, 0, 0)], front, SOLE, z, edge=False)
-        s.limb(heel, tip, prof_, front, SHOE, z)
+        heel = sub(an, mul(d, .045))
+        tip = add(to, mul(d, .02))
+        down = (0, .016, 0)
+        sole = s.seg(add(heel, down), add(tip, down), SOLE_P, front, SOLE, z)
+        body = s.seg(add(heel, (0, -.008, 0)), tip, SHOE_P, front, SHOE, z)
+        s.outline([sole[0], body[0]])
+        s.paint(sole)
+        s.paint(body)
 
 
 def draw(ctx, pose, anchor, box, yaw, pitch=0.2, floor=True, breath=0.0):
@@ -355,6 +451,8 @@ def draw(ctx, pose, anchor, box, yaw, pitch=0.2, floor=True, breath=0.0):
     s = min(W / bw, H / bh)
     off = (box[0] + W / 2 - (min(xs) + max(xs)) / 2 * s, box[1] + H / 2 - (min(ys) + max(ys)) / 2 * s)
     P = Painter(ctx, cam, s, off)
+    P.front_view = pose.get("view") == "front"
+    P.facing = q["head"][0] - q["hip"][0]
 
     if floor and anchor != "hands":
         fx = sum(q[k][0] for k in ("anN", "anF", "hip")) / 3
@@ -363,18 +461,28 @@ def draw(ctx, pose, anchor, box, yaw, pitch=0.2, floor=True, breath=0.0):
         P.poly(disk)
         ctx.set_source_rgba(0.14, 0.155, 0.2, 1)
         ctx.fill()
-        for part in ("hip", "neck", "kn", "an", "ha", "el"):
-            for sd in ("N", "F") if part in ("kn", "an", "ha", "el") else ("",):
-                v = q[part + sd]
-                c, _, k = P.pr((v[0], 0, v[2]))
-                lift_ = max(0, -v[1])
-                rr = (.13 if part in ("hip", "neck") else .06) * s * k * (1 + lift_ * .3)
+        # cień ciała: rzut sylwetki na podłogę (światło z góry), miękki; mocniejszy przy punktach styku
+        pts = []
+        for k, v in q.items():
+            h = max(0, -v[1])
+            pts.append(P.pr((v[0], 0, v[2] - h * .15))[0])
+        sh = hull(pts)
+        ctx.set_line_join(cairo.LINE_JOIN_ROUND)
+        for i in range(8):  # rozmycie (w aplikacji: MaskFilter.blur)
+            P.poly(sh)
+            ctx.set_source_rgba(0, 0, 0, .035)
+            ctx.set_line_width((.16 - i * .02) * s)
+            ctx.stroke_preserve()
+            ctx.fill()
+        for k, v in q.items():
+            if -v[1] < .1 and k[:2] in ("an", "to", "ha", "kn", "hi", "ne", "he", "el"):
+                c, _, kk = P.pr((v[0], 0, v[2]))
                 ctx.save()
                 ctx.translate(*c)
                 ctx.scale(1, .35)
-                ctx.arc(0, 0, rr, 0, 2 * math.pi)
+                ctx.arc(0, 0, .07 * s * kk, 0, 2 * math.pi)
                 ctx.restore()
-                ctx.set_source_rgba(0, 0, 0, .22 * max(.2, 1 - lift_ * .6))
+                ctx.set_source_rgba(0, 0, 0, .28 * (1 + v[1] * 8))
                 ctx.fill()
 
     # elementy z głębią
@@ -383,27 +491,20 @@ def draw(ctx, pose, anchor, box, yaw, pitch=0.2, floor=True, breath=0.0):
     def zof(*ps):
         return sum(cam.project(p)[1] for p in ps) / len(ps)
 
-    front = pose.get("view") == "front"
     for sd in "NF":
         sh, el, ha = q["sh" + sd], q["el" + sd], q["ha" + sd]
         hp, kn, an, to = q["hp" + sd], q["kn" + sd], q["an" + sd], q["to" + sd]
-        dA, dF = unit(sub(el, sh)), unit(sub(ha, el))
-        dT, dS = unit(sub(kn, hp)), unit(sub(an, kn))
-        fA, fF, fT, fS = anterior(dA, pose), anterior(dF, pose), anterior(dT, pose), anterior(dS, pose)
-        zA, zF, zT, zS = zof(sh, el), zof(el, ha), zof(hp, kn), zof(kn, an)
+        fA, fF = anterior(unit(sub(el, sh)), pose), anterior(unit(sub(ha, el)), pose)
+        fT, fS = anterior(unit(sub(kn, hp)), pose), anterior(unit(sub(an, kn)), pose)
+        zL, zA = zof(hp, kn, an), zof(sh, el, ha)
         items += [
-            (zS, lambda kn=kn, an=an, f=fS, z=zS: P.limb(kn, an, LEG_LO, f, SKIN, z)),
-            (zT + .001, lambda hp=hp, kn=kn, f=fT, z=zT: (P.limb(hp, kn, LEG_UP, f, SKIN, z),
-                                                          P.limb(hp, kn, LEG_UP, f, SHORTS, z, grow=.007, t1=.42))),
-            (zof(an, to) + .002, lambda an=an, to=to, z=zof(an, to), f=fS: P.shoe(an, to, z, f)),
-            (zF + .003, lambda el=el, ha=ha, f=fF, z=zF: (P.limb(el, ha, ARM_LO, f, SKIN, z), P.hand(el, ha, z))),
-            (zA + .004, lambda sh=sh, el=el, f=fA, z=zA: (P.limb(sh, el, ARM_UP, f, SKIN, z),
-                                                          P.limb(sh, el, ARM_UP, f, SHIRT, z, grow=.005, t1=.38))),
+            (zL, lambda a=(hp, kn, an, to, fT, fS, zL, zof(an, to)): P.leg(*a)),
+            (zA + .004, lambda a=(sh, el, ha, fA, fF, zA): P.arm(*a)),
         ]
     zt = zof(q["hip"], q["neck"])
-    items.append((zt, lambda: (P.limb(q["neck"], lerp(q["neck"], q["head"], .55), [(0, .046, 0, 0), (1, .04, 0, 0)],
-                                      (0, 0, 1), SKIN, zt, edge=False), P.torso(q, pose, zt, breath))))
-    items.append((zof(q["head"]) + .002, lambda: P.head(q, pose)))
+    items.append((zt, lambda: P.torso(q, pose, zt, breath)))
+    items.append((zof(q["head"]) + .002, lambda: (P.paint(P.seg(q["neck"], lerp(q["neck"], q["head"], .55), NECK, (0, 0, 1), SKIN, zt)),
+                                                  P.head(q, pose))))
     items.sort(key=lambda t: t[0])
     for _, f in items:
         f()
