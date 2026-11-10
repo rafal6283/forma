@@ -9,3 +9,4 @@ pubspec.lock
 # katalogi platform generowane w CI przez tool/prepare_platforms.sh
 /android/
 /ios/
+__pycache__/
