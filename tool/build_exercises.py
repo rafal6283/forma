@@ -1632,11 +1632,19 @@ P["backbend"]["ln"] = [-10, -14]
 P["backbend"]["lf"] = [-12, -16]
 # krążenia ramion: z tyłu tylko do granicy wyprostu barku
 P["arm_c3"] = {"an": [300, 300], "af": [300, 300]}
-# dipy na podłodze: dłonie zostają w miejscu, łokcie zginają się w tył
-_ju, _jd = joints(full(P["floor_dip_up"])), joints(full(P["floor_dip_down"]))
-for _sd in "NF":
-    _t = (_jd["an" + _sd][0] + _ju["ha" + _sd][0] - _ju["an" + _sd][0], _jd["an" + _sd][1] + _ju["ha" + _sd][1] - _ju["an" + _sd][1])
-    P["floor_dip_down"] = reach(P["floor_dip_down"], _sd, "ha", _t, bend=-1)
+# dipy na podłodze: dłonie na podłodze za biodrami (palcami do stóp), w dole łokcie zginają się w tył
+def _dip(t, ln, hand=None):
+    q = {"t": t, "h": t, "back": True, "an": [-30, -30], "af": [-32, -32], "ln": ln, "lf": [ln[0] - 2, ln[1]]}
+    j = joints(full(q))
+    floor = j["anN"][1] + 0.045 - 0.04  # środek dłoni nad podłogą
+    tx = j["hip"][0] + 0.12 if hand is None else j["anN"][0] + hand
+    for sd in "NF":
+        q = reach(q, sd, "ha", (tx, floor), bend=-1)
+    return q, tx - j["anN"][0]
+
+
+P["floor_dip_up"], _hx = _dip(146, [-112, 20])
+P["floor_dip_down"], _ = _dip(150, [-132, 8], _hx)
 # australijskie podciąganie: dłonie na drążku (w tym samym miejscu względem stóp), łokcie w dół
 _ju, _jd = joints(full(P["inv_row_down"])), joints(full(P["inv_row_up"]))
 for _sd in "NF":
