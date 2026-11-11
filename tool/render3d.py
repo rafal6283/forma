@@ -11,7 +11,7 @@ from pathlib import Path
 
 import cairo
 
-from figure import HIP_W, SHOULDER_W, grounded, resolve
+from figure import HIP_W, SHOULDER_W, grounded, joints_z, resolve
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -83,14 +83,20 @@ def hull(pts):
 # ------------------------------------------------------------------ szkielet 3D
 def lift(j, pose):
     front = pose.get("view") == "front"
+    fz = joints_z(pose)[1]
     q = {}
     for k, (x, y) in j.items():
-        z = 0
+        z = fz.get(k, 0)
         if not front and k[-1] in "NF":
             arm = k[:2] in ("sh", "el", "ha")
             z = (1 if k[-1] == "N" else -1) * (SHOULDER_W if arm else HIP_W + 0.01)
         q[k] = (x, y, z)
-    if front:
+    if front and pose.get("kb"):
+        for sd in "NF":
+            kn = q["kn" + sd]
+            q["an" + sd] = (kn[0], kn[1] + 0.01, -0.46 * 0.97)
+            q["to" + sd] = (kn[0], kn[1] - 0.03, -0.46 - 0.05)
+    elif front:
         for sd in "NF":
             an, to = q["an" + sd], q["to" + sd]
             q["to" + sd] = (an[0] + (to[0] - an[0]) * 0.6, to[1], 0.12)
@@ -283,9 +289,9 @@ class Painter:
         lat = (1, 0, 0) if pose.get("view") == "front" else (0, 0, 1)
         lat = unit(sub(lat, mul(u, dot(lat, u))))
         if pose.get("view") == "front":
-            f = unit(cross(lat, u))
-            if f[2] < 0:
-                f = mul(f, -1)
+            fr = math.radians(pose.get("fold", 0))
+            f0 = (0, math.sin(fr), math.cos(fr))
+            f = unit(sub(f0, mul(u, dot(f0, u))))
         else:
             f = (-u[1], u[0], 0)
             if pose.get("back"):
@@ -342,7 +348,9 @@ class Painter:
         head = q["head"]
         up = unit(sub(head, q["neck"]))
         if pose.get("view") == "front":
-            face = (0, 0, 1)
+            fr = math.radians(pose.get("fold", 0))
+            f0 = (0, math.sin(fr), math.cos(fr))
+            face = unit(sub(f0, mul(up, dot(f0, up))))
         else:
             face = (-up[1], up[0], 0)
             if pose.get("back"):

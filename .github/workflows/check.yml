@@ -19,6 +19,11 @@ jobs:
         with:
           channel: stable
           cache: true
+      - name: Realistyczność ruchów
+        run: |
+          cd tool
+          python3 check_motion.py > ../motion.log || { sed 's/^/::warning title=Ruch::/' ../motion.log | head -40; exit 1; }
+          tail -n 1 ../motion.log
       - run: flutter pub get
       - name: Analiza kodu
         run: |

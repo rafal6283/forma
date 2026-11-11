@@ -13,7 +13,7 @@ SHOULDER_W, HIP_W = 0.17, 0.09
 
 DEFAULT = {
     "t": 180, "an": [8, 12], "af": [-8, -4], "ln": [2, 0], "lf": [-2, 0],
-    "fp": 0, "lift": 0, "x": 0, "view": "side", "back": False,
+    "fp": 0, "fq": [0, 0], "lift": 0, "x": 0, "view": "side", "back": False,
 }
 
 
@@ -41,6 +41,7 @@ def swap(pose):
     q = dict(p)
     q["an"], q["af"] = p["af"], p["an"]
     q["ln"], q["lf"] = p["lf"], p["ln"]
+    q["fq"] = [p["fq"][1], p["fq"][0]]
     if p["view"] == "front":
         q["t"] = 360 - p["t"]
         q["h"] = 360 - p["h"]
@@ -50,6 +51,11 @@ def swap(pose):
 
 def joints(pose):
     """Pozycje stawów przed opuszczeniem na podłogę (biodro w (x, 0))."""
+    return joints_z(pose)[0]
+
+
+def joints_z(pose):
+    """(stawy, głębokość z) — z tylko dla punktów wysuniętych przed płaszczyznę (skłon w widoku z przodu)."""
     p = full(pose)
     hip = (p["x"], 0.0)
     neck = add(hip, p["t"], TORSO)
@@ -73,7 +79,11 @@ def joints(pose):
         ha = add(el, arm[1], FORE)
         kn = add(hp, leg[0], THIGH)
         an = add(kn, leg[1], SHIN)
-        if front:
+        if front and p.get("kb"):
+            # goleń za plecami (poza płaszczyzną): w rzucie z przodu kostka i palce przy kolanie
+            an = (kn[0], kn[1] + 0.01)
+            toe = an
+        elif front:
             out = perp[0] * sgn
             # but widziany od przodu: przedłużenie goleni (pod kostką, gdy stoi), lekko na zewnątrz
             sd = d(leg[1])
@@ -81,11 +91,26 @@ def joints(pose):
         else:
             # stopa prostopadle do goleni, palcami do przodu ciała; fp > 0 = wspięcie na palce / wyprost stopy.
             # Na plecach (back) postać jest lustrzanym odbiciem, więc „przód” stopy jest po drugiej stronie.
-            fa = leg[1] - 90 + p["fp"] if p["back"] else leg[1] + 90 - p["fp"]
+            fp = p["fp"] + p["fq"][0 if side == "N" else 1]
+            fa = leg[1] - 90 + fp if p["back"] else leg[1] + 90 - fp
             toe = add(an, fa, FOOT)
         j.update({f"sh{side}": sh, f"el{side}": el, f"ha{side}": ha,
                   f"hp{side}": hp, f"kn{side}": kn, f"an{side}": an, f"to{side}": toe})
-    return j
+    z = {}
+    if front and p.get("fold"):
+        # skłon w przód: tułów, głowa i barki obracają się wokół osi bioder do widza; ręce zwisają w płaszczyźnie
+        f = math.radians(p["fold"])
+        for k in ("neck", "head", "shN", "shF"):
+            dy = j[k][1] - hip[1]
+            j[k] = (j[k][0], hip[1] + dy * math.cos(f))
+            z[k] = -dy * math.sin(f)
+        for side in "NF":
+            arm = p["an"] if side == "N" else [-a for a in p["af"]]
+            el = add(j["sh" + side], arm[0], UPPER)
+            j["el" + side] = el
+            j["ha" + side] = add(el, arm[1], FORE)
+            z["el" + side] = z["ha" + side] = z["sh" + side]
+    return j, z
 
 
 def grounded(pose, anchor="ground", bar_y=-2.3):

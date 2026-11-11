@@ -26,7 +26,16 @@ class Body {
 class Pose {
   final double t, h, fp, lift, x;
   final List<double> an, af, ln, lf;
+
+  /// Dodatkowe wyprostowanie każdej stopy osobno (bliższa, dalsza) — np. w klęku jednonóż.
+  final List<double> fq;
   final bool front, back;
+
+  /// Widok z przodu: golenie zgięte do tyłu (poza płaszczyznę obrazu), np. deska bokiem na kolanach.
+  final bool kneesBack;
+
+  /// Widok z przodu: skłon tułowia do przodu (stopnie) — tułów, głowa i barki wychodzą przed płaszczyznę obrazu.
+  final double fold;
 
   const Pose({
     this.t = 180,
@@ -36,10 +45,13 @@ class Pose {
     this.ln = const [2, 0],
     this.lf = const [-2, 0],
     this.fp = 0,
+    this.fq = const [0, 0],
     this.lift = 0,
     this.x = 0,
     this.front = false,
     this.back = false,
+    this.kneesBack = false,
+    this.fold = 0,
   }) : h = h ?? t;
 
   static List<double> _l(Object? v, List<double> d) =>
@@ -56,10 +68,13 @@ class Pose {
       ln: _l(j['ln'], const [2, 0]),
       lf: _l(j['lf'], const [-2, 0]),
       fp: n('fp', 0),
+      fq: _l(j['fq'], const [0, 0]),
       lift: n('lift', 0),
       x: n('x', 0),
       front: j['view'] == 'front',
       back: j['back'] == true,
+      kneesBack: j['kb'] == true,
+      fold: n('fold', 0),
     );
   }
 
@@ -72,10 +87,13 @@ class Pose {
         ln: lf,
         lf: ln,
         fp: fp,
+        fq: [fq[1], fq[0]],
         lift: lift,
         x: front ? -x : x,
         front: front,
         back: back,
+        kneesBack: kneesBack,
+        fold: fold,
       );
 
   /// Interpolacja po najkrótszym łuku (krążenia ramion przechodzą przez 360°).
@@ -95,10 +113,13 @@ class Pose {
       ln: l2(a.ln, b.ln),
       lf: l2(a.lf, b.lf),
       fp: lin(a.fp, b.fp),
+      fq: [lin(a.fq[0], b.fq[0]), lin(a.fq[1], b.fq[1])],
       lift: lin(a.lift, b.lift),
       x: lin(a.x, b.x),
       front: k < 0.5 ? a.front : b.front,
       back: k < 0.5 ? a.back : b.back,
+      kneesBack: k < 0.5 ? a.kneesBack : b.kneesBack,
+      fold: lin(a.fold, b.fold),
     );
   }
 }
@@ -108,11 +129,17 @@ class Joints {
   final Map<String, Offset> p;
   final bool front, back;
   final double headDir;
-  Joints(this.p, this.front, this.back, this.headDir);
+  final bool kneesBack;
+
+  /// Głębokość (z, do widza) punktów wysuniętych przed płaszczyznę obrazu (skłon w widoku z przodu).
+  final Map<String, double> z;
+  final double fold;
+  Joints(this.p, this.front, this.back, this.headDir, {this.kneesBack = false, this.z = const {}, this.fold = 0});
 
   Offset operator [](String k) => p[k]!;
 
-  Joints shifted(Offset d) => Joints(p.map((k, v) => MapEntry(k, v + d)), front, back, headDir);
+  Joints shifted(Offset d) =>
+      Joints(p.map((k, v) => MapEntry(k, v + d)), front, back, headDir, kneesBack: kneesBack, z: z, fold: fold);
 
   static Offset _dir(double a) {
     final r = a * math.pi / 180;
@@ -143,18 +170,41 @@ class Joints {
       final el = sh + _dir(arm[0]) * Body.upper;
       final ha = el + _dir(arm[1]) * Body.fore;
       final kn = hp + _dir(leg[0]) * Body.thigh;
-      final an = kn + _dir(leg[1]) * Body.shin;
+      var an = kn + _dir(leg[1]) * Body.shin;
       final Offset toe;
-      if (s.front) {
+      if (s.front && s.kneesBack) {
+        // goleń za plecami: w rzucie z przodu kostka i palce tuż przy kolanie
+        an = kn + const Offset(0, 0.01);
+        toe = an;
+      } else if (s.front) {
         // but od przodu: przedłużenie goleni (pod kostką, gdy stoi), lekko na zewnątrz
         toe = an + _dir(leg[1]) * 0.045 + perp * (sgn * 0.02);
       } else {
         // palcami do przodu ciała; na plecach postać jest lustrzana. fp > 0 = wspięcie na palce.
-        toe = an + _dir(s.back ? leg[1] - 90 + s.fp : leg[1] + 90 - s.fp) * Body.foot;
+        final fp = s.fp + s.fq[near ? 0 : 1];
+        toe = an + _dir(s.back ? leg[1] - 90 + fp : leg[1] + 90 - fp) * Body.foot;
       }
       m.addAll({'sh$side': sh, 'el$side': el, 'ha$side': ha, 'hp$side': hp, 'kn$side': kn, 'an$side': an, 'to$side': toe});
     }
-    return Joints(m, s.front, s.back, s.h);
+    if (!s.front || s.fold == 0) return Joints(m, s.front, s.back, s.h, kneesBack: s.kneesBack);
+    // skłon w przód: tułów, głowa i barki obracają się wokół osi bioder do widza; ręce zwisają w płaszczyźnie obrazu
+    final f = s.fold * math.pi / 180;
+    final z = <String, double>{};
+    for (final k in ['neck', 'head', 'shN', 'shF']) {
+      final dy = m[k]!.dy - hip.dy;
+      m[k] = Offset(m[k]!.dx, hip.dy + dy * math.cos(f));
+      z[k] = -dy * math.sin(f);
+    }
+    for (final near in [true, false]) {
+      final side = near ? 'N' : 'F';
+      final arm = near ? s.an : [-s.af[0], -s.af[1]];
+      final el = m['sh$side']! + _dir(arm[0]) * Body.upper;
+      m['el$side'] = el;
+      m['ha$side'] = el + _dir(arm[1]) * Body.fore;
+      z['el$side'] = z['sh$side']!;
+      z['ha$side'] = z['sh$side']!;
+    }
+    return Joints(m, s.front, s.back, s.h, kneesBack: s.kneesBack, z: z, fold: s.fold);
   }
 
   /// Najniższy punkt na podłodze (lub dłonie na drążku), potem uniesienie o lift.

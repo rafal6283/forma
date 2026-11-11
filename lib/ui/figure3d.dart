@@ -36,9 +36,16 @@ Map<String, V3> lift3d(Joints j) {
       final arm = k.startsWith('sh') || k.startsWith('el') || k.startsWith('ha');
       z = (k.endsWith('N') ? 1 : -1) * (arm ? Body.shoulderW : Body.hipW + 0.01);
     }
-    out[k] = V3(v.dx, v.dy, z);
+    out[k] = V3(v.dx, v.dy, z + (j.z[k] ?? 0));
   });
-  if (j.front) {
+  if (j.front && j.kneesBack) {
+    // golenie zgięte do tyłu, za płaszczyznę ciała
+    for (final sd in ['N', 'F']) {
+      final kn = out['kn$sd']!;
+      out['an$sd'] = V3(kn.x, kn.y + 0.01, -Body.shin * 0.97);
+      out['to$sd'] = V3(kn.x, kn.y - 0.03, -Body.shin - Body.foot * 0.5);
+    }
+  } else if (j.front) {
     for (final sd in ['N', 'F']) {
       final an = out['an$sd']!, to = out['to$sd']!;
       out['to$sd'] = V3(an.x + (to.x - an.x) * 0.6, to.y, 0.12);
@@ -363,8 +370,10 @@ class Figure3DPainter extends CustomPainter {
     lat = (lat - u * lat.dot(u)).unit;
     V3 f;
     if (j.front) {
-      f = lat.cross(u).unit;
-      if (f.z < 0) f = f * -1;
+      // przód klatki: do widza, a przy skłonie obrócony w dół razem z tułowiem
+      final fr = j.fold * math.pi / 180;
+      final f0 = V3(0, math.sin(fr), math.cos(fr));
+      f = (f0 - u * f0.dot(u)).unit;
     } else {
       f = V3(-u.y, u.x, 0);
       if (j.back) f = f * -1;
@@ -432,7 +441,9 @@ class Figure3DPainter extends CustomPainter {
     final up = (head - q['neck']!).unit;
     V3 face;
     if (j.front) {
-      face = const V3(0, 0, 1);
+      final fr = j.fold * math.pi / 180;
+      final f0 = V3(0, math.sin(fr), math.cos(fr));
+      face = (f0 - up * f0.dot(up)).unit;
     } else {
       face = V3(-up.y, up.x, 0);
       if (j.back) face = face * -1;

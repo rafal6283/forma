@@ -12,7 +12,9 @@ import re
 from pathlib import Path
 
 from strava_map import FALLBACK, STRAVA, VALID
-from figure import FOOT, SHIN, THIGH, full, grounded, joints
+import math
+
+from figure import FORE, FOOT, SHIN, THIGH, UPPER, full, grounded, joints
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -448,6 +450,7 @@ P["crab_step"] = dict(P["tabletop_up"], ln=[-70, 0])
 P["side_plank_knee"] = dict(P["side_plank"], ln=[P["side_plank"]["ln"][0], P["side_plank"]["ln"][0] + 80],
                             lf=[P["side_plank"]["lf"][0], P["side_plank"]["lf"][0] - 80])
 P["side_plank_leg"] = dict(P["side_plank"], lf=[115, 115])
+P["side_plank_knee_b"] = {}  # dopracowane niżej
 P["prone_t"] = dict(PRONE, t=92, h=94, an=[84, 84], af=[86, 86])
 P["prone_t_up"] = dict(PRONE, t=96, h=100, an=[96, 96], af=[98, 98])
 P["wall_push_top"] = {"t": 152, "h": 156, "an": [72, 72], "af": [70, 70], "ln": [-28, -28], "lf": [-28, -28]}
@@ -475,14 +478,14 @@ P["pigeon"] = {"t": 178, "an": [10, 10], "af": [-8, -8], "ln": [-88, -90], "lf":
 P["pigeon_low"] = {"t": 112, "h": 104, "an": [80, 80], "af": [78, 78], "ln": [-88, -90], "lf": [80, -70]}
 P["thread"] = dict(P["quad"], t=P["quad"]["t"] - 18, h=P["quad"]["t"] - 30, an=[-80, -80])
 P["lying_ham"] = dict(SUP, an=[-150, -150], af=[-152, -152], ln=[-178, -178], lf=[-92, -92])
-P["wide_fold"] = dict(FR, t=22, h=10, an=[4, 4], af=[4, 4], ln=[30, 30], lf=[30, 30])
+P["wide_fold"] = dict(FR, t=180, h=180, fold=105, an=[-4, -4], af=[-4, -4], ln=[30, 30], lf=[30, 30])
 P["knee_circ_a"] = {"t": 150, "an": [45, 10], "af": [43, 8], "ln": [40, -30], "lf": [38, -30]}
 P["knee_circ_b"] = {"t": 152, "an": [42, 8], "af": [40, 6], "ln": [30, -24], "lf": [28, -24]}
 P["shoulder_up"] = {"t": 180, "h": 184, "an": [-6, -4], "af": [-8, -6]}
 P["neck_l"] = dict(FR, h=158, an=[8, 4], af=[8, 4], ln=[6, 6], lf=[6, 6])
 P["warrior2"] = dict(FR, an=[90, 90], af=[90, 90], ln=[58, 0], lf=[42, 42])
 P["triangle"] = dict(FR, t=128, h=128, an=[0, 0], af=[180, 180], ln=[36, 36], lf=[36, 36])
-P["windmill"] = dict(FR, t=32, h=30, an=[-25, -25], af=[175, 175], ln=[30, 30], lf=[30, 30])
+P["windmill"] = dict(FR, t=162, h=158, fold=80, an=[-22, -24], af=[176, 176], ln=[30, 30], lf=[30, 30])
 P["backbend"] = {"t": -164, "h": -150, "an": [-165, -165], "af": [-163, -163], "ln": [8, 0], "lf": [6, 0]}
 P["upper_back"] = {"t": 172, "h": 150, "an": [96, 150], "af": [94, 148]}
 P["wrist_a"] = {"an": [90, 70], "af": [88, 68]}
@@ -699,7 +702,7 @@ E = [
     ex("hip_flexor_stretch", "Rozciąganie zginaczy bioder", "stretch", ["nogi", "pośladki"], 1, 2.3,
        ["kneel_lunge", dict(P["kneel_lunge"], t=176)], 5.0, static=True, uni=True, stress=["kolana"],
        tips=["Pośladek tylnej nogi napięty", "Biodra lekko do przodu"]),
-    ex("knee_hug", "Kolana do klatki", "stretch", ["plecy"], 1, 2.0, ["knee_hug", dict(P["knee_hug"], t=96)], 4.0,
+    ex("knee_hug", "Kolana do klatki", "stretch", ["plecy"], 1, 2.0, ["knee_hug", "knee_hug_b"], 4.0,
        static=True, tips=["Rozluźnij kark", "Delikatnie kołysz się na boki"]),
     ex("side_bend", "Skłony boczne", "mobility", ["brzuch"], 1, 2.5,
        [dict(P["side_bend"], t=180, h=180, af=[90, 120]), "side_bend", dict(P["side_bend"], t=180, h=180, af=[90, 120]),
@@ -991,11 +994,11 @@ E += [
        static=True, uni=True, m="triceps | lats", tips=["Łokieć przy głowie", "Druga ręka delikatnie dociska"]),
     ex("shoulder_stretch", "Rozciąganie barku", "stretch", [], 1, 2.0, ["shoulder_x", dict(P["shoulder_x"], h=176)], 4.0,
        static=True, uni=True, m="shoulders | upper_back", tips=["Ręka przez klatkę", "Bark nisko"]),
-    ex("standing_fold", "Skłon w staniu", "stretch", [], 1, 2.0, ["fold_hold", dict(P["fold"], t=10)], 5.0, static=True,
+    ex("standing_fold", "Skłon w staniu", "stretch", [], 1, 2.0, ["fold_hold", "fold_hold_b"], 5.0, static=True,
        m="hamstrings lower_back | calves", tips=["Kolana lekko ugięte", "Głowa luźno"]),
     ex("sphinx", "Sfinks", "stretch", [], 1, 2.0, ["sphinx", dict(P["sphinx"], t=114)], 4.0, static=True,
        m="abs | lower_back", tips=["Łokcie pod barkami", "Biodra na podłodze"]),
-    ex("figure_four", "Rozciąganie pośladka w leżeniu", "stretch", [], 1, 2.0, ["knee_hug", dict(P["knee_hug"], t=98)], 4.0,
+    ex("figure_four", "Rozciąganie pośladka w leżeniu", "stretch", [], 1, 2.0, ["knee_hug", "knee_hug_c"], 4.0,
        static=True, uni=True, m="glutes | lower_back", tips=["Kostka na kolanie drugiej nogi", "Przyciągnij nogę do siebie"]),
     ex("breathing", "Oddychanie przeponowe", "stretch", [], 1, 1.5, ["breath", "breath_b"], 6.0, static=True, m="abs",
        tips=["Wdech nosem — brzuch rośnie", "Długi wydech ustami"]),
@@ -1083,7 +1086,7 @@ E += [
        2.4, stress=["nadgarstki", "barki"], m="glutes lower_back shoulders | hamstrings", tips=["Biodra wysoko", "Noga prosta do góry"]),
     ex("crab_walk", "Chód kraba", "cardio", [], 2, 5.0, ["tabletop_up", "crab_step", "tabletop_up", "crab_step~"], 1.4,
        stress=["nadgarstki"], m="triceps glutes shoulders | quads", tips=["Biodra wysoko", "Małe kroki"]),
-    ex("side_plank_knee", "Deska bokiem na kolanach", "core", [], 1, 3.5, ["side_plank_knee", dict(P["side_plank_knee"], t=P["side_plank_knee"]["t"] + 1)],
+    ex("side_plank_knee", "Deska bokiem na kolanach", "core", [], 1, 3.5, ["side_plank_knee", "side_plank_knee_b"],
        3.0, static=True, uni=True, m="obliques | abs abductors", harder="side_plank", tips=["Kolana ugięte", "Biodra w górę"]),
     ex("side_plank_leg", "Deska bokiem z unoszeniem nogi", "core", [], 3, 4.0, ["side_plank", "side_plank_leg"], 2.0, uni=True,
        stress=["barki"], m="obliques abductors | glutes abs", tips=["Górna noga prosta", "Biodra wysoko"]),
@@ -1142,7 +1145,7 @@ E += [
        stress=["nadgarstki"], m="upper_back | shoulders obliques", tips=["Ręka wsuwa się pod tułów", "Bark do podłogi"]),
     ex("lying_hamstring", "Rozciąganie tyłu uda w leżeniu", "stretch", [], 1, 2.0, ["lying_ham", dict(P["lying_ham"], ln=[-174, -174])],
        5.0, static=True, uni=True, m="hamstrings | calves", tips=["Noga prosta do góry", "Możesz pomóc sobie ręcznikiem"]),
-    ex("wide_fold", "Skłon w rozkroku", "stretch", [], 1, 2.0, ["wide_fold", dict(P["wide_fold"], t=18)], 5.0, static=True,
+    ex("wide_fold", "Skłon w rozkroku", "stretch", [], 1, 2.0, ["wide_fold", dict(P["wide_fold"], fold=112)], 5.0, static=True,
        m="hamstrings adductors | lower_back", tips=["Stopy szeroko", "Głowa i ręce swobodnie w dół"]),
     ex("knee_circles", "Krążenia kolan", "warmup", [], 1, 2.5, ["knee_circ_a", "knee_circ_b"], 1.6, m="quads | calves",
        tips=["Dłonie na kolanach", "Kolana razem, małe koła"]),
@@ -1166,7 +1169,7 @@ E += [
        tips=["Kolano nieruchomo", "Duże koła stopą"]),
     ex("plow", "Pług", "stretch", [], 3, 2.0, ["plow", dict(P["plow"], t=42)], 5.0, static=True, stress=["plecy"],
        m="lower_back hamstrings | traps", tips=["Ciężar na barkach, nie na szyi", "Nie obracaj głowy"]),
-    ex("shoulder_stand", "Świeca", "stretch", [], 3, 2.5, ["candle", dict(P["candle"], t=16)], 5.0, static=True, stress=["plecy"],
+    ex("shoulder_stand", "Świeca", "stretch", [], 3, 2.5, ["candle", "candle_b"], 5.0, static=True, stress=["plecy"],
        m="abs lower_back | traps", tips=["Dłonie podpierają plecy", "Nie obracaj głowy"]),
     ex("fish_pose", "Ryba", "stretch", [], 2, 2.0, ["fish", dict(P["fish"], t=106)], 5.0, static=True, m="chest abs | traps",
        tips=["Klatka w górę, ciężar na łokciach", "Szyja długa"]),
@@ -1189,6 +1192,10 @@ P["puppy"] = {"t": 60, "h": 66, "an": [72, 72], "af": [70, 70], "ln": [0, -90], 
 P["camel"] = {"t": 202, "h": 228, "an": [-30, -30], "af": [-32, -32], "ln": [-6, -90], "lf": [-6, -90], "fp": 70}
 P["lying_quad"] = dict(PRONE, h=96, an=[-135, -150], af=[92, 92], ln=[-90, 150], lf=[-90, -90])
 P["runner_stretch"] = {"t": 118, "h": 120, "an": [0, 0], "af": [0, 0], "ln": [0, -90], "lf": [80, 80], "fp": 0}
+P["runner_stretch_b"] = dict(P["runner_stretch"], t=110)  # dopracowane niżej (_runner)
+# drugie klatki póz statycznych — dopracowane niżej, w części o realistyczności ruchu
+for _k in ("knee_hug_b", "knee_hug_c", "fold_hold_b", "candle_b", "boxing_hop", "happy_baby_b", "lying_quad_b"):
+    P[_k] = {}
 P["kick_back"] = {"t": 168, "an": [20, 60], "af": [10, 40], "ln": [-40, -45], "lf": [0, 0]}
 P["knee_strike"] = dict(P["knee_up"], t=172, an=[35, 155], af=[30, 150], ln=[115, 20])
 P["squat_db"] = dict(P["squat_bot"], an=[4, 4], af=[2, 2])
@@ -1284,7 +1291,7 @@ E += [
     # --- kardio
     ex("fast_feet", "Szybkie stopy", "cardio", ["całe ciało"], 2, 8.0, ["jog", "jog~"], 0.35, impact=True,
        m="calves quads | glutes", tips=["Na palcach, bardzo szybko", "Lekko ugięte kolana"]),
-    ex("boxer_shuffle", "Przeskoki bokserskie", "cardio", ["całe ciało"], 2, 7.5, ["boxing_guard", dict(P["boxing_guard"], lift=0.06, ln=[-12, 0], lf=[14, -5])], 0.6,
+    ex("boxer_shuffle", "Przeskoki bokserskie", "cardio", ["całe ciało"], 2, 7.5, ["boxing_guard", "boxing_hop"], 0.6,
        impact=True, m="calves | shoulders quads", tips=["Lekko na palcach", "Gardę trzymaj wysoko"]),
     ex("knee_strikes", "Ciosy kolanem", "cardio", ["całe ciało"], 2, 7.0, ["boxing_guard", "knee_strike"], 0.9, uni=True,
        m="abs quads | glutes shoulders", tips=["Przyciągnij ręce do kolana", "Wydech przy uderzeniu"]),
@@ -1297,15 +1304,15 @@ E += [
     # --- mobilność i rozciąganie
     ex("low_lunge", "Niski wypad", "stretch", [], 1, 2.3, ["low_lunge", dict(P["low_lunge"], t=188, h=194)], 5.0, static=True, uni=True,
        m="quads | abs", tips=["Biodra w dół i do przodu", "Ręce w górę, barki nisko"]),
-    ex("happy_baby", "Szczęśliwe dziecko", "stretch", [], 1, 2.0, ["happy_baby", dict(P["happy_baby"], ln=[152, 178], lf=[150, 176])], 4.0,
+    ex("happy_baby", "Szczęśliwe dziecko", "stretch", [], 1, 2.0, ["happy_baby", "happy_baby_b"], 4.0,
        static=True, m="adductors glutes | lower_back", tips=["Kolana do pach", "Kość ogonowa przy podłodze"]),
     ex("puppy_pose", "Pozycja szczeniaka", "stretch", [], 1, 2.0, ["puppy", dict(P["puppy"], t=56, h=62)], 5.0, static=True,
        m="lats shoulders | upper_back", tips=["Biodra nad kolanami", "Klatka w stronę podłogi"]),
     ex("camel", "Wielbłąd", "stretch", [], 3, 2.3, ["camel", dict(P["camel"], t=206)], 5.0, static=True, stress=["plecy", "szyja"],
        m="quads abs | chest", tips=["Biodra do przodu", "Dłonie na piętach, szyja długa"]),
-    ex("lying_quad", "Rozciąganie uda leżąc na brzuchu", "stretch", [], 1, 2.0, ["lying_quad", dict(P["lying_quad"], ln=[-90, 158])], 5.0,
+    ex("lying_quad", "Rozciąganie uda leżąc na brzuchu", "stretch", [], 1, 2.0, ["lying_quad", "lying_quad_b"], 5.0,
        static=True, uni=True, m="quads", tips=["Pięta do pośladka", "Biodra przyklejone do podłogi"]),
-    ex("runner_stretch", "Rozciąganie biegacza", "stretch", [], 1, 2.0, ["runner_stretch", dict(P["runner_stretch"], t=112)], 5.0,
+    ex("runner_stretch", "Rozciąganie biegacza", "stretch", [], 1, 2.0, ["runner_stretch", "runner_stretch_b"], 5.0,
        static=True, uni=True, m="hamstrings calves", tips=["Przednia noga prosta, palce w górę", "Plecy długie"]),
 ]
 
@@ -1480,13 +1487,217 @@ for e in E:
     if st:
         e["stress"] = st
 
+# ------------------------------------------------------------ realistyczność ruchu (tool/check_motion.py)
+def _pt(p, target):
+    """Punkt docelowy: nazwa stawu tej samej pozy albo (x, y) w układzie przed opuszczeniem na podłogę."""
+    return joints(full(p))[target] if isinstance(target, str) else target
+
+
+def reach(p, side, tip, target, bend=1):
+    """Odwrotna kinematyka (dwa odcinki): dłoń (tip="ha") lub kostka (tip="an") w punkcie target.
+    bend=1 — zgięcie w naturalną stronę (łokieć/kolano), bend=-1 — odwrotnie (np. łokcie w tył przy dipach)."""
+    q = dict(full(p))
+    arm = tip == "ha"
+    j = joints(q)
+    root = j[("sh" if arm else "hp") + side]
+    tx, ty = _pt(q, target)
+    dx, dy = tx - root[0], ty - root[1]
+    U, F = (UPPER, FORE) if arm else (THIGH, SHIN)
+    d = min(max(math.hypot(dx, dy), abs(U - F) + 1e-3), U + F - 1e-3)
+    th = math.degrees(math.atan2(dx, dy))
+    a = math.degrees(math.acos((U * U + d * d - F * F) / (2 * U * d)))
+    b = math.degrees(math.acos((F * F + d * d - U * U) / (2 * F * d)))
+    s_ = bend * (-1 if q.get("back") else 1)
+    key = ("an" if side == "N" else "af") if arm else ("ln" if side == "N" else "lf")
+    if arm:
+        q[key] = [round(th - s_ * a, 1), round(th + s_ * b, 1)]
+    else:
+        q[key] = [round(th + s_ * a, 1), round(th - s_ * b, 1)]
+    return q
+
+
+def hover(p, side, support, clear=0.05):
+    """Noga w powietrzu (np. kolano do łokcia w desce): zgina kolano, aż stopa jest nad podłogą wyznaczoną przez support."""
+    q = dict(full(p))
+    key = "ln" if side == "N" else "lf"
+    sgn = -1 if q.get("back") else 1
+    for _ in range(80):
+        j = joints(q)
+        floor = max(j[k][1] for k in support)
+        if j["kn" + side][1] > floor - clear:
+            q[key] = [q[key][0] + 2 * sgn, q[key][1]]  # kolano wyżej
+            continue
+        if max(j["an" + side][1], j["to" + side][1]) <= floor - clear:
+            break
+        q[key] = [q[key][0], q[key][1] - 2 * sgn]
+    return q
+
+
+def plant(p, base, anchor="anN", sides="NF", bend=1):
+    """Dłonie zostają tam, gdzie w pozie base (względem stawu anchor, który się nie przesuwa)."""
+    q = dict(full(p))
+    jb, jp = joints(full(base)), joints(q)
+    for sd in sides:
+        t = (jp[anchor][0] + jb["ha" + sd][0] - jb[anchor][0], jp[anchor][1] + jb["ha" + sd][1] - jb[anchor][1])
+        q = reach(q, sd, "ha", t, bend)
+    return q
+
+
+def raise_leg(p, side, deg):
+    """Prosta noga uniesiona o deg ponad linię ciała (w desce, przodem lub tyłem)."""
+    q = dict(full(p))
+    base = q["t"] - 180
+    up = -deg
+    q["ln" if side == "N" else "lf"] = [base + up, base + up]
+    return q
+
+
+# tylna noga w wykroku/postawie: prosta, bez przeprostu w kolanie
+for _k in ("band_row_out", "band_row_in", "band_press_in"):
+    P[_k]["lf"] = [-10, -12]
+for _k in ("boxing_guard", "boxing_punch"):
+    P[_k]["lf"] = [-14, -17]
+P["punch_up"]["lf"] = [-12, -15]
+for _k in ("one_arm_row_a", "one_arm_row_b"):
+    P[_k]["ln"] = [-30, -34]
+# dłonie na kolanach / goleniach / stopach
+P["tuck"] = reach(reach(P["tuck"], "N", "ha", "knN"), "F", "ha", "knF")
+for _k in ("knee_circ_a", "knee_circ_b"):
+    P[_k] = reach(reach(P[_k], "N", "ha", "knN"), "F", "ha", "knF")
+for _k in ("ball_up", "ball_back"):
+    _j = joints(full(P[_k]))
+    P[_k] = reach(reach(P[_k], "N", "ha", tuple((a + b) / 2 for a, b in zip(_j["knN"], _j["anN"]))),
+                  "F", "ha", tuple((a + b) / 2 for a, b in zip(_j["knF"], _j["anF"])))
+P["happy_baby"] = reach(reach(P["happy_baby"], "N", "ha", "anN"), "F", "ha", "anF")
+P["happy_baby_b"] = reach(reach(dict(P["happy_baby"], ln=[152, 178], lf=[150, 176]), "N", "ha", "anN"), "F", "ha", "anF")
+P["lying_quad"] = reach(P["lying_quad"], "N", "ha", "anN")
+P["lying_quad_b"] = reach(dict(P["lying_quad"], ln=[-90, 158]), "N", "ha", "anN")
+# kolana do klatki: dłonie obejmują golenie tuż pod kolanami
+
+
+def _hug(p):
+    j = joints(full(p))
+    for sd in "NF":
+        p = reach(p, sd, "ha", tuple(a + (b - a) * 0.3 for a, b in zip(j["kn" + sd], j["an" + sd])))
+    return p
+
+
+P["knee_hug"] = _hug(P["knee_hug"])
+P["knee_hug_b"] = _hug(dict(P["knee_hug"], t=96))
+P["knee_hug_c"] = _hug(dict(P["knee_hug"], t=98))
+P["candle_b"] = dict(P["candle"], t=16)
+P["boxing_hop"] = dict(P["boxing_guard"], lift=0.06, ln=[-12, -15], lf=[14, -5])
+P["wrist_a"] = {"an": [90, 96], "af": [88, 94]}
+# skłon: przy gąsienicy dłonie na podłodze przed stopami (kolana lekko ugięte),
+# w rozciąganiu dłonie swobodnie na goleniach przy kostkach
+_f = {"t": 22, "h": 14, "ln": [10, -6], "lf": [10, -6]}
+_j = joints(full(_f))
+P["fold"] = reach(reach(_f, "N", "ha", (_j["toN"][0] + 0.24, _j["toN"][1])), "F", "ha", (_j["toF"][0] + 0.24, _j["toF"][1]))
+
+
+def _fold_hold(t):
+    q = {"t": t, "h": t - 8, "ln": [4, -2], "lf": [4, -2]}
+    j = joints(full(q))
+    for sd in "NF":
+        q = reach(q, sd, "ha", tuple(a + (b - a) * 0.8 for a, b in zip(j["kn" + sd], j["an" + sd])))
+    return q
+
+
+P["fold_hold"] = _fold_hold(40)
+P["fold_hold_b"] = _fold_hold(36)
+# siad z leżenia: ręce sięgają do kolan
+P["sit_ups_up"]["an"] = [-80, -84]
+P["sit_ups_up"]["af"] = [-82, -86]
+# dłonie za głową przy pochyleniu: ręce obrócone razem z tułowiem
+_d = P["hinge_hands_head"]["t"] - 180
+P["hinge_hands_head"]["an"] = [150 + _d, -40 + _d]
+P["hinge_hands_head"]["af"] = [146 + _d, -44 + _d]
+# skłon do martwego ciągu / wymachu: biodra cofnięte nad piętami
+for _k in ("hinge", "hinge_hands_head", "reverse_fly_a", "reverse_fly_b"):
+    P[_k]["ln"] = [26, -4]
+    P[_k]["lf"] = [24, -4]
+P["swing_back"]["ln"] = [30, -8]
+P["swing_back"]["lf"] = [28, -8]
+# kraul w opadzie: ręka wyciągnięta w przód w linii tułowia
+P["crawl_a"]["an"] = [118, 122]
+# przysiad bez przeciwwagi rąk: tułów bardziej pochylony
+for _k in ("squat_head", "squat_db"):
+    P[_k]["t"] = 140
+    P[_k]["h"] = 146
+_d = P["squat_head"]["t"] - 180
+P["squat_head"]["an"] = [150 + _d + 30, -40 + _d + 30]
+P["squat_head"]["af"] = [146 + _d + 30, -44 + _d + 30]
+P["pigeon"]["t"] = 170
+P["backbend"]["ln"] = [-10, -14]
+P["backbend"]["lf"] = [-12, -16]
+# krążenia ramion: z tyłu tylko do granicy wyprostu barku
+P["arm_c3"] = {"an": [300, 300], "af": [300, 300]}
+# dipy na podłodze: dłonie zostają w miejscu, łokcie zginają się w tył
+_ju, _jd = joints(full(P["floor_dip_up"])), joints(full(P["floor_dip_down"]))
+for _sd in "NF":
+    _t = (_jd["an" + _sd][0] + _ju["ha" + _sd][0] - _ju["an" + _sd][0], _jd["an" + _sd][1] + _ju["ha" + _sd][1] - _ju["an" + _sd][1])
+    P["floor_dip_down"] = reach(P["floor_dip_down"], _sd, "ha", _t, bend=-1)
+# australijskie podciąganie: dłonie na drążku (w tym samym miejscu względem stóp), łokcie w dół
+_ju, _jd = joints(full(P["inv_row_down"])), joints(full(P["inv_row_up"]))
+for _sd in "NF":
+    _t = (_jd["an" + _sd][0] + _ju["ha" + _sd][0] - _ju["an" + _sd][0], _jd["an" + _sd][1] + _ju["ha" + _sd][1] - _ju["an" + _sd][1])
+    P["inv_row_up"] = reach(P["inv_row_up"], _sd, "ha", _t)
+# deska z ruchem nóg: noga w powietrzu nie wchodzi w podłogę, podpory zostają na ziemi
+P["climber"] = hover(P["climber"], "N", ("haN", "toF"))
+P["cross_climb"] = hover(P["cross_climb"], "N", ("haN", "toF"))
+P["plank_knee"] = hover(P["plank_knee"], "N", ("haN", "toF"))
+P["spider"] = hover(P["spider"], "N", ("haN", "toF"))
+P["two_point"] = raise_leg(P["two_point"], "F", 12)
+P["plank_leg"] = raise_leg(P["plank_leg"], "N", 15)
+P["rev_plank_kick"] = raise_leg(P["rev_plank_kick"], "N", 25)
+P["crab_step"] = hover(P["crab_step"], "N", ("haN", "toF"))
+# deska bokiem na kolanach: uda w linii tułowia, golenie zgięte do tyłu (podpór na przedramieniu i kolanie)
+_sp = dict(P["side_plank"], kb=True, ln=[P["side_plank"]["ln"][0]] * 2, lf=[P["side_plank"]["lf"][0]] * 2)
+P["side_plank_knee"] = clean(solve(_sp, lambda p, v: (p.__setitem__("t", v), p.__setitem__("h", v - 1),
+                                                       p.__setitem__("ln", [-(180 - v)] * 2),
+                                                       p.__setitem__("lf", [180 - v] * 2)), "elN", "knN", 92, 150))
+P["side_plank_knee_b"] = dict(P["side_plank_knee"], t=P["side_plank_knee"]["t"] + 1, h=P["side_plank_knee"]["h"] + 1)
+# pies z głową w górę: ręce proste pod barkami, biodra i uda nad podłogą, grzbiety stóp na podłodze
+P["up_dog"] = clean(solve({"t": 148, "h": 160, "an": [2, 2], "af": [2, 2], "fp": 88}, set_legs, "haN", "anN", -60, -89))
+# nawlekanie igły: kolana zostają na podłodze, ręka podporowa ugina się, druga wsuwa się pod tułowiem
+P["thread"] = plant(P["thread"], P["quad"], anchor="knF", sides="F")
+_j, _jq = joints(full(P["thread"])), joints(full(P["quad"]))
+_fl = _j["knF"][1] + _jq["haF"][1] - _jq["knF"][1]
+P["thread"] = reach(P["thread"], "N", "ha", (_j["neck"][0] - 0.12, _fl), bend=-1)
+# deska z uniesionymi biodrami: dłonie zostają na podłodze
+_t = P["pushup_top"]["t"] + 8
+P["plank_hips"] = clean(solve(dict(P["pushup_top"], t=_t, h=_t + 4), set_legs, "haN", "toN", -30, -89))
+# wykrok biegacza: dłonie na podłodze po obu stronach przedniej stopy
+def _runner(t):
+    """Klęk jednonóż, przednia noga prosta piętą na podłodze, dłonie na podłodze przy biodrach."""
+    q = solve({"t": t, "h": t + 4, "an": [0, 0], "af": [0, 0], "ln": [0, -90], "lf": [60, 60], "fq": [88, -20]},
+              lambda p, v: p.__setitem__("lf", [v, v]), "anF", "knN", 20, 89)
+    j = joints(full(q))
+    for sd in "NF":
+        q = reach(q, sd, "ha", (j["neck"][0] + 0.04, j["knN"][1]))
+    return q
+
+
+P["runner_stretch"] = _runner(118)
+P["runner_stretch_b"] = _runner(110)
+# stanie na jednej nodze / opad: biodra cofnięte nad stopę
+P["sl_rdl"]["lf"] = [22, -6]
+P["crawl_a"]["ln"] = [32, -8]
+P["crawl_a"]["lf"] = [30, -8]
+P["skater_sq"]["lf"] = [72, -34]
+P["skater_sq"]["t"] = 140
+P["skater_sq"]["h"] = 146
+P["sl_calf"]["an"] = [14, 20]
+P["sl_calf"]["t"] = 175
+
 # Ustawienie stóp tam, gdzie nie podano go ręcznie (fp = 0):
 #  - leżenie przodem i klęk (biodra lub golenie na podłodze): stopy wyprostowane, grzbietem do podłogi,
 #  - zwis na drążku: stopy swobodnie opuszczone.
 _hang = {k.rstrip("~") for e in E if e["anim"].get("anchor") == "hands" for k in e["anim"]["k"] if isinstance(k, str)}
 _ground = {k.rstrip("~") for e in E if e["anim"].get("anchor") != "hands" for k in e["anim"]["k"] if isinstance(k, str)}
-for _k, _p in P.items():
-    if _p.get("fp") or _p.get("view") == "front" or _p.get("back"):
+_inline = [k for e in E for k in e["anim"]["k"] if isinstance(k, dict)]
+for _k, _p in list(P.items()) + [(None, k) for k in _inline]:
+    if _p.get("fp") or any(_p.get("fq") or ()) or _p.get("view") == "front" or _p.get("back"):
         continue
     if _k in _hang and _k not in _ground:
         _p["fp"] = 35
@@ -1494,9 +1705,11 @@ for _k, _p in P.items():
     _j = grounded(_p)
     _h = lambda n: -_j[n][1]
     lying = 60 <= _p.get("t", 180) <= 145 and _h("hip") < 0.16  # na brzuchu
-    kneeling = max(_h("knN"), _h("knF")) < 0.155 and max(_h("anN"), _h("anF")) < 0.16  # golenie na podłodze
-    if lying or kneeling:
-        _p["fp"] = 70
+    shin = [_h("kn" + s) < 0.155 and _h("an" + s) < 0.16 for s in "NF"]  # goleń na podłodze
+    if lying or all(shin):
+        _p["fp"] = 88  # grzbiet stóp płasko na podłodze
+    elif any(shin):
+        _p["fq"] = [88 if f else 0 for f in shin]  # tylko stopa za goleniami leżącymi na podłodze
 
 # typ ćwiczenia w Stravie (serie w treningu siłowym → mapa mięśni Stravy)
 for e in E:
@@ -1520,7 +1733,7 @@ missing = [e["id"] for e in E if e["id"] not in STRAVA]
 assert not missing, f"brak typu Stravy: {missing}"
 
 # pozy bez wartości domyślnych, żeby JSON był krótszy
-DEF = {"t": 180, "fp": 0, "lift": 0, "x": 0, "view": "side", "back": False}
+DEF = {"t": 180, "fp": 0, "fq": [0, 0], "lift": 0, "x": 0, "view": "side", "back": False, "kb": False, "fold": 0}
 
 
 def slim(p):
