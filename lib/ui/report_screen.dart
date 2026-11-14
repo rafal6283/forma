@@ -4,6 +4,7 @@ import '../core/coach.dart';
 import '../core/report.dart';
 import '../core/store.dart';
 import 'fit_test_screen.dart';
+import 'insights.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -117,6 +118,7 @@ class _ReportScreenState extends State<ReportScreen> {
             ]),
           ),
         ),
+        const BalanceCard(),
         const SectionTitle('Miesiąc'),
         Card(
           child: Padding(

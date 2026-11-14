@@ -6,6 +6,7 @@ import '../core/store.dart';
 import 'figure_view.dart';
 import 'muscle_map.dart';
 import 'stats_screen.dart';
+import 'insights.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -283,6 +284,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
             ),
         ],
         const SectionTitle('Twoje dane'),
+        StrengthCard(e),
         Text(st.count == 0
             ? 'Jeszcze nie wykonywane.'
             : 'Wykonane: ${st.count}×${st.last != null ? ', ostatnio ${fmtDate(st.last!)}' : ''}.'),

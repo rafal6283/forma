@@ -12,6 +12,7 @@ import 'checkin_sheet.dart';
 import 'custom_screen.dart';
 import 'family_screen.dart';
 import 'fatigue_screen.dart';
+import 'insights.dart';
 import 'hrv_screen.dart';
 import 'ppg_screen.dart';
 import 'preview_screen.dart';
@@ -504,6 +505,13 @@ class _Extras extends StatelessWidget {
     final testDue = lastTest == null ? s.sessions.length >= 1 : DateTime.now().difference(lastTest.at).inDays >= 28;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       for (final c in active) ChallengeTile(c: c, progress: s.challenges[c.id], compact: true),
+      OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+        onPressed: () => showCommandSheet(context),
+        icon: const Icon(Icons.chat_bubble_outline),
+        label: const Text('Powiedz, jaki trening chcesz'),
+      ),
+      const SizedBox(height: 8),
       FilledButton.tonalIcon(
         style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
         onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PreviewScreen(plan: coach().quick7()))),
@@ -547,6 +555,7 @@ class _Extras extends StatelessWidget {
         ),
       ]),
       const SizedBox(height: 8),
+      const EnergyCard(),
       const FatigueCard(),
       Card(
         child: ListTile(

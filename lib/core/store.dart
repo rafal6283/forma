@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'day_factors.dart';
 import 'models.dart';
 import 'progress.dart';
 
@@ -47,6 +48,7 @@ class Store extends ChangeNotifier {
   final List<ExternalActivity> external = [];
   final Map<String, ChallengeProgress> challenges = {};
   HealthSnapshot health = HealthSnapshot.empty;
+  DayFactors dayFactors = DayFactors.empty;
 
   // --- osoby
   final List<UserRef> users = [];
@@ -107,6 +109,7 @@ class Store extends ChangeNotifier {
     tests.clear();
     customs.clear();
     external.clear();
+    dayFactors = DayFactors.empty;
     challenges.clear();
     health = HealthSnapshot.empty;
   }
@@ -131,6 +134,7 @@ class Store extends ChangeNotifier {
         'challenges': challenges.map((k, v) => MapEntry(k, v.toJson())),
         'customs': customs.map((c) => c.toJson()).toList(),
         'external': external.map((e) => e.toJson()).toList(),
+        'dayFactors': dayFactors.toJson(),
       });
 
   void _applyUser(String raw) {
@@ -172,6 +176,7 @@ class Store extends ChangeNotifier {
       ..clear()
       ..addAll(list('external', ExternalActivity.fromJson))
       ..sort((a, b) => a.start.compareTo(b.start));
+    dayFactors = DayFactors.fromJson((j['dayFactors'] as Map?)?.cast<String, Object?>());
   }
 
   /// Dopisuje aktywności z zewnątrz (bez duplikatów); zwraca liczbę nowych.

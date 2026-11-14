@@ -226,7 +226,10 @@ class Profile {
   bool stravaAuto; // wysyłaj po treningu
   bool stravaMatch; // uzupełnij aktywność z zegarka zamiast tworzyć nową
   bool stravaSets; // trening siłowy jako nowa aktywność z seriami (mapa mięśni w Stravie)
-  bool reminders; // przypomnienie o treningu (i o zagrożonej serii)
+  bool reminders;
+
+  /// Początek bloku treningowego (null = od pierwszego treningu).
+  DateTime? blockStart; // przypomnienie o treningu (i o zagrożonej serii)
   int reminderHour;
   bool warmup; // rozgrzewka dobrana do partii
   bool cooldown; // rozciąganie na koniec
@@ -260,6 +263,7 @@ class Profile {
     this.warmup = true,
     this.cooldown = true,
     this.reminders = false,
+    this.blockStart,
     this.reminderHour = 18,
     Map<String, DateTime>? limitUntil,
   })  : equipment = equipment ?? {'chair'},
@@ -302,6 +306,7 @@ class Profile {
         'stravaSets': stravaSets,
         'warmup': warmup,
         'reminders': reminders,
+        if (blockStart != null) 'blockStart': blockStart!.toIso8601String(),
         'reminderHour': reminderHour,
         'cooldown': cooldown,
         'limitUntil': limitUntil.map((k, v) => MapEntry(k, v.toIso8601String())),
@@ -334,6 +339,7 @@ class Profile {
         stravaSets: j['stravaSets'] != false,
         warmup: j['warmup'] != false,
         reminders: j['reminders'] == true,
+        blockStart: DateTime.tryParse(j['blockStart'] as String? ?? ''),
         reminderHour: (j['reminderHour'] as num?)?.toInt() ?? 18,
         cooldown: j['cooldown'] != false,
         limitUntil: {

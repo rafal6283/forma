@@ -371,6 +371,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: app.technique,
               onChanged: (v) => setState(() => app.set(technique: v)),
             ),
+            SwitchListTile(
+              title: const Text('Tempo powtórzeń'),
+              subtitle: Text('W seriach: 3 s w dół, 1 s pauzy, 1 s w górę — sygnały dźwiękowe i liczenie powtórzeń',
+                  style: TextStyle(color: C.muted)),
+              value: app.tempo,
+              onChanged: (v) => setState(() => app.set(tempo: v)),
+            ),
           ]),
         ),
         const SectionTitle('Strava'),

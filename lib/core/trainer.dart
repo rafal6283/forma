@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'day_factors.dart';
 import 'models.dart';
 
 /// Czynnik wpływający na gotowość — do pokazania użytkownikowi.
@@ -38,6 +39,7 @@ class Trainer {
   final HealthSnapshot health;
   final List<Exercise> library;
   final List<ExternalActivity> external;
+  final DayFactors factors;
   final DateTime now;
 
   Trainer({
@@ -52,6 +54,7 @@ class Trainer {
     this.favorites = const {},
     this.health = HealthSnapshot.empty,
     this.external = const [],
+    this.factors = DayFactors.empty,
     DateTime? now,
   }) : now = now ?? DateTime.now();
 
@@ -70,7 +73,21 @@ class Trainer {
     var data = false;
 
     // sen
-    final sleep = health.sleepHours ?? _today?.sleepHours;
+    // sen: zegarek (Health Connect) → Rytm Snu → samoocena
+    final rs = factors.sleep(now);
+    final rsMin = (rs?['sleep_min'] as num?)?.toDouble();
+    final sleep = health.sleepHours ?? (rsMin != null ? rsMin / 60 : null) ?? _today?.sleepHours;
+    final rsScore = (rs?['score'] as num?)?.round();
+    if (rs != null && health.sleepHours == null && rsScore != null) {
+      // jakość nocy z Rytmu Snu (wynik 0–100) i wybudzenia
+      final q = ((rsScore - 70) / 5).clamp(-6, 4).round();
+      final aw = ((rs['awakenings'] as num?) ?? 0).toInt();
+      final e = q - (aw >= 4 ? 2 : 0);
+      if (e != 0) {
+        score += e;
+        f.add(Factor('Jakość snu', '$rsScore/100${aw > 0 ? ', wybudzenia: $aw' : ''}', e));
+      }
+    }
     if (sleep != null && sleep > 0) {
       data = true;
       final e = ((sleep - 7) * 6).clamp(-20, 10).round();
@@ -97,9 +114,10 @@ class Trainer {
     // HRV (ln RMSSD) względem ostatnich tygodni
     final hrvVals = [
       ...health.hrvHistory,
+      ...factors.polarHrvHistory(now),
       ...hrv.where((h) => now.difference(h.at).inDays < 30).map((h) => h.rmssd),
     ].where((v) => v > 0).toList();
-    final hrvToday = todayHrv.isNotEmpty ? todayHrv.last.rmssd : health.hrv;
+    final hrvToday = todayHrv.isNotEmpty ? todayHrv.last.rmssd : (factors.polarHrv(now) ?? health.hrv);
     if (hrvToday != null && hrvToday > 0 && hrvVals.length >= 5) {
       data = true;
       final lns = hrvVals.map(math.log).toList();
@@ -109,6 +127,23 @@ class Trainer {
       final e = (z * 6).clamp(-15, 10).round();
       score += e;
       f.add(Factor('HRV', '${hrvToday.round()} ms', e));
+    }
+
+    // wczorajsze posiłki z Dziennika talerza: alkohol, późna obfita kolacja
+    final meals = factors.meals(now.subtract(const Duration(days: 1)));
+    if (meals != null) {
+      final alc = ((meals['alcohol'] as num?) ?? 0).toInt();
+      if (alc > 0) {
+        final e = -math.min(10, 3 + alc * 2);
+        score += e;
+        f.add(Factor('Alkohol wczoraj', '$alc ${alc == 1 ? 'posiłek' : 'posiłki'}', e));
+      }
+      final last = (meals['last_meal_h'] as num?)?.toDouble();
+      final big = ((meals['big_meal_kcal'] as num?) ?? 0).toInt();
+      if (last != null && last >= 21.5 && big >= 600) {
+        score -= 2;
+        f.add(Factor('Późna kolacja', '${last.floor()}:${((last % 1) * 60).round().toString().padLeft(2, '0')}', -2));
+      }
     }
 
     // samopoczucie i zakwasy
@@ -230,6 +265,58 @@ class Trainer {
       wsum += w;
     });
     return wsum == 0 ? 0 : sum / wsum;
+  }
+
+  /// Tydzień bloku 1–5 (5 = lżejszy). Liczony od pierwszego treningu; lżejszy tydzień tylko,
+  /// gdy w ostatnich 4 tygodniach było co najmniej 6 treningów.
+  int blockWeek() {
+    if (sessions.isEmpty) return 1;
+    final first = sessions.map((s) => s.start).reduce((a, b) => a.isBefore(b) ? a : b);
+    final start = profile.blockStart ?? first;
+    final weeks = now.difference(DateTime(start.year, start.month, start.day)).inDays ~/ 7;
+    final w = weeks % 5 + 1;
+    if (w == 5 && sessions.where((s) => now.difference(s.start).inDays < 28).length < 6) return 4;
+    return w;
+  }
+
+  static bool _isPull(Exercise e) =>
+      e.groups.contains('plecy') || (e.muscles['lats'] ?? 0) >= 0.8 || (e.muscles['upper_back'] ?? 0) >= 0.8;
+  static bool _isPush(Exercise e) =>
+      !_isPull(e) && ((e.muscles['chest'] ?? 0) >= 0.8 || (e.muscles['triceps'] ?? 0) >= 0.8 || (e.muscles['shoulders'] ?? 0) >= 0.8);
+  static bool _isPosteriorLeg(Exercise e) => (e.muscles['hamstrings'] ?? 0) + (e.muscles['glutes'] ?? 0) >= 1.2;
+  static bool _isQuad(Exercise e) => (e.muscles['quads'] ?? 0) >= 0.8;
+
+  /// Bilans partii z ostatnich 4 tygodni (serie): pchanie/ciągnięcie, przód/tył uda.
+  Balance balance({int days = 28}) {
+    final byId = {for (final e in library) e.id: e};
+    var push = 0, pull = 0, quad = 0, post = 0;
+    for (final s in sessions) {
+      if (now.difference(s.start).inDays >= days) continue;
+      for (final d in s.done) {
+        final e = byId[d.exId];
+        if (e == null || d.side == 2 || e.type == ExType.stretch || e.type == ExType.mobility) continue;
+        if (_isPull(e)) pull++;
+        if (_isPush(e)) push++;
+        if (_isQuad(e)) quad++;
+        if (_isPosteriorLeg(e)) post++;
+      }
+    }
+    return Balance(push, pull, quad, post);
+  }
+
+  /// Szacowany maksymalny ciężar na jedno powtórzenie (wzór Epleya) z serii z ciężarem: (dzień, kg).
+  List<(DateTime, double)> oneRepMax(String exId) {
+    final out = <(DateTime, double)>[];
+    for (final s in sessions) {
+      double? best;
+      for (final d in s.done) {
+        if (d.exId != exId || d.weight == null || d.weight! <= 0 || d.reps == null || d.reps! <= 0) continue;
+        final v = d.weight! * (1 + math.min(d.reps!, 15) / 30);
+        if (best == null || v > best) best = v;
+      }
+      if (best != null) out.add((s.start, best));
+    }
+    return out;
   }
 
   /// Sugerowany ciężar (kg) na podstawie ostatnich serii: wszystkie powtórzenia zrobione → +1–2 kg.
@@ -444,6 +531,11 @@ class Trainer {
     bool? warmup,
     bool? cooldown,
   }) {
+    // blok 5-tygodniowy: 4 tygodnie budowania, piąty lżejszy (tylko przy regularnych treningach)
+    final block = blockWeek();
+    final deload = block == 5 && kind != WorkoutKind.mobility && kind != WorkoutKind.stretch;
+    if (deload) load = math.min(load, 0.85);
+    final bal = balance();
     final doWarm = warmup ?? profile.warmup;
     final doCool = cooldown ?? profile.cooldown;
     final rnd = math.Random(seed == 0 ? now.millisecondsSinceEpoch : seed);
@@ -489,6 +581,10 @@ class Trainer {
       final last = exLast[e.id];
       if (last != null && now.difference(last).inHours < 48) s -= 1.2;
       if (favorites.contains(e.id)) s += 2;
+      // bilans partii: dokładamy to, czego ostatnio było mniej
+      if (bal.pullLow && _isPull(e)) s += 1.5;
+      if (bal.pushLow && _isPush(e)) s += 1.0;
+      if (bal.backLegLow && _isPosteriorLeg(e)) s += 1.2;
       if (e.type != ExType.stretch && e.type != ExType.mobility && e.type != ExType.warmup) {
         s -= exerciseFatigue(e, mFat) * 4; // zmęczone mięśnie odpoczywają
       }
@@ -853,6 +949,11 @@ class Trainer {
         'Zmęczone mięśnie: ${(mFat.entries.where((e) => e.value >= 0.6).toList()..sort((a, b) => b.value.compareTo(a.value))).take(3).map((e) => (muscleLabel[e.key] ?? e.key).toLowerCase()).join(', ')} — dziś je oszczędzam.',
       if (fmt == WorkoutFormat.dropSets && !calm)
         'Drop-set: seria do zmęczenia, 10 s przerwy i od razu lżej — ${profile.equipment.contains('db') ? 'odłóż cięższe hantle albo zmniejsz obciążenie o ok. 30%' : 'łatwiejsza wersja ćwiczenia'}.',
+      if (deload)
+        'Tydzień lżejszy (5/5 bloku): mniej powtórzeń i spokojniejsze tempo — mięśnie odbudowują się przed kolejnym blokiem.'
+      else if (!calm && block >= 1 && sessions.length >= 6)
+        'Blok treningowy: tydzień $block/4 — z tygodnia na tydzień trochę więcej.',
+      if (!calm && bal.note != null) bal.note!,
       if (!doWarm && !calm) 'Bez rozgrzewki — na Twoje życzenie. Zacznij spokojniej.',
     ];
     return WorkoutPlan(
@@ -1202,4 +1303,22 @@ class Trainer {
     }
     return math.sqrt(sum / (clean.length - 1));
   }
+}
+
+/// Bilans partii: ile serii pchania, ciągnięcia, przodu i tyłu uda.
+class Balance {
+  final int push, pull, quad, posterior;
+  const Balance(this.push, this.pull, this.quad, this.posterior);
+
+  bool get pullLow => push >= 8 && pull < push * 0.8;
+  bool get pushLow => pull >= 8 && push < pull * 0.6;
+  bool get backLegLow => quad >= 8 && posterior < quad * 0.6;
+
+  String? get note => pullLow
+      ? 'Bilans: ostatnio mniej ciągnięcia ($pull serii) niż pchania ($push) — dziś więcej pleców dla zdrowych barków.'
+      : backLegLow
+          ? 'Bilans: tył uda i pośladki ($posterior serii) w tyle za przodem uda ($quad) — dziś więcej mostków i skłonów.'
+          : pushLow
+              ? 'Bilans: mniej pchania ($push serii) niż ciągnięcia ($pull) — dziś więcej pompek.'
+              : null;
 }

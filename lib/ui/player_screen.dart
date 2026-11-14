@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../core/app_settings.dart';
 import '../core/coach.dart';
 import '../core/hr.dart';
 import '../core/library.dart';
@@ -276,6 +278,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (b != null && profile.hrControl) _hrControl(b, sec);
     }
     if (repsStep) {
+      _tempoTick();
       setState(() {});
       return;
     }
@@ -303,6 +306,53 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } else {
       setState(() {});
     }
+  }
+
+  // ------------------------------------------------------------ tempo powtórzeń
+
+  static const _tempo = [3000, 1000, 1000]; // w dół, pauza, w górę (ms)
+  int _tempoKey = -1;
+  int _tempoStep = -1;
+
+  bool get tempoOn {
+    if (!repsStep || !AppSettings.instance.tempo) return false;
+    final e = lib[step.item!.exId];
+    return e != null && !e.isStatic && e.type == ExType.strength && step.item!.phase == Phase.main;
+  }
+
+  /// Faza tempa (0 w dół, 1 pauza, 2 w górę) i numer powtórzenia.
+  (int, int) get tempoPhase {
+    final cyc = _tempo.reduce((a, b) => a + b);
+    final t = stepElapsedMs;
+    final inCyc = t % cyc;
+    final ph = inCyc < _tempo[0] ? 0 : (inCyc < _tempo[0] + _tempo[1] ? 1 : 2);
+    return (ph, t ~/ cyc);
+  }
+
+  void _tempoTick() {
+    if (!tempoOn) return;
+    if (_tempoStep != idx) {
+      _tempoStep = idx;
+      _tempoKey = -1;
+      repCount = 0;
+    }
+    final (ph, rep) = tempoPhase;
+    final key = rep * 3 + ph;
+    if (key == _tempoKey) return;
+    _tempoKey = key;
+    final target = step.item!.reps!;
+    if (ph == 0) {
+      repCount = math.min(rep, target);
+      if (rep >= target) {
+        if (rep == target) {
+          Fx.instance.play(Sfx.set);
+          voice.say('Seria');
+        }
+        return;
+      }
+    }
+    if (rep >= target) return;
+    Fx.instance.play(ph == 2 ? Sfx.go : Sfx.tick);
   }
 
   // ------------------------------------------------------------ ciężar i kamera
@@ -761,7 +811,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ],
               ]);
 
-    final clock = repsStep
+    final tempoRow = tempoOn
+        ? Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              for (final (i, label) in const [(0, '↓ 3 s'), (1, '‖ 1 s'), (2, '↑ 1 s')])
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: tempoPhase.$1 == i ? C.accent : C.surface2,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(label,
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, color: tempoPhase.$1 == i ? Colors.white : C.muted, fontSize: 12)),
+                ),
+            ]),
+          )
+        : const SizedBox.shrink();
+    final clock0 = repsStep
         ? _RepsCounter(
             count: repCount,
             target: it!.reps!,
@@ -780,6 +849,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             width: 10 * big,
             child: Text(fmtDur(remaining), style: TextStyle(fontSize: 34 * big, fontWeight: FontWeight.w800)),
           );
+    final clock = tempoOn ? Column(mainAxisSize: MainAxisSize.min, children: [clock0, tempoRow]) : clock0;
 
     final skip = switch (_phaseNow) {
       Phase.warmup when step.kind != _Kind.recover =>
