@@ -128,7 +128,15 @@ def check():
             lim = FRONT if p.get("view") == "front" else SIDE
             if p.get("view") == "front" and abs(rel(p["t"] - 180)) > 30:
                 continue  # skłony w widoku z przodu: kąty w rzucie nic nie mówią o stawach
+            ab = p.get("ab") or [0, 0, 0, 0]
+            kr = p.get("kr") or [0, 0]
+            # kończyna odwiedzona daleko w bok: kąt w rzucie z boku nic nie mówi o stawie
+            skip = {n + sd for i, sd in enumerate("NF") if abs(ab[i]) >= 25 for n in ("bark", "łokieć")}
+            skip |= {n + sd for i, sd in enumerate("NF") if abs(ab[2 + i]) >= 25 or abs(kr[i]) >= 25
+                     for n in ("biodro", "kolano")}
             for name, v in angles(p).items():
+                if name in skip:
+                    continue
                 lo, hi = lim[name.rstrip("NF")]
                 if e["id"] not in EXEMPT and not ok(name.rstrip("NF"), v, lim):
                     errors.append(f"{e['id']}: {k} — {name} {v:.0f}° poza zakresem {lo}…{hi}")
@@ -155,8 +163,10 @@ def check():
                     a, b = poses[i], poses[i2]
                     if i == i2 or a.get("lift", 0) or b.get("lift", 0) or a.get("view") != b.get("view"):
                         continue
-                    for limb, ang, tip in (("rękaN", "an", "haN"), ("rękaF", "af", "haF"), ("nogaN", "ln", "toN"),
-                                           ("nogaF", "lf", "toF")):
+                    for li, (limb, ang, tip) in enumerate((("rękaN", "an", "haN"), ("rękaF", "af", "haF"),
+                                                           ("nogaN", "ln", "toN"), ("nogaF", "lf", "toF"))):
+                        if (a.get("ab") or [0] * 4)[li] != (b.get("ab") or [0] * 4)[li]:
+                            continue
                         ya, yb = gj[i][tip][1] + thickness(tip), gj[i2][tip][1] + thickness(tip)
                         if ya > -0.02 and yb < -0.06 and a[ang] == b[ang] and a["t"] == b["t"]:
                             warns.append(f"{e['id']}: {keys[i2]} — {limb} unosi się nad podłogę ({-yb:.2f} m), "

@@ -1698,6 +1698,189 @@ P["skater_sq"]["h"] = 146
 P["sl_calf"]["an"] = [14, 20]
 P["sl_calf"]["t"] = 175
 
+# ------------------------------------------------------------ ruch poza płaszczyzną (v1.9.1)
+# Krążenia, łopatki, skręty i odwodzenie: parametry ab / rot / sp / se / kr (patrz tool/figure.py).
+# flow = ruch ciągły bez zatrzymań (krzywa przez wszystkie klatki), cam = zalecany obrót kamery.
+_BY = {e["id"]: e for e in E}
+
+
+def anim(id, keys, s=None, flow=False, cam=None):
+    a = _BY[id]["anim"]
+    a["k"] = list(keys)
+    if s is not None:
+        a["s"] = s
+    if flow:
+        a["flow"] = True
+    if cam is not None:
+        a["cam"] = cam
+
+
+def _circle(n=8):
+    return [math.radians(360 * i / n) for i in range(n)]
+
+
+def _feet_fixed(p, base):
+    """Widok z przodu: kąty nóg tak, by kostki zostały tam, gdzie w pozie base."""
+    jb = joints(full(base))
+    q = dict(p)
+    for sd, key in (("N", "ln"), ("F", "lf")):
+        for _ in range(30):
+            j = joints(full(q))
+            err = j["an" + sd][0] - jb["an" + sd][0]
+            if abs(err) < 1e-4:
+                break
+            a = q[key][0]
+            q2 = dict(q, **{key: [a + 0.5, a + 0.5]})
+            d = (joints(full(q2))["an" + sd][0] - j["an" + sd][0]) / 0.5
+            a -= err / d
+            q[key] = [round(a, 2), round(a, 2)]
+    return q
+
+
+# krążenia ramion: pełne koło w przód; z tyłu ręka przechodzi bokiem (bark nie ma takiego wyprostu)
+_AC = [(0, 0), (60, 0), (120, 0), (180, 0), (210, 30), (-100, 60), (-45, 45), (-15, 18)]
+for _i, (_a, _b) in enumerate(_AC):
+    P[f"armc{_i}"] = {"an": [_a, _a], "af": [_a, _a], "ab": [_b, _b, 0, 0]}
+anim("arm_circles", [f"armc{_i}" for _i in range(8)], 2.4, flow=True, cam=-0.6)
+
+# małe krążenia: ręce w bok, dłonie zataczają małe koła (góra–przód–dół–tył)
+for _i, _th in enumerate(_circle()):
+    _a = round(90 + 11 * math.sin(_th), 1)
+    _f = round(13 * math.cos(_th), 1)
+    P[f"sac{_i}"] = dict(FR, an=[_a, _a], af=[_a, _a], ab=[_f, _f, 0, 0], ln=[6, 6], lf=[6, 6])
+anim("small_arm_circles", [f"sac{_i}" for _i in range(8)], 1.2, flow=True, cam=-0.55)
+
+# krążenia bioder: dłonie na biodrach, stopy w miejscu, miednica zatacza poziome koło (bok–przód–bok–tył)
+_hb = dict(FR, an=[38, -50], af=[38, -50], ln=[10, 10], lf=[10, 10])
+for _i, _th in enumerate(_circle()):
+    _s, _c = math.sin(_th), math.cos(_th)
+    _p = dict(_hb, x=round(0.11 * _s, 3), t=round(180 + 7 * _s, 1), h=round(180 + 2 * _s, 1),
+              fold=round(-12 * _c, 1), ab=[0, 0, round(-10 * _c, 1), round(-10 * _c, 1)])
+    P[f"hipc{_i}"] = _feet_fixed(_p, _hb)
+anim("hip_circles", [f"hipc{_i}" for _i in range(8)], 3.2, flow=True, cam=-0.6)
+
+# krążenia kolan: dłonie na kolanach, stopy razem w miejscu, kolana zataczają koło (przód–bok–tył–bok)
+_kb = dict(P["knee_circ_a"])
+_jk = joints(full(_kb))
+for _i, _th in enumerate(_circle()):
+    _s, _c = math.sin(_th), math.cos(_th)
+    _p = dict(_kb, kr=[round(14 * _s, 1), round(-14 * _s, 1)])
+    _dy = -0.035 * _c  # kolana do przodu = biodra niżej (kostka wyżej względem bioder)
+    for _sd in "NF":
+        _p = reach(_p, _sd, "an", (_jk["an" + _sd][0], _jk["an" + _sd][1] + _dy))
+    _p = reach(reach(_p, "N", "ha", "knN"), "F", "ha", "knF")
+    P[f"kneec{_i}"] = _p
+anim("knee_circles", [f"kneec{_i}" for _i in range(8)], 2.4, flow=True, cam=-0.8)
+
+# krążenia barków w tył: przód → góra → tył → dół; ręce luźno wzdłuż ciała
+for _i, _th in enumerate(_circle()):
+    P[f"shroll{_i}"] = {"an": [3, 6], "af": [-3, 0], "sp": round(0.035 * math.cos(_th), 3),
+                        "se": round(0.04 * math.sin(_th), 3)}
+anim("shoulder_rolls", [f"shroll{_i}" for _i in range(8)], 2.2, flow=True, cam=-0.25)
+
+# pompki łopatkowe: ręce proste, ruch tylko w łopatkach — klatka opada między barki i wypycha się w górę
+P["scap_pro"] = clean(solve({"an": [0, 0], "af": [0, 0], "sp": 0.04, "_dh": 5}, set_body, "haN", "toN", 92, 130))
+P["scap_ret"] = clean(solve({"an": [0, 0], "af": [0, 0], "sp": -0.05, "_dh": 2}, set_body, "haN", "toN", 92, 130))
+anim("scap_pushup", ["scap_pro", "scap_ret"], 2.0, cam=-0.55)
+
+# ściąganie łopatek: łokcie w tył, łopatki do siebie; potem barki w przód
+P["scap_open"] = {"an": [22, 100], "af": [20, 98], "sp": 0.025}
+P["scap_squeeze"] = {"an": [-22, 82], "af": [-24, 80], "sp": -0.045}
+anim("scap_squeeze", ["scap_open", "scap_squeeze"], 2.4, cam=-0.7)
+
+# ściąganie łopatek w zwisie: z barków przy uszach ściągnięcie w dół, ręce cały czas proste
+P["hang_shrug"] = dict(P["hang"], se=0.045)
+P["hang_dep"] = dict(P["hang"], se=-0.035, h=176)
+anim("scap_pulls", ["hang_shrug", "hang_dep"], 2.0)
+
+# wzruszanie barkami: barki do uszu
+P["db_shrug_up"] = {"an": [3, 3], "af": [1, 1], "se": 0.055}
+anim("db_shrug", ["stand", "db_shrug_up"], 1.8, cam=-0.6)
+
+# rozciąganie gumy: proste ręce przed sobą na wysokości barków → na boki, łopatki ściągnięte
+P["pull_apart_in"] = dict(FR, an=[90, 90], af=[90, 90], ab=[78, 78, 0, 0], ln=[8, 8], lf=[8, 8], sp=0.02)
+P["pull_apart_out"] = dict(FR, an=[92, 92], af=[92, 92], ab=[4, 4, 0, 0], ln=[8, 8], lf=[8, 8], sp=-0.03)
+anim("band_pull_apart", ["pull_apart_in", "pull_apart_out"], 2.0, cam=-0.85)
+
+# leżenie przodem: ręce nad podłogą zataczają łuk w płaszczyźnie podłogi (wzdłuż bioder → w bok → nad głowę)
+def _prone_arms(t, h, ab, sp=-0.035):
+    a = t - 180  # ręka wzdłuż tułowia, w stronę stóp
+    return {"t": t, "h": h, "ln": [-90, -90], "lf": [-90, -90], "an": [a, a], "af": [a, a],
+            "ab": [ab, ab, 0, 0], "sp": sp, "fp": 88}
+
+
+P["angel_down"] = _prone_arms(95, 98, 4)
+P["angel_t"] = _prone_arms(95, 98, 90)
+P["angel_up"] = _prone_arms(95, 99, 176)
+anim("reverse_angels", ["angel_down", "angel_t", "angel_up", "angel_t"], 3.6, flow=True, cam=-0.8)
+P["prone_t"] = _prone_arms(91, 92, 88, 0.0)
+P["prone_t_up"] = _prone_arms(96, 100, 86, -0.05)
+anim("prone_t", ["prone_t", "prone_t_up"], 2.4, cam=-0.8)
+P["prone_y0"] = _prone_arms(91, 92, 142, 0.0)
+P["y_raise"] = _prone_arms(96, 100, 140, -0.05)
+anim("prone_y", ["prone_y0", "y_raise"], 2.4, cam=-0.8)
+_BY["ytw_raises"]["anim"]["k"] = ["prone_y0", "y_raise", "prone_t", "prone_t_up", "prone", "prone_w"]
+_BY["ytw_raises"]["anim"]["cam"] = -0.7
+
+# odwrotne rozpiętki: w opadzie ręce z dołu na boki
+P["reverse_fly_a"] = dict(P["reverse_fly_a"], an=[4, 12], af=[2, 10], ab=[6, 6, 0, 0])
+P["reverse_fly_b"] = dict(P["reverse_fly_a"], an=[4, 12], af=[2, 10], ab=[78, 78, 0, 0], sp=-0.035)
+anim("db_reverse_fly", ["reverse_fly_a", "reverse_fly_b"], 2.4, cam=-0.65)
+
+# rosyjski skręt: dłonie razem przed sobą, tułów skręca się na boki
+P["vsit_a"] = dict(P["vsit_a"], an=[48, 84], af=[46, 82], rot=55)
+P["vsit_b"] = dict(P["vsit_a"], rot=-55)
+for _id in ("russian_twist", "kb_russian_twist"):
+    anim(_id, ["vsit_a", "vsit_b"], cam=-0.55)
+
+# skręty tułowia w staniu: ręce w bok, biodra przodem, barki skręcają się
+P["twist_a"] = dict(FR, an=[88, 100], af=[88, 100], ln=[10, 10], lf=[10, 10], rot=55)
+P["twist_b"] = dict(P["twist_a"], rot=-55)
+anim("torso_twist", ["twist_a", "twist_b"], cam=-0.3)
+
+# rowerek: łokieć do przeciwnego kolana — skręt barków
+P["bike"] = dict(P["bike"], rot=-38)
+
+# skręty bioder w leżeniu: kolana razem opadają na bok, barki na podłodze
+P["lumbar_side"] = dict(P["bridge_down"], kr=[58, -58])
+anim("lumbar_rotation", ["bridge_down", "lumbar_side", "bridge_down", "lumbar_side~"], cam=-0.55)
+
+# odwodzenie nogi w klęku: zgięta noga unosi się w bok
+P["hydrant"] = dict(P["quad"], ab=[0, 0, 58, 0])
+anim("fire_hydrant", ["quad", "hydrant"], cam=-0.7)
+
+# pajacyki w desce: nogi rozsuwają się na boki
+P["plank_jack_out"] = dict(P["pushup_top"], ab=[0, 0, 13, 13])
+anim("plank_jacks", ["pushup_top", "plank_jack_out"], cam=-0.6)
+
+# ciosy: bark idzie za ręką
+P["boxing_punch"] = dict(P["boxing_punch"], rot=24)
+# kolano do łokcia i wspinaczka skośna: do przeciwnego łokcia
+P["knee_elbow"] = dict(P["knee_elbow"], rot=-34)
+P["cross_climb"] = dict(P["cross_climb"], ab=[0, 0, -22, 0])
+# dotknięcie barku: dłoń do przeciwnego barku (przez środek ciała)
+for _k in ("tap", "bear_tap"):
+    _t = P[_k]["t"] - 90  # ramię w stronę podłogi (przód ciała), przedramię zgięte do barku
+    P[_k] = dict(P[_k], an=[round(_t, 1), round(_t + 165, 1)], ab=[-42, 0, 0, 0])
+# otwieranie klatki: ręka do sufitu, klatka i głowa obracają się za nią
+for _k, _tw in (("t_rot", 65), ("thoracic_open", 60), ("wgs", 55), ("thread", 40)):
+    P[_k] = dict(P[_k], tw=_tw)
+for _id in ("t_pushup", "thoracic_open", "worlds_greatest", "thread_needle"):
+    _BY[_id]["anim"]["cam"] = -0.6
+# krążenia nogą w leżeniu: prosta noga zatacza koło (w bok, w dół, do środka, w górę)
+for _i, _th in enumerate(_circle()):
+    _a = round(-152 - 20 * math.cos(_th), 1)
+    P[f"legc{_i}"] = dict(P["circle_a"], ln=[_a, _a], ab=[0, 0, round(18 * math.sin(_th), 1), 0])
+anim("leg_circles", [f"legc{_i}" for _i in range(8)], 3.2, flow=True, cam=-0.65)
+# wykrok skrzyżny: tylna noga przechodzi za przednią (za płaszczyznę ciała)
+P["curtsy_s"] = solve(dict(P["lunge_down"], an=[22, 125], af=[20, 123], ab=[0, 0, -22, 0], fq=[70, 0], lf=[92, -30]),
+                      lambda p, v: p.__setitem__("ln", [v, v - 62]), "knN", "anF", 10, -60)
+anim("curtsy_lunge", ["stand_hands_chest", "curtsy_s", "stand_hands_chest", "curtsy_s~"], cam=-0.9)
+P["stand_hands_chest"] = {"an": [22, 125], "af": [20, 123]}
+for _id in ("shoulder_taps", "pushup_tap", "bear_shoulder_tap", "cross_climber", "bicycle", "knee_to_elbow", "shadow_boxing"):
+    _BY[_id]["anim"]["cam"] = -0.55
+
+
 # Ustawienie stóp tam, gdzie nie podano go ręcznie (fp = 0):
 #  - leżenie przodem i klęk (biodra lub golenie na podłodze): stopy wyprostowane, grzbietem do podłogi,
 #  - zwis na drążku: stopy swobodnie opuszczone.
@@ -1741,7 +1924,8 @@ missing = [e["id"] for e in E if e["id"] not in STRAVA]
 assert not missing, f"brak typu Stravy: {missing}"
 
 # pozy bez wartości domyślnych, żeby JSON był krótszy
-DEF = {"t": 180, "fp": 0, "fq": [0, 0], "lift": 0, "x": 0, "view": "side", "back": False, "kb": False, "fold": 0}
+DEF = {"t": 180, "fp": 0, "fq": [0, 0], "lift": 0, "x": 0, "view": "side", "back": False, "kb": False, "fold": 0,
+       "ab": [0, 0, 0, 0], "rot": 0, "sp": 0, "se": 0, "kr": [0, 0], "tw": 0}
 
 
 def slim(p):

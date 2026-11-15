@@ -89,7 +89,7 @@ def lift(j, pose):
         z = fz.get(k, 0)
         if not front and k[-1] in "NF":
             arm = k[:2] in ("sh", "el", "ha")
-            z = (1 if k[-1] == "N" else -1) * (SHOULDER_W if arm else HIP_W + 0.01)
+            z += (1 if k[-1] == "N" else -1) * (SHOULDER_W if arm else HIP_W + 0.01)
         q[k] = (x, y, z)
     if front and pose.get("kb"):
         for sd in "NF":
@@ -300,6 +300,9 @@ class Painter:
 
     def section(s, q, pose, t, w, df, db, grow=0.0, n=16):
         hip, neck, u, lat, f = s.torso_frame(q, pose)
+        rot = math.radians(pose.get("rot", 0) + pose.get("tw", 0)) * max(0.0, min(1.0, (t - 0.25) / 0.6))
+        if rot:
+            lat, f = add(mul(lat, math.cos(rot)), mul(f, math.sin(rot))), sub(mul(f, math.cos(rot)), mul(lat, math.sin(rot)))
         L = math.dist(hip, neck)
         c = add(hip, mul(u, L * t))
         pts = []
@@ -355,6 +358,11 @@ class Painter:
             face = (-up[1], up[0], 0)
             if pose.get("back"):
                 face = mul(face, -1)
+        if pose.get("rot") or pose.get("tw"):
+            lat0 = (1, 0, 0) if pose.get("view") == "front" else (0, 0, 1)
+            lat0 = unit(sub(lat0, mul(up, dot(lat0, up))))
+            r = math.radians((pose.get("rot", 0) + pose.get("tw", 0)) * 0.6)
+            face = unit(sub(mul(face, math.cos(r)), mul(lat0, math.sin(r))))
         side = unit(cross(up, face))
         (c, zc, k) = s.pr(head)
         r = .1 * s.s * k

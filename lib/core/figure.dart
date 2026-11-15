@@ -37,6 +37,21 @@ class Pose {
   /// Widok z przodu: skłon tułowia do przodu (stopnie) — tułów, głowa i barki wychodzą przed płaszczyznę obrazu.
   final double fold;
 
+  /// Ruch poza płaszczyzną: odchylenie kończyn na bok [ręka N, ręka F, noga N, noga F] (stopnie).
+  final List<double> ab;
+
+  /// Skręt barków wokół kręgosłupa (stopnie, + = bliższy bark do przodu).
+  final double rot;
+
+  /// Łopatki: wysunięcie (sp, do przodu ciała) i uniesienie (se, wzdłuż tułowia), w metrach.
+  final double sp, se;
+
+  /// Kolano na bok wokół osi biodro–kostka [N, F] (stopnie, + = na zewnątrz; stopa zostaje w miejscu).
+  final List<double> kr;
+
+  /// Sam skręt klatki i głowy (stopnie), bez ruchu rąk — np. otwieranie klatki z ręką do sufitu.
+  final double tw;
+
   const Pose({
     this.t = 180,
     double? h,
@@ -52,7 +67,15 @@ class Pose {
     this.back = false,
     this.kneesBack = false,
     this.fold = 0,
+    this.ab = const [0, 0, 0, 0],
+    this.rot = 0,
+    this.sp = 0,
+    this.se = 0,
+    this.kr = const [0, 0],
+    this.tw = 0,
   }) : h = h ?? t;
+
+  bool get outOfPlane => rot != 0 || sp != 0 || se != 0 || ab.any((a) => a != 0) || kr.any((a) => a != 0);
 
   static List<double> _l(Object? v, List<double> d) =>
       v is List ? v.map((e) => (e as num).toDouble()).toList() : d;
@@ -75,6 +98,12 @@ class Pose {
       back: j['back'] == true,
       kneesBack: j['kb'] == true,
       fold: n('fold', 0),
+      ab: _l(j['ab'], const [0, 0, 0, 0]),
+      rot: n('rot', 0),
+      sp: n('sp', 0),
+      se: n('se', 0),
+      kr: _l(j['kr'], const [0, 0]),
+      tw: n('tw', 0),
     );
   }
 
@@ -94,6 +123,12 @@ class Pose {
         back: back,
         kneesBack: kneesBack,
         fold: fold,
+        ab: [ab[1], ab[0], ab[3], ab[2]],
+        rot: -rot,
+        sp: sp,
+        se: se,
+        kr: [kr[1], kr[0]],
+        tw: -tw,
       );
 
   /// Interpolacja po najkrótszym łuku (krążenia ramion przechodzą przez 360°).
@@ -120,6 +155,12 @@ class Pose {
       back: k < 0.5 ? a.back : b.back,
       kneesBack: k < 0.5 ? a.kneesBack : b.kneesBack,
       fold: lin(a.fold, b.fold),
+      ab: [for (var i = 0; i < 4; i++) lin(a.ab[i], b.ab[i])],
+      rot: lin(a.rot, b.rot),
+      sp: lin(a.sp, b.sp),
+      se: lin(a.se, b.se),
+      kr: [lin(a.kr[0], b.kr[0]), lin(a.kr[1], b.kr[1])],
+      tw: lin(a.tw, b.tw),
     );
   }
 }
@@ -134,12 +175,17 @@ class Joints {
   /// Głębokość (z, do widza) punktów wysuniętych przed płaszczyznę obrazu (skłon w widoku z przodu).
   final Map<String, double> z;
   final double fold;
-  Joints(this.p, this.front, this.back, this.headDir, {this.kneesBack = false, this.z = const {}, this.fold = 0});
+
+  /// Skręt barków (stopnie) — tułów i głowa obracają się razem z nimi.
+  final double rot;
+  Joints(this.p, this.front, this.back, this.headDir,
+      {this.kneesBack = false, this.z = const {}, this.fold = 0, this.rot = 0});
 
   Offset operator [](String k) => p[k]!;
 
   Joints shifted(Offset d) =>
-      Joints(p.map((k, v) => MapEntry(k, v + d)), front, back, headDir, kneesBack: kneesBack, z: z, fold: fold);
+      Joints(p.map((k, v) => MapEntry(k, v + d)), front, back, headDir,
+          kneesBack: kneesBack, z: z, fold: fold, rot: rot);
 
   static Offset _dir(double a) {
     final r = a * math.pi / 180;
@@ -186,10 +232,16 @@ class Joints {
       }
       m.addAll({'sh$side': sh, 'el$side': el, 'ha$side': ha, 'hp$side': hp, 'kn$side': kn, 'an$side': an, 'to$side': toe});
     }
-    if (!s.front || s.fold == 0) return Joints(m, s.front, s.back, s.h, kneesBack: s.kneesBack);
+    final z = <String, double>{};
+    if (s.front && s.fold != 0) _fold(s, m, z);
+    if (s.outOfPlane) _outOfPlane(s, m, z);
+    return Joints(m, s.front, s.back, s.h, kneesBack: s.kneesBack, z: z, fold: s.front ? s.fold : 0, rot: s.rot + s.tw);
+  }
+
+  static void _fold(Pose s, Map<String, Offset> m, Map<String, double> z) {
+    final hip = m['hip']!;
     // skłon w przód: tułów, głowa i barki obracają się wokół osi bioder do widza; ręce zwisają w płaszczyźnie obrazu
     final f = s.fold * math.pi / 180;
-    final z = <String, double>{};
     for (final k in ['neck', 'head', 'shN', 'shF']) {
       final dy = m[k]!.dy - hip.dy;
       m[k] = Offset(m[k]!.dx, hip.dy + dy * math.cos(f));
@@ -204,7 +256,101 @@ class Joints {
       z['el$side'] = z['sh$side']!;
       z['ha$side'] = z['sh$side']!;
     }
-    return Joints(m, s.front, s.back, s.h, kneesBack: s.kneesBack, z: z, fold: s.fold);
+  }
+
+  /// Głębokość, którą widok 3D nadaje stawom bez ruchu poza płaszczyzną (jak lift3d).
+  static double baseZ(String k, bool front) {
+    if (front || !(k.endsWith('N') || k.endsWith('F'))) return 0;
+    final arm = k.startsWith('sh') || k.startsWith('el') || k.startsWith('ha');
+    return (k.endsWith('N') ? 1 : -1) * (arm ? Body.shoulderW : Body.hipW + 0.01);
+  }
+
+  /// Łopatki, odchylenie kończyn na bok i skręt barków — liczone w 3D (jak tool/figure.py).
+  static void _outOfPlane(Pose s, Map<String, Offset> m, Map<String, double> z) {
+    final front = s.front;
+    final q = <String, List<double>>{
+      for (final e in m.entries) e.key: [e.value.dx, e.value.dy, baseZ(e.key, front) + (z[e.key] ?? 0)],
+    };
+    List<double> add(List<double> a, List<double> b, [double k = 1]) => [for (var i = 0; i < 3; i++) a[i] + b[i] * k];
+    double dot(List<double> a, List<double> b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    List<double> unit(List<double> a) {
+      final n = math.sqrt(dot(a, a));
+      return n == 0 ? a : [a[0] / n, a[1] / n, a[2] / n];
+    }
+
+    final neck = q['neck']!;
+    final u = unit(add(neck, q['hip']!, -1));
+    List<double> f, lat;
+    if (front) {
+      f = [0, 0, 1];
+      final sh = q['shN']!;
+      lat = (sh[0] - neck[0]) * -u[1] + (sh[1] - neck[1]) * u[0] >= 0 ? [-u[1], u[0], 0] : [u[1], -u[0], 0];
+    } else {
+      f = s.back ? [u[1], -u[0], 0] : [-u[1], u[0], 0];
+      lat = [0, 0, 1];
+    }
+    const arms = ['shN', 'elN', 'haN', 'shF', 'elF', 'haF'];
+    if (s.sp != 0 || s.se != 0) {
+      for (final k in arms) {
+        q[k] = add(add(q[k]!, f, s.sp), u, s.se);
+      }
+    }
+    // kolano na bok wokół osi biodro–kostka (stopa zostaje w miejscu)
+    for (var i = 0; i < 2; i++) {
+      final a = s.kr[i];
+      if (a == 0) continue;
+      final sd = i == 0 ? 'N' : 'F';
+      final hp = q['hp$sd']!;
+      final ax = unit(add(q['an$sd']!, hp, -1));
+      final v = add(q['kn$sd']!, hp, -1);
+      final par = dot(v, ax);
+      final perp = add(v, ax, -par);
+      final r = math.sqrt(dot(perp, perp));
+      if (r < 1e-6) continue;
+      final e1 = [perp[0] / r, perp[1] / r, perp[2] / r];
+      final out = [for (final c in lat) c * (i == 0 ? 1 : -1)];
+      final e2 = unit(add(add(out, ax, -dot(out, ax)), e1, -dot(out, e1)));
+      final ca = math.cos(a * math.pi / 180), sa = math.sin(a * math.pi / 180);
+      q['kn$sd'] = add(add(add(hp, ax, par), e1, r * ca), e2, r * sa);
+    }
+    const limbs = [
+      ('shN', ['elN', 'haN'], 1.0),
+      ('shF', ['elF', 'haF'], -1.0),
+      ('hpN', ['knN', 'anN', 'toN'], 1.0),
+      ('hpF', ['knF', 'anF', 'toF'], -1.0),
+    ];
+    for (var i = 0; i < 4; i++) {
+      final a = s.ab[i];
+      if (a == 0) continue;
+      final (root, pts, sd) = limbs[i];
+      final r = q[root]!;
+      final d1 = unit(add(q[pts[0]]!, r, -1));
+      final side = front ? f : [lat[0] * sd, lat[1] * sd, lat[2] * sd];
+      final ca = math.cos(a * math.pi / 180), sa = math.sin(a * math.pi / 180);
+      for (final k in pts) {
+        final v = add(q[k]!, r, -1);
+        final al = dot(v, d1);
+        final rest = add(v, d1, -al);
+        q[k] = add(add(add(r, rest), d1, al * ca), side, al * sa);
+      }
+    }
+    if (s.rot != 0) {
+      final c = math.cos(s.rot * math.pi / 180), sn = math.sin(s.rot * math.pi / 180);
+      for (final k in arms) {
+        final v = add(q[k]!, neck, -1);
+        final a = dot(v, u), b = dot(v, f), cc = dot(v, lat);
+        q[k] = add(add(add(neck, u, a), f, b * c + cc * sn), lat, cc * c - b * sn);
+      }
+    }
+    q.forEach((k, v) {
+      m[k] = Offset(v[0], v[1]);
+      final dz = v[2] - baseZ(k, front);
+      if (dz.abs() > 1e-9) {
+        z[k] = dz;
+      } else {
+        z.remove(k);
+      }
+    });
   }
 
   /// Najniższy punkt na podłodze (lub dłonie na drążku), potem uniesienie o lift.
@@ -233,7 +379,13 @@ class FigAnim {
   final bool hands;
   final List<Map<String, dynamic>> props;
 
-  FigAnim(this.keys, this.cycle, {this.hands = false, this.props = const []});
+  /// Ruch ciągły (krążenia): bez zatrzymań w klatkach, gładka krzywa przez wszystkie klatki.
+  final bool flow;
+
+  /// Zalecany obrót kamery (radiany) — dla ruchów poza płaszczyzną widoku z boku.
+  final double? cam;
+
+  FigAnim(this.keys, this.cycle, {this.hands = false, this.props = const [], this.flow = false, this.cam});
 
   factory FigAnim.fromJson(Map<String, dynamic> j, Map<String, Pose> lib) {
     final keys = <Pose>[];
@@ -251,6 +403,8 @@ class FigAnim {
       (j['s'] as num?)?.toDouble() ?? 2.0,
       hands: j['anchor'] == 'hands',
       props: ((j['props'] as List?) ?? const []).map((e) => (e as Map).cast<String, dynamic>()).toList(),
+      flow: j['flow'] == true,
+      cam: (j['cam'] as num?)?.toDouble(),
     );
   }
 
@@ -261,6 +415,13 @@ class FigAnim {
     final t = (seconds * speed) % cycle;
     final i = (t / per).floor() % keys.length;
     final f = (t - i * per) / per;
+    final n = keys.length;
+    if (flow) {
+      // Catmull-Rom (schemat Barry'ego-Goldmana) — stała prędkość, bez szarpnięć na klatkach
+      final p0 = keys[(i - 1 + n) % n], p1 = keys[i], p2 = keys[(i + 1) % n], p3 = keys[(i + 2) % n];
+      final a1 = Pose.lerp(p0, p1, f + 1), a2 = Pose.lerp(p1, p2, f), a3 = Pose.lerp(p2, p3, f - 1);
+      return Pose.lerp(Pose.lerp(a1, a2, (f + 1) / 2), Pose.lerp(a2, a3, f / 2), f);
+    }
     // przytrzymanie w skrajnej pozycji, potem płynne przejście
     const hold = 0.22;
     final k = f < hold ? 0.0 : (f - hold) / (1 - hold);
@@ -275,6 +436,7 @@ class FigAnim {
     final t = (seconds * speed) % cycle;
     final i = (t / per).floor() % keys.length;
     final f = (t - i * per) / per;
+    if (flow) return (keys[(i + 1) % keys.length], 1.0);
     const hold = 0.22;
     final k = f < hold ? 0.0 : (f - hold) / (1 - hold);
     return (keys[(i + 1) % keys.length], f < hold ? 0 : math.sin(k * math.pi));

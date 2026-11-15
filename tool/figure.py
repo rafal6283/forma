@@ -14,6 +14,14 @@ SHOULDER_W, HIP_W = 0.17, 0.09
 DEFAULT = {
     "t": 180, "an": [8, 12], "af": [-8, -4], "ln": [2, 0], "lf": [-2, 0],
     "fp": 0, "fq": [0, 0], "lift": 0, "x": 0, "view": "side", "back": False,
+    # ruch poza płaszczyzną: ab — odchylenie kończyn na bok [ręka N, ręka F, noga N, noga F] (stopnie),
+    # rot — skręt barków wokół kręgosłupa (stopnie, + = bliższy bark do przodu),
+    # sp / se — wysunięcie / uniesienie barków (łopatki, metry)
+    "ab": [0, 0, 0, 0], "rot": 0, "sp": 0, "se": 0,
+    # kr — kolano odchylone na bok wokół osi biodro–kostka [N, F] (stopnie, + = na zewnątrz; stopa zostaje)
+    "kr": [0, 0],
+    # tw — sam skręt klatki i głowy (bez ruchu rąk), np. otwieranie klatki z ręką do sufitu
+    "tw": 0,
 }
 
 
@@ -42,6 +50,11 @@ def swap(pose):
     q["an"], q["af"] = p["af"], p["an"]
     q["ln"], q["lf"] = p["lf"], p["ln"]
     q["fq"] = [p["fq"][1], p["fq"][0]]
+    a = p["ab"]
+    q["ab"] = [a[1], a[0], a[3], a[2]]
+    q["rot"] = -p["rot"]
+    q["tw"] = -p["tw"]
+    q["kr"] = [p["kr"][1], p["kr"][0]]
     if p["view"] == "front":
         q["t"] = 360 - p["t"]
         q["h"] = 360 - p["h"]
@@ -110,7 +123,101 @@ def joints_z(pose):
             j["el" + side] = el
             j["ha" + side] = add(el, arm[1], FORE)
             z["el" + side] = z["ha" + side] = z["sh" + side]
+    if any(p["ab"]) or any(p["kr"]) or p["rot"] or p["sp"] or p["se"]:
+        _out_of_plane(p, j, z, front)
     return j, z
+
+
+def base_z(k, front):
+    """Głębokość, którą widok 3D nadaje stawom w pozie bez ruchu poza płaszczyzną."""
+    if front or k[-1] not in "NF":
+        return 0.0
+    arm = k[:2] in ("sh", "el", "ha")
+    return (1 if k[-1] == "N" else -1) * (SHOULDER_W if arm else HIP_W + 0.01)
+
+
+def _v(a, b, k=1.0):
+    return tuple(x + y * k for x, y in zip(a, b))
+
+
+def _dot(a, b):
+    return sum(x * y for x, y in zip(a, b))
+
+
+def _out_of_plane(p, j, z, front):
+    """Łopatki, odchylenie kończyn na bok i skręt tułowia — w 3D; wynik: rzut (x, y) i głębokość z."""
+    P = {k: (v[0], v[1], base_z(k, front) + z.get(k, 0.0)) for k, v in j.items()}
+    hip, neck = P["hip"], P["neck"]
+    u = _v(neck, hip, -1)
+    n = math.sqrt(_dot(u, u)) or 1.0
+    u = tuple(c / n for c in u)
+    if front:
+        f = (0.0, 0.0, 1.0)
+        L = (-u[1], u[0], 0.0) if (P["shN"][0] - neck[0]) * (-u[1]) + (P["shN"][1] - neck[1]) * u[0] >= 0 else (u[1], -u[0], 0.0)
+    else:
+        f = (-u[1], u[0], 0.0)
+        if p["back"]:
+            f = (u[1], -u[0], 0.0)
+        L = (0.0, 0.0, 1.0)
+    arms = [k + sd for sd in "NF" for k in ("sh", "el", "ha")]
+    # 1) łopatki: cała ręka przesuwa się razem z barkiem
+    if p["sp"] or p["se"]:
+        for k in arms:
+            P[k] = _v(_v(P[k], f, p["sp"]), u, p["se"])
+    # 1b) kolano na bok wokół osi biodro–kostka (stopa zostaje w miejscu)
+    for i, sd in enumerate("NF"):
+        a = p["kr"][i]
+        if not a:
+            continue
+        hp, an = P["hp" + sd], P["an" + sd]
+        ax = _v(an, hp, -1)
+        na = math.sqrt(_dot(ax, ax)) or 1.0
+        ax = tuple(c / na for c in ax)
+        v = _v(P["kn" + sd], hp, -1)
+        par = _dot(v, ax)
+        perp = _v(v, ax, -par)
+        r = math.sqrt(_dot(perp, perp))
+        if r < 1e-6:
+            continue
+        e1 = tuple(c / r for c in perp)
+        S = tuple(c * (1 if sd == "N" else -1) for c in L)
+        e2 = _v(_v(S, ax, -_dot(S, ax)), e1, -_dot(S, e1))
+        n2 = math.sqrt(_dot(e2, e2)) or 1.0
+        e2 = tuple(c / n2 for c in e2)
+        ca, sa = math.cos(math.radians(a)), math.sin(math.radians(a))
+        P["kn" + sd] = _v(_v(_v(hp, ax, par), e1, r * ca), e2, r * sa)
+    # 2) odchylenie kończyn na bok (poza płaszczyznę ruchu)
+    for i, (root, pts, sd) in enumerate((("shN", ("elN", "haN"), 1), ("shF", ("elF", "haF"), -1),
+                                         ("hpN", ("knN", "anN", "toN"), 1), ("hpF", ("knF", "anF", "toF"), -1))):
+        a = p["ab"][i]
+        if not a:
+            continue
+        r = P[root]
+        d1 = _v(P[pts[0]], r, -1)
+        nd = math.sqrt(_dot(d1, d1)) or 1.0
+        d1 = tuple(c / nd for c in d1)
+        side = f if front else tuple(c * sd for c in L)
+        ca, sa = math.cos(math.radians(a)), math.sin(math.radians(a))
+        for k in pts:
+            v = _v(P[k], r, -1)
+            al = _dot(v, d1)
+            rest = _v(v, d1, -al)
+            P[k] = _v(_v(_v(r, rest), d1, al * ca), side, al * sa)
+    # 3) skręt barków i rąk wokół osi tułowia (przez szyję)
+    if p["rot"]:
+        c, s_ = math.cos(math.radians(p["rot"])), math.sin(math.radians(p["rot"]))
+        for k in arms:
+            v = _v(P[k], neck, -1)
+            a_, b_, c_ = _dot(v, u), _dot(v, f), _dot(v, L)
+            w = _v(_v(tuple(x * a_ for x in u), f, b_ * c + c_ * s_), L, c_ * c - b_ * s_)
+            P[k] = _v(neck, w)
+    for k, (x, y, zz) in P.items():
+        j[k] = (x, y)
+        dz = zz - base_z(k, front)
+        if abs(dz) > 1e-9:
+            z[k] = dz
+        else:
+            z.pop(k, None)
 
 
 def grounded(pose, anchor="ground", bar_y=-2.3):

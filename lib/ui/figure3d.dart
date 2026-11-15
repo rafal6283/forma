@@ -382,7 +382,12 @@ class Figure3DPainter extends CustomPainter {
   }
 
   List<Offset> _section(Map<String, V3> q, double t, double w, double df, double db, double grow) {
-    final (hip, neck, u, lat, f) = _frame(q);
+    var (hip, neck, u, lat, f) = _frame(q);
+    // skręt barków: górne pierścienie tułowia obracają się stopniowo od pasa w górę
+    final rot = j.rot * math.pi / 180 * ((t - 0.25) / 0.6).clamp(0.0, 1.0);
+    if (rot != 0) {
+      (lat, f) = (lat * math.cos(rot) + f * math.sin(rot), f * math.cos(rot) - lat * math.sin(rot));
+    }
     final c = hip + u * ((neck - hip).length * t);
     return [
       for (var i = 0; i < 16; i++)
@@ -447,6 +452,12 @@ class Figure3DPainter extends CustomPainter {
     } else {
       face = V3(-up.y, up.x, 0);
       if (j.back) face = face * -1;
+    }
+    if (j.rot != 0) {
+      var lat0 = j.front ? const V3(1, 0, 0) : const V3(0, 0, 1);
+      lat0 = (lat0 - up * lat0.dot(up)).unit;
+      final r = j.rot * 0.6 * math.pi / 180;
+      face = (face * math.cos(r) - lat0 * math.sin(r)).unit;
     }
     final side = up.cross(face).unit;
     final (c, zc, k) = _pr(head);

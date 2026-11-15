@@ -47,7 +47,8 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
 
   // kamera 3D
   static const _pitch = 0.2;
-  double _yaw = -0.45;
+  late double _yaw = _yaw0;
+  double get _yaw0 => widget.exercise.anim.cam ?? -0.45;
   bool _dragged = false;
   final _frames = <int, Rect>{};
 
@@ -70,6 +71,8 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
       _scene = _Scene(widget.exercise);
       _frames.clear();
       _t = 0;
+      _dragged = false;
+      _yaw = _yaw0;
     }
     if (widget.playing && !_ticker.isActive) {
       _last = Duration.zero;
@@ -115,7 +118,7 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
     // jedna realistyczna postać: obracana (3D) albo z boku (2D); miniatury — lekko z ukosa
     final cam = _is3d
         ? Cam(_yawNow, _pitch, _scene.cx, 0)
-        : Cam(widget.interactive ? 0 : -0.35, widget.interactive ? 0.08 : 0.14, _scene.cx, 0);
+        : Cam(a.cam ?? (widget.interactive ? 0 : -0.35), widget.interactive ? 0.08 : 0.14, _scene.cx, 0);
     final painter = Figure3DPainter(
       j: j,
       cam: cam,
@@ -143,7 +146,7 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
           onDoubleTap: _is3d
               ? () => setState(() {
                     _dragged = false;
-                    _yaw = -0.45;
+                    _yaw = _yaw0;
                   })
               : null,
           child: view,
