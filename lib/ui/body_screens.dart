@@ -59,7 +59,7 @@ class BodyHubScreen extends StatelessWidget {
             pos == null ? 'Barki, miednica, głowa — zdjęcie przodem i bokiem' : 'Ostatnio ${fmtDate(pos.at)}',
             () => const PostureScreen()),
         tile(Icons.photo_camera_outlined, 'Zdjęcia sylwetki i obwody',
-            '${s.photos.length} zdjęć · ${s.measures.length} pomiarów', () => const ProgressPhotosScreen()),
+            '${s.photos.length} zdjęć · ${s.measurements.length} pomiarów', () => const ProgressPhotosScreen()),
       ]),
     );
   }
@@ -399,19 +399,19 @@ class _ProgressPhotosScreenState extends State<ProgressPhotosScreen> {
   }
 
   Future<void> _measure() async {
-    final last = Store.instance.measures.isEmpty ? null : Store.instance.measures.last;
-    final ctl = {for (final k in Measurement.labels.keys) k: TextEditingController(text: last?.cm[k]?.toString() ?? '')};
+    final last = Store.instance.measurements.isEmpty ? null : Store.instance.measurements.last;
+    final ctl = {for (final k in measureLabel.keys) k: TextEditingController(text: last?.values[k]?.toString() ?? '')};
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Obwody (cm)'),
+        title: const Text('Pomiary'),
         content: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            for (final e in Measurement.labels.entries)
+            for (final e in measureLabel.entries)
               TextField(
                 controller: ctl[e.key],
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(labelText: e.value, suffixText: 'cm'),
+                decoration: InputDecoration(labelText: e.value.$1, suffixText: e.value.$2),
               ),
           ]),
         ),
@@ -428,14 +428,13 @@ class _ProgressPhotosScreenState extends State<ProgressPhotosScreen> {
       if (x != null && x > 0) cm[k] = x;
     });
     if (cm.isEmpty) return;
-    Store.instance.measures.add(Measurement(DateTime.now(), cm));
-    await Store.instance.save();
+    await Store.instance.addMeasurement(Measurement(DateTime.now(), cm));
     setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final ms = Store.instance.measures;
+    final ms = Store.instance.measurements;
     final list = photos;
     return Scaffold(
       appBar: AppBar(title: const Text('Sylwetka'), actions: [
@@ -508,23 +507,23 @@ class _ProgressPhotosScreenState extends State<ProgressPhotosScreen> {
                 ),
             ],
           ),
-        SectionTitle('Obwody', trailing: TextButton.icon(onPressed: _measure, icon: const Icon(Icons.add), label: const Text('Dodaj'))),
+        SectionTitle('Pomiary ciała', trailing: TextButton.icon(onPressed: _measure, icon: const Icon(Icons.add), label: const Text('Dodaj'))),
         if (ms.isEmpty)
           Text('Zmierz taśmą rano, na czczo — pas na wysokości pępka.', style: TextStyle(color: C.muted))
         else
           Card(
             child: Column(children: [
-              for (final e in Measurement.labels.entries)
-                if (ms.any((m) => m.cm.containsKey(e.key)))
+              for (final e in measureLabel.entries)
+                if (ms.any((m) => m.values.containsKey(e.key)))
                   Builder(builder: (_) {
-                    final v = [for (final m in ms) if (m.cm[e.key] != null) m.cm[e.key]!];
+                    final v = [for (final m in ms) if (m.values[e.key] != null) m.values[e.key]!];
                     final d = v.last - v.first;
                     return ListTile(
                       dense: true,
-                      title: Text(e.value),
+                      title: Text(e.value.$1),
                       subtitle: v.length > 1 ? TrendLine(v, height: 28, color: C.calm) : null,
                       trailing: Text(
-                          '${v.last.toStringAsFixed(1)} cm${v.length > 1 ? '\n${d >= 0 ? '+' : ''}${d.toStringAsFixed(1)}' : ''}',
+                          '${v.last.toStringAsFixed(1)} ${e.value.$2}${v.length > 1 ? '\n${d >= 0 ? '+' : ''}${d.toStringAsFixed(1)}' : ''}',
                           textAlign: TextAlign.right),
                     );
                   }),

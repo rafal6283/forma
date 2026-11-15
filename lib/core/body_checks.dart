@@ -187,16 +187,3 @@ class BodyPhoto {
   factory BodyPhoto.fromJson(Map<String, dynamic> j) =>
       BodyPhoto(DateTime.parse(j['at'] as String), j['f'] as String, j['v'] as String? ?? 'front');
 }
-
-/// Obwody ciała (cm).
-class Measurement {
-  final DateTime at;
-  final Map<String, double> cm; // waist, hips, chest, arm, thigh
-  const Measurement(this.at, this.cm);
-
-  static const labels = {'waist': 'Pas', 'hips': 'Biodra', 'chest': 'Klatka', 'arm': 'Ramię', 'thigh': 'Udo'};
-
-  Map<String, Object?> toJson() => {'at': at.toIso8601String(), 'cm': cm};
-  factory Measurement.fromJson(Map<String, dynamic> j) => Measurement(DateTime.parse(j['at'] as String),
-      ((j['cm'] as Map?) ?? const {}).map((k, v) => MapEntry(k as String, (v as num).toDouble())));
-}

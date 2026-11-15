@@ -51,7 +51,6 @@ class Store extends ChangeNotifier {
   final List<MobilityResult> mobility = [];
   final List<PostureResult> postures = [];
   final List<BodyPhoto> photos = [];
-  final List<Measurement> measures = [];
   final Map<String, ChallengeProgress> challenges = {};
   HealthSnapshot health = HealthSnapshot.empty;
   DayFactors dayFactors = DayFactors.empty;
@@ -118,7 +117,6 @@ class Store extends ChangeNotifier {
     mobility.clear();
     postures.clear();
     photos.clear();
-    measures.clear();
     dayFactors = DayFactors.empty;
     challenges.clear();
     health = HealthSnapshot.empty;
@@ -148,7 +146,6 @@ class Store extends ChangeNotifier {
         'mobility': mobility.map((e) => e.toJson()).toList(),
         'postures': postures.map((e) => e.toJson()).toList(),
         'photos': photos.map((e) => e.toJson()).toList(),
-        'measures': measures.map((e) => e.toJson()).toList(),
       });
 
   void _applyUser(String raw) {
@@ -200,9 +197,6 @@ class Store extends ChangeNotifier {
     photos
       ..clear()
       ..addAll(list('photos', BodyPhoto.fromJson));
-    measures
-      ..clear()
-      ..addAll(list('measures', Measurement.fromJson));
   }
 
   /// Dopisuje aktywności z zewnątrz (bez duplikatów); zwraca liczbę nowych.
