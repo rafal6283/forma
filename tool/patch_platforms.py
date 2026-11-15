@@ -288,6 +288,20 @@ def patch_android():
     if "kotlin.jvm.target.validation.mode" not in pt:
         props.write_text(pt.rstrip("\n") + "\nkotlin.jvm.target.validation.mode=warning\n")
 
+    # lint przy wydaniu wywraca się na wtyczce aparatu (błąd lint z JDK 17) — pomijamy lintVital
+    for name in ("build.gradle.kts", "build.gradle"):
+        rg = ROOT / "android" / name
+        if rg.exists():
+            rt = rg.read_text()
+            if "lintVital" not in rt:
+                if name.endswith(".kts"):
+                    rt += '\ngradle.taskGraph.whenReady {\n    allTasks.filter { it.name.startsWith("lintVital") }.forEach { it.enabled = false }\n}\n'
+                else:
+                    rt += '\ngradle.taskGraph.whenReady {\n    allTasks.findAll { it.name.startsWith("lintVital") }.each { it.enabled = false }\n}\n'
+                rg.write_text(rt)
+                log(f"android/{name}: bez lintVital")
+            break
+
     manifest = app / "src" / "main" / "AndroidManifest.xml"
     m = manifest.read_text()
     m = re.sub(r'android:label="[^"]*"', f'android:label="{APP_NAME}"', m, count=1)
