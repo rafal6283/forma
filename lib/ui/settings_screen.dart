@@ -7,6 +7,7 @@ import '../core/app_settings.dart';
 import '../core/coach.dart';
 import '../core/health_sync.dart';
 import '../core/models.dart';
+import '../core/reminders.dart';
 import '../core/store.dart';
 import '../core/voice.dart';
 import 'calendar_screen.dart';
@@ -402,6 +403,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setState(() {});
             },
           ),
+        ),
+        Card(
+          child: Column(children: [
+            SwitchListTile(
+              secondary: const Icon(Icons.chair_alt_outlined),
+              title: const Text('Przerwy na ruch'),
+              subtitle: Text(
+                  p.moveBreaks
+                      ? 'Dni robocze ${p.breakFrom}:00–${p.breakTo}:00, co ${p.breakEvery} min — 3 minuty przy biurku'
+                      : 'Przy pracy przy biurku: krótkie przypomnienie, żeby wstać i się rozruszać',
+                  style: TextStyle(color: C.muted)),
+              value: p.moveBreaks,
+              onChanged: (v) async {
+                if (v) await Reminders.instance.requestPermission();
+                setState(() => p.moveBreaks = v);
+                await Store.instance.save();
+                await Reminders.instance.reschedule();
+              },
+            ),
+            if (p.moveBreaks)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Row(children: [
+                  for (final (label, get, set, opts) in [
+                    ('Od', p.breakFrom, (int v) => p.breakFrom = v, [7, 8, 9, 10]),
+                    ('Do', p.breakTo, (int v) => p.breakTo = v, [15, 16, 17, 18, 19]),
+                    ('Co', p.breakEvery, (int v) => p.breakEvery = v, [45, 60, 90, 120]),
+                  ])
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        initialValue: get,
+                        decoration: InputDecoration(labelText: label, isDense: true),
+                        items: [
+                          for (final o in opts) DropdownMenuItem(value: o, child: Text(label == 'Co' ? '$o min' : '$o:00')),
+                        ],
+                        onChanged: (v) async {
+                          if (v == null) return;
+                          setState(() => set(v));
+                          await Store.instance.save();
+                          await Reminders.instance.reschedule();
+                        },
+                      ),
+                    ),
+                ]),
+              ),
+            ListTile(
+              leading: const Icon(Icons.wb_sunny_outlined),
+              title: const Text('Pogoda'),
+              subtitle: Text(p.city == null ? 'Podaj miejscowość — w ładny dzień zaproponuję trening w parku' : p.city!,
+                  style: TextStyle(color: C.muted)),
+              trailing: const Icon(Icons.edit_outlined),
+              onTap: () async {
+                final ctl = TextEditingController(text: p.city ?? '');
+                final v = await showDialog<String>(
+                  context: context,
+                  builder: (c) => AlertDialog(
+                    title: const Text('Miejscowość'),
+                    content: TextField(controller: ctl, autofocus: true, decoration: const InputDecoration(hintText: 'np. Warszawa')),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(c, ''), child: const Text('Wyłącz')),
+                      FilledButton(onPressed: () => Navigator.pop(c, ctl.text.trim()), child: const Text('Zapisz')),
+                    ],
+                  ),
+                );
+                if (v == null) return;
+                setState(() => p.city = v.isEmpty ? null : v);
+                await Store.instance.save();
+              },
+            ),
+          ]),
         ),
         Card(
           child: ListTile(

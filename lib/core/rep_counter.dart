@@ -85,6 +85,8 @@ class RepCounter {
 
   int reps = 0;
   final List<double> roms = []; // zakres każdego powtórzenia (1 = pełny jak w animacji)
+  final Map<String, List<double>> sideRoms = {'L': [], 'R': []}; // zakres wg strony ciała (jednostronne)
+  String? _side, _peakSide;
   double? _smooth;
   bool _down = false;
   double _peak = 0;
@@ -94,7 +96,8 @@ class RepCounter {
   static const enter = 0.55, leave = 0.3;
 
   /// Nowy pomiar kąta w chwili [ms]. Zwraca true, gdy właśnie zaliczono powtórzenie.
-  bool add(double angle, double ms) {
+  bool add(double angle, double ms, {String? side}) {
+    _side = side;
     _smooth = _smooth == null ? angle : _smooth! * 0.5 + angle * 0.5;
     final p = model.progress(_smooth!);
     current = p;
@@ -102,14 +105,19 @@ class RepCounter {
       if (p >= enter) {
         _down = true;
         _peak = p;
+        _peakSide = _side;
       }
       return false;
     }
-    _peak = math.max(_peak, p);
+    if (p > _peak) {
+      _peak = p;
+      _peakSide = _side;
+    }
     if (p <= leave && ms - _lastRepAt > 400) {
       _down = false;
       reps++;
       roms.add(_peak.clamp(0.0, 1.3).toDouble());
+      if (_peakSide != null) sideRoms[_peakSide]!.add(_peak.clamp(0.0, 1.3).toDouble());
       _lastRepAt = ms;
       return true;
     }
@@ -118,6 +126,14 @@ class RepCounter {
 
   double? get lastRom => roms.isEmpty ? null : roms.last;
   double? get avgRom => roms.isEmpty ? null : roms.reduce((a, b) => a + b) / roms.length;
+
+  /// Różnica stron (ćwiczenia jednostronne): (lewa %, prawa %) — gdy obie mają co najmniej 2 powtórzenia.
+  (int, int)? get asymmetry {
+    final l = sideRoms['L']!, r = sideRoms['R']!;
+    if (l.length < 2 || r.length < 2) return null;
+    int avg(List<double> v) => (math.min(1.0, v.reduce((a, b) => a + b) / v.length) * 100).round();
+    return (avg(l), avg(r));
+  }
 
   /// Ocena zakresu w punktach 0–100.
   int? get score => avgRom == null ? null : (math.min(1.0, avgRom!) * 100).round();
@@ -138,7 +154,10 @@ class RepCounter {
 
 /// Kąt stawu z punktów kamery — strona, która jest dalej w ruchu (działa też dla ćwiczeń jednostronnych).
 /// [pts] — klucze: shoulderL/R, elbowL/R, wristL/R, hipL/R, kneeL/R, ankleL/R.
-double? cameraAngle(Map<String, P3> pts, RepModel m) {
+double? cameraAngle(Map<String, P3> pts, RepModel m) => cameraAngleSide(pts, m)?.$1;
+
+/// Jak [cameraAngle], z informacją, która strona ciała ('L'/'R') była dalej w ruchu.
+(double, String)? cameraAngleSide(Map<String, P3> pts, RepModel m) {
   double? side(String s) {
     P3? g(String k) => pts['$k$s'];
     final (a, b, c) = switch (m.track) {
@@ -153,7 +172,7 @@ double? cameraAngle(Map<String, P3> pts, RepModel m) {
   }
 
   final l = side('L'), r = side('R');
-  if (l == null) return r;
-  if (r == null) return l;
-  return m.progress(l) >= m.progress(r) ? l : r;
+  if (l == null) return r == null ? null : (r, 'R');
+  if (r == null) return (l, 'L');
+  return m.progress(l) >= m.progress(r) ? (l, 'L') : (r, 'R');
 }

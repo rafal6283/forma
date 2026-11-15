@@ -19,7 +19,8 @@ import 'theme.dart';
 class CamReps {
   final int reps;
   final int? rom;
-  const CamReps(this.reps, this.rom);
+  final (int, int)? sides; // zakres lewa/prawa (%) w ćwiczeniach jednostronnych
+  const CamReps(this.reps, this.rom, [this.sides]);
 }
 
 const _keys = {
@@ -144,8 +145,8 @@ class _PoseScreenState extends State<PoseScreen> {
       }
       final c = counter;
       if (c != null && m.isNotEmpty) {
-        final a = cameraAngle(m, model!);
-        if (a != null && c.add(a, sw.elapsedMilliseconds.toDouble())) {
+        final sa = cameraAngleSide(m, model!);
+        if (sa != null && c.add(sa.$1, sw.elapsedMilliseconds.toDouble(), side: sa.$2)) {
           Fx.instance.play(Sfx.tick);
           final cue = c.cue;
           Voice.instance.say(cue != null && c.lastRom! < 0.8 ? '${c.reps}. $cue' : '${c.reps}');
@@ -164,7 +165,7 @@ class _PoseScreenState extends State<PoseScreen> {
     }
   }
 
-  void _done() => Navigator.pop(context, CamReps(counter?.reps ?? 0, counter?.score));
+  void _done() => Navigator.pop(context, CamReps(counter?.reps ?? 0, counter?.score, counter?.asymmetry));
 
   @override
   Widget build(BuildContext context) {
@@ -224,6 +225,13 @@ class _PoseScreenState extends State<PoseScreen> {
                   Text('${cnt!.reps}${widget.target != null ? '/${widget.target}' : ''}',
                       style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w900, color: Colors.white)),
                   Text('powtórzenia', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12)),
+                  if (widget.exercise.uni && cnt.asymmetry != null) ...[
+                    const SizedBox(height: 4),
+                    Text('L ${cnt.asymmetry!.$1}% · P ${cnt.asymmetry!.$2}%',
+                        style: TextStyle(
+                            color: (cnt.asymmetry!.$1 - cnt.asymmetry!.$2).abs() >= 10 ? C.warn : Colors.white70,
+                            fontWeight: FontWeight.w700)),
+                  ],
                   if (cnt.score != null) ...[
                     const SizedBox(height: 6),
                     Text('zakres ${cnt.score}%',

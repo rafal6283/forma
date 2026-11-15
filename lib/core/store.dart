@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'body_checks.dart';
 import 'day_factors.dart';
 import 'models.dart';
 import 'progress.dart';
@@ -46,6 +47,10 @@ class Store extends ChangeNotifier {
   final List<FitTest> tests = [];
   final List<CustomWorkout> customs = [];
   final List<ExternalActivity> external = [];
+  final List<MobilityResult> mobility = [];
+  final List<PostureResult> postures = [];
+  final List<BodyPhoto> photos = [];
+  final List<Measurement> measures = [];
   final Map<String, ChallengeProgress> challenges = {};
   HealthSnapshot health = HealthSnapshot.empty;
   DayFactors dayFactors = DayFactors.empty;
@@ -109,6 +114,10 @@ class Store extends ChangeNotifier {
     tests.clear();
     customs.clear();
     external.clear();
+    mobility.clear();
+    postures.clear();
+    photos.clear();
+    measures.clear();
     dayFactors = DayFactors.empty;
     challenges.clear();
     health = HealthSnapshot.empty;
@@ -135,6 +144,10 @@ class Store extends ChangeNotifier {
         'customs': customs.map((c) => c.toJson()).toList(),
         'external': external.map((e) => e.toJson()).toList(),
         'dayFactors': dayFactors.toJson(),
+        'mobility': mobility.map((e) => e.toJson()).toList(),
+        'postures': postures.map((e) => e.toJson()).toList(),
+        'photos': photos.map((e) => e.toJson()).toList(),
+        'measures': measures.map((e) => e.toJson()).toList(),
       });
 
   void _applyUser(String raw) {
@@ -177,6 +190,18 @@ class Store extends ChangeNotifier {
       ..addAll(list('external', ExternalActivity.fromJson))
       ..sort((a, b) => a.start.compareTo(b.start));
     dayFactors = DayFactors.fromJson((j['dayFactors'] as Map?)?.cast<String, Object?>());
+    mobility
+      ..clear()
+      ..addAll(list('mobility', MobilityResult.fromJson));
+    postures
+      ..clear()
+      ..addAll(list('postures', PostureResult.fromJson));
+    photos
+      ..clear()
+      ..addAll(list('photos', BodyPhoto.fromJson));
+    measures
+      ..clear()
+      ..addAll(list('measures', Measurement.fromJson));
   }
 
   /// Dopisuje aktywności z zewnątrz (bez duplikatów); zwraca liczbę nowych.

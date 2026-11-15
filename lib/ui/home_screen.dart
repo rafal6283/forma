@@ -12,6 +12,8 @@ import 'checkin_sheet.dart';
 import 'custom_screen.dart';
 import 'family_screen.dart';
 import 'fatigue_screen.dart';
+import 'body_screens.dart';
+import 'breath_screen.dart';
 import 'insights.dart';
 import 'hrv_screen.dart';
 import 'ppg_screen.dart';
@@ -555,8 +557,33 @@ class _Extras extends StatelessWidget {
         ),
       ]),
       const SizedBox(height: 8),
+      const WeatherCard(),
       const EnergyCard(),
       const FatigueCard(),
+      Row(children: [
+        Expanded(
+          child: Card(
+            child: ListTile(
+              dense: true,
+              leading: const Icon(Icons.accessibility_new, color: C.accent),
+              title: const Text('Ciało', style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text('ruchomość · postawa · sylwetka', style: TextStyle(color: C.muted, fontSize: 11)),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BodyHubScreen())),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Card(
+            child: ListTile(
+              dense: true,
+              leading: const Icon(Icons.air, color: C.calm),
+              title: const Text('Oddech', style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text('5 min z biofeedbackiem', style: TextStyle(color: C.muted, fontSize: 11)),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BreathScreen())),
+            ),
+          ),
+        ),
+      ]),
       Card(
         child: ListTile(
           leading: Icon(Icons.speed, color: testDue ? C.accent : C.muted),

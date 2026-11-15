@@ -60,7 +60,106 @@ ANDROID_PERMS = [
 RATIONALE_FILTER = '''            <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>
             </intent-filter>
+            <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.LAUNCH"/>
+            </intent-filter>
 '''
+
+# widżet na ekranie telefonu (home_widget)
+WIDGET_RECEIVER = '''        <receiver android:name=".FormaWidget" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/forma_widget_info"/>
+        </receiver>
+'''
+
+WIDGET_KT = '''package pl.rafal.forma
+
+import android.appwidget.AppWidgetManager
+import android.content.Context
+import android.content.SharedPreferences
+import android.net.Uri
+import android.widget.RemoteViews
+import es.antonborri.home_widget.HomeWidgetLaunchIntent
+import es.antonborri.home_widget.HomeWidgetProvider
+
+class FormaWidget : HomeWidgetProvider() {
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray, widgetData: SharedPreferences) {
+        for (id in appWidgetIds) {
+            val v = RemoteViews(context.packageName, R.layout.forma_widget).apply {
+                setTextViewText(R.id.w_title, widgetData.getString("title", "Forma"))
+                setTextViewText(R.id.w_sub, widgetData.getString("sub", "Stuknij, aby otworzyć"))
+                setTextViewText(R.id.w_streak, widgetData.getString("streak", "🔥 0"))
+                setTextViewText(R.id.w_level, widgetData.getString("level", ""))
+                setOnClickPendingIntent(R.id.w_root, HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java, Uri.parse("forma://today")))
+                setOnClickPendingIntent(R.id.w_quick, HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java, Uri.parse("forma://quick7")))
+                setOnClickPendingIntent(R.id.w_break, HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java, Uri.parse("forma://break")))
+            }
+            appWidgetManager.updateAppWidget(id, v)
+        }
+    }
+}
+'''
+
+WIDGET_LAYOUT = '''<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="14dp" android:background="@drawable/forma_widget_bg">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+        <TextView android:id="@+id/w_title" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:textColor="#FFFFFFFF" android:textSize="16sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"/>
+        <TextView android:id="@+id/w_streak" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#FFFFB347" android:textSize="15sp" android:textStyle="bold"/>
+    </LinearLayout>
+    <TextView android:id="@+id/w_sub" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="2dp" android:textColor="#B3FFFFFF" android:textSize="12sp" android:maxLines="2"/>
+    <TextView android:id="@+id/w_level" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:textColor="#80FFFFFF" android:textSize="11sp"/>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+        <TextView android:id="@+id/w_quick" android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp"
+            android:gravity="center" android:text="⚡ 7 minut" android:textColor="#FFFFFFFF" android:textStyle="bold"
+            android:background="@drawable/forma_widget_btn"/>
+        <TextView android:id="@+id/w_break" android:layout_width="0dp" android:layout_weight="1" android:layout_height="36dp"
+            android:layout_marginStart="8dp" android:gravity="center" android:text="🧘 Przerwa" android:textColor="#FFFFFFFF"
+            android:textStyle="bold" android:background="@drawable/forma_widget_btn2"/>
+    </LinearLayout>
+</LinearLayout>
+'''
+
+WIDGET_INFO = '''<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp" android:minHeight="110dp" android:targetCellWidth="4" android:targetCellHeight="2"
+    android:updatePeriodMillis="3600000" android:initialLayout="@layout/forma_widget"
+    android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen"
+    android:description="@string/forma_widget_desc"/>
+'''
+
+def _shape(color):
+    return f'''<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="{color}"/>
+    <corners android:radius="18dp"/>
+</shape>
+'''
+
+
+def write_widget(app):
+    res = app / "src" / "main" / "res"
+    for sub, name, text in (("layout", "forma_widget.xml", WIDGET_LAYOUT), ("xml", "forma_widget_info.xml", WIDGET_INFO),
+                            ("drawable", "forma_widget_bg.xml", _shape("#F21A1D24")),
+                            ("drawable", "forma_widget_btn.xml", _shape("#FFFF6A3D")),
+                            ("drawable", "forma_widget_btn2.xml", _shape("#FF3A4150"))):
+        (res / sub).mkdir(parents=True, exist_ok=True)
+        (res / sub / name).write_text(text)
+    vals = res / "values" / "forma_widget_strings.xml"
+    vals.parent.mkdir(parents=True, exist_ok=True)
+    vals.write_text('<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <string name="forma_widget_desc">Dzisiejszy trening, seria i szybki start</string>\n</resources>\n')
+    kts = list((app / "src" / "main" / "kotlin").rglob("MainActivity.kt"))
+    if not kts:
+        sys.exit("[patch] BŁĄD: brak MainActivity.kt")
+    (kts[0].parent / "FormaWidget.kt").write_text(WIDGET_KT)
+    log("widżet: układ, opis, FormaWidget.kt")
 
 STRAVA_CALLBACK = '''        <activity
             android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
@@ -200,6 +299,8 @@ def patch_android():
         m = re.sub(r'(<activity\s+android:name="\.MainActivity"[^>]*>\n)', lambda mm: mm.group(1) + RATIONALE_FILTER, m, count=1)
     if "flutter_web_auth_2.CallbackActivity" not in m:
         m = m.replace("    </application>", STRAVA_CALLBACK + "    </application>", 1)
+    if ".FormaWidget" not in m:
+        m = m.replace("    </application>", WIDGET_RECEIVER + "    </application>", 1)
     if "ScheduledNotificationReceiver" not in m:
         m = m.replace("    </application>", NOTIFY_RECEIVERS + "    </application>", 1)
     if "ViewPermissionUsageActivity" not in m:
@@ -221,6 +322,7 @@ def patch_android():
         t = re.sub(r":\s*FlutterActivity\(\)", ": FlutterFragmentActivity()", t)
         kt.write_text(t)
         log(f"{kt.name}: FlutterFragmentActivity")
+    write_widget(app)
 
     src = icon_source()
     if src:

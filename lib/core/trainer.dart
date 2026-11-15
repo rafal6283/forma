@@ -1023,6 +1023,59 @@ class Trainer {
     );
   }
 
+  /// Przerwa na ruch przy biurku: ok. 3 minuty w staniu (barki, kręgosłup, biodra, łydki), bez potu.
+  WorkoutPlan moveBreak({int seed = 0}) {
+    const pool = [
+      'shoulder_rolls', 'arm_circles', 'wall_angels', 'torso_twist', 'side_bend', 'chest_stretch',
+      'hip_circles', 'good_morning', 'squat', 'calf_raises', 'quad_stretch', 'march', 'ankle_circles',
+    ];
+    final ok = [for (final id in pool) if (_byId(id) != null && _ok(_byId(id)!)) id];
+    final pick = <String>[];
+    for (var i = 0; i < ok.length && pick.length < 5; i++) {
+      pick.add(ok[(i * 3 + seed) % ok.length]);
+    }
+    final w = CustomWorkout(
+      id: 'break',
+      name: 'Przerwa na ruch',
+      items: [for (final id in {...pick}) CustomItem(exId: id, seconds: 35, rest: 5)],
+    );
+    final p = customPlan(w);
+    return WorkoutPlan(
+      kind: WorkoutKind.mobility,
+      format: WorkoutFormat.flow,
+      title: 'Przerwa na ruch',
+      items: p.items,
+      readiness: p.readiness,
+      intensity: '${w.items.length} ćwiczeń po 35 s',
+      reasons: const ['Kilka minut ruchu po siedzeniu: barki, kręgosłup, biodra i krążenie w nogach. Bez przebierania się.'],
+    );
+  }
+
+  /// Trening w parku: ławka zamiast krzesła, trucht i sprinty, 3 rundy.
+  WorkoutPlan outdoor() {
+    const ids = [
+      ('march', null, 60), ('high_knees', null, 30), ('step_ups', 12, 0), ('incline_pushups', 12, 0),
+      ('reverse_lunge', 12, 0), ('triceps_dips', 10, 0), ('sprint_in_place', null, 20), ('plank', null, 40),
+    ];
+    final items = [
+      for (final (id, reps, secs) in ids)
+        if (_byId(id) != null && !hidden.contains(id))
+          CustomItem(exId: id, reps: reps, seconds: secs == 0 ? 40 : secs, rest: 20),
+    ];
+    final p = customPlan(CustomWorkout(id: 'park', name: 'Trening w parku', items: items, rounds: 3, roundRest: 90));
+    return WorkoutPlan(
+      kind: WorkoutKind.fullBody,
+      format: WorkoutFormat.circuit,
+      title: 'Trening w parku',
+      items: p.items,
+      readiness: p.readiness,
+      intensity: p.intensity,
+      reasons: const [
+        'Ładna pogoda — ławka w parku zastąpi krzesło (wejścia, pompki o ławkę, dipy), a między rundami trucht.',
+      ],
+    );
+  }
+
   /// Plan z własnego treningu (kolejność i dawki od użytkownika). Jednostronne — na każdą stronę.
   WorkoutPlan customPlan(CustomWorkout w, {bool? warmup, bool? cooldown}) {
     final items = <PlanItem>[];

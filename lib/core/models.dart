@@ -229,7 +229,14 @@ class Profile {
   bool reminders;
 
   /// Początek bloku treningowego (null = od pierwszego treningu).
-  DateTime? blockStart; // przypomnienie o treningu (i o zagrożonej serii)
+  DateTime? blockStart;
+
+  /// Przerwy na ruch w dni robocze: od–do (godziny), co ile minut.
+  bool moveBreaks;
+  int breakFrom, breakTo, breakEvery;
+
+  /// Miejscowość do pogody (trening na zewnątrz w ładny dzień).
+  String? city; // przypomnienie o treningu (i o zagrożonej serii)
   int reminderHour;
   bool warmup; // rozgrzewka dobrana do partii
   bool cooldown; // rozciąganie na koniec
@@ -264,6 +271,11 @@ class Profile {
     this.cooldown = true,
     this.reminders = false,
     this.blockStart,
+    this.moveBreaks = false,
+    this.breakFrom = 9,
+    this.breakTo = 17,
+    this.breakEvery = 60,
+    this.city,
     this.reminderHour = 18,
     Map<String, DateTime>? limitUntil,
   })  : equipment = equipment ?? {'chair'},
@@ -307,6 +319,11 @@ class Profile {
         'warmup': warmup,
         'reminders': reminders,
         if (blockStart != null) 'blockStart': blockStart!.toIso8601String(),
+        'moveBreaks': moveBreaks,
+        'breakFrom': breakFrom,
+        'breakTo': breakTo,
+        'breakEvery': breakEvery,
+        if (city != null) 'city': city,
         'reminderHour': reminderHour,
         'cooldown': cooldown,
         'limitUntil': limitUntil.map((k, v) => MapEntry(k, v.toIso8601String())),
@@ -340,6 +357,11 @@ class Profile {
         warmup: j['warmup'] != false,
         reminders: j['reminders'] == true,
         blockStart: DateTime.tryParse(j['blockStart'] as String? ?? ''),
+        moveBreaks: j['moveBreaks'] == true,
+        breakFrom: (j['breakFrom'] as num?)?.toInt() ?? 9,
+        breakTo: (j['breakTo'] as num?)?.toInt() ?? 17,
+        breakEvery: (j['breakEvery'] as num?)?.toInt() ?? 60,
+        city: j['city'] as String?,
         reminderHour: (j['reminderHour'] as num?)?.toInt() ?? 18,
         cooldown: j['cooldown'] != false,
         limitUntil: {

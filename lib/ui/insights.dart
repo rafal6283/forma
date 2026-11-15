@@ -7,6 +7,7 @@ import '../core/coach.dart';
 import '../core/command.dart';
 import '../core/models.dart';
 import '../core/store.dart';
+import '../core/weather.dart';
 import 'preview_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -288,6 +289,49 @@ class EnergyCard extends StatelessWidget {
           '${strength ? ' (dzień siłowy)' : ''}',
           style: TextStyle(color: C.muted),
         ),
+      ),
+    );
+  }
+}
+
+/// Pogoda: w ładny dzień propozycja treningu w parku.
+class WeatherCard extends StatefulWidget {
+  const WeatherCard({super.key});
+
+  @override
+  State<WeatherCard> createState() => _WeatherCardState();
+}
+
+class _WeatherCardState extends State<WeatherCard> {
+  Weather? w;
+
+  @override
+  void initState() {
+    super.initState();
+    WeatherService.instance.now(Store.instance.profile.city).then((v) {
+      if (mounted) setState(() => w = v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final x = w;
+    if (x == null) return const SizedBox.shrink();
+    final good = x.outdoorOk && DateTime.now().hour < 19;
+    return Card(
+      child: ListTile(
+        leading: Text(x.icon, style: const TextStyle(fontSize: 28)),
+        title: Text('${x.place}: ${x.temp.round()}°C, ${x.label}', style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(
+          good
+              ? 'Ładnie na dworze — może trening w parku?'
+              : (x.raining || x.rainChance >= 60 ? 'Opady — dziś lepiej w domu.' : 'Do ${x.tMax.round()}°C, opady ${x.rainChance}%.'),
+          style: TextStyle(color: C.muted),
+        ),
+        trailing: good ? const Icon(Icons.park_outlined, color: C.good) : null,
+        onTap: good
+            ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => PreviewScreen(plan: coach().outdoor())))
+            : null,
       ),
     );
   }

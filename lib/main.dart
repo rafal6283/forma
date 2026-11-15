@@ -8,13 +8,16 @@ import 'core/app_settings.dart';
 import 'core/backup.dart';
 import 'core/family.dart';
 import 'core/library.dart';
+import 'core/coach.dart';
 import 'core/reminders.dart';
+import 'core/widget_sync.dart';
 import 'core/store.dart';
 import 'core/voice.dart';
 import 'ui/exercise_screen.dart';
 import 'ui/history_screen.dart';
 import 'ui/home_screen.dart';
 import 'ui/onboarding_screen.dart';
+import 'ui/preview_screen.dart';
 import 'ui/muscle_map.dart';
 import 'ui/profile_screen.dart';
 import 'ui/settings_screen.dart';
@@ -42,8 +45,10 @@ Future<void> main() async {
   Store.onSessionAdded = () {
     unawaited(Reminders.instance.reschedule());
     unawaited(Family.instance.publish());
+    unawaited(WidgetSync.instance.update());
   };
   unawaited(Reminders.instance.reschedule());
+  unawaited(WidgetSync.instance.update());
   // kopia Koofr — w tle, bez wpływu na start
   unawaited(() async {
     try {
@@ -62,15 +67,39 @@ class FormaApp extends StatefulWidget {
   State<FormaApp> createState() => _FormaAppState();
 }
 
+/// Nawigacja spoza drzewa widżetów (powiadomienia, widżet na ekranie telefonu).
+final navKey = GlobalKey<NavigatorState>();
+
 class _FormaAppState extends State<FormaApp> with WidgetsBindingObserver {
   final settings = AppSettings.instance;
   bool _splash = true;
+  String? _pending;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     settings.addListener(_onSettings);
+    Reminders.instance.onOpen = _open;
+    WidgetSync.instance.onOpen = _open;
+    _pending = Reminders.instance.launchPayload;
+    WidgetSync.instance.launchUri().then((u) => _pending ??= u);
+  }
+
+  /// Otwiera ekran wskazany przez powiadomienie lub widżet: 'break', 'quick7', 'command'.
+  void _open(String what) {
+    final nav = navKey.currentState;
+    if (_splash || nav == null || !Store.instance.profile.onboarded) {
+      _pending = what;
+      return;
+    }
+    _pending = null;
+    final plan = switch (what) {
+      'break' => coach().moveBreak(seed: DateTime.now().hour),
+      'quick7' => coach().quick7(),
+      _ => null,
+    };
+    if (plan != null) nav.push(MaterialPageRoute(builder: (_) => PreviewScreen(plan: plan)));
   }
 
   @override
@@ -95,6 +124,7 @@ class _FormaAppState extends State<FormaApp> with WidgetsBindingObserver {
     // klucz z motywem: zmiana motywu przebudowuje wszystkie ekrany z nową paletą
     return MaterialApp(
       key: ValueKey('theme-${C.light}'),
+      navigatorKey: navKey,
       title: 'Forma',
       debugShowCheckedModeBanner: false,
       theme: theme,
@@ -111,7 +141,13 @@ class _FormaAppState extends State<FormaApp> with WidgetsBindingObserver {
       home: AnimatedSwitcher(
         duration: const Duration(milliseconds: 450),
         child: _splash
-            ? SplashScreen(key: const ValueKey('splash'), onDone: () => setState(() => _splash = false))
+            ? SplashScreen(
+                key: const ValueKey('splash'),
+                onDone: () {
+                  setState(() => _splash = false);
+                  final p = _pending;
+                  if (p != null) WidgetsBinding.instance.addPostFrameCallback((_) => _open(p));
+                })
             : ListenableBuilder(
                 key: const ValueKey('app'),
                 listenable: Store.instance,

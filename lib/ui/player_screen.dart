@@ -10,6 +10,7 @@ import '../core/coach.dart';
 import '../core/hr.dart';
 import '../core/library.dart';
 import '../core/models.dart';
+import '../core/reminders.dart';
 import '../core/rep_counter.dart';
 import '../core/sfx.dart';
 import '../core/store.dart';
@@ -101,6 +102,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _sw.start();
     _enter();
     _timer = Timer.periodic(const Duration(milliseconds: 200), (_) => _tick());
+    // przyciski w powiadomieniu na ekranie blokady
+    Reminders.instance.onAction = (a) {
+      if (!mounted) return;
+      if (a == 'pause') _togglePause();
+      if (a == 'next' && !paused) _next();
+    };
+    _notice();
+  }
+
+  /// Powiadomienie z bieżącym ćwiczeniem i odliczaniem (ekran blokady).
+  void _notice() {
+    final it = step.item;
+    final e = it == null ? null : lib[it.exId];
+    final what = e == null ? 'Trening' : '${e.name}${_sideText(it!)}';
+    final title = switch (step.kind) {
+      _Kind.work => it?.reps != null ? '$what · ${it!.reps} powt.' : what,
+      _Kind.rest => 'Przerwa · następne: $what',
+      _Kind.prep => 'Przygotuj się: $what',
+      _Kind.recover => 'Regeneracja tętna',
+    };
+    final left = step.seconds * 1000 - stepElapsedMs;
+    Reminders.instance.showWorkout(
+      title: title,
+      body: '${widget.plan.title} · ${idx + 1}/${steps.length}${paused ? ' · pauza' : ''}',
+      endsAt: repsStep || left <= 0 ? null : DateTime.now().add(Duration(milliseconds: left)),
+      paused: paused,
+    );
   }
 
   @override
@@ -110,6 +138,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     voice.stop();
     cmds.stop();
     if (tv) _setTv(false);
+    Reminders.instance.onAction = null;
+    Reminders.instance.hideWorkout();
     super.dispose();
   }
 
@@ -414,7 +444,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (r == null || !mounted) return;
     setState(() {
       if (r.reps > 0 && repsStep) repCount = r.reps;
-      romNote = r.rom == null ? null : 'zakres ${r.rom}%';
+      romNote = r.rom == null
+          ? null
+          : 'zakres ${r.rom}%${r.sides != null ? ' · L ${r.sides!.$1}% / P ${r.sides!.$2}%' : ''}';
       _romIdx = idx;
     });
   }
@@ -517,6 +549,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _enter() {
     hrNote = null;
+    if (_timer != null) _notice();
     final it = step.item;
     final e = it == null ? null : lib[it.exId];
     if (e == null) return;
@@ -567,6 +600,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _sw.start();
       }
     });
+    _notice();
   }
 
   // ------------------------------------------------------------ tryb TV
