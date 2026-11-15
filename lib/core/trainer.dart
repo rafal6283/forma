@@ -1038,6 +1038,7 @@ class Trainer {
       id: 'break',
       name: 'Przerwa na ruch',
       items: [for (final id in {...pick}) CustomItem(exId: id, seconds: 35, rest: 5)],
+      rounds: 1,
     );
     final p = customPlan(w);
     return WorkoutPlan(
