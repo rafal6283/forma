@@ -146,7 +146,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
                   Builder(builder: (_) {
                     // 150 min ruchu tygodniowo na osobę (zalecenie WHO), razem dla całej rodziny
                     final goal = 150 * board.length;
-                    final sum = board.fold(0, (a, c) => a + c.weekMinutes);
+                    final sum = board.fold<int>(0, (a, c) => a + c.weekMinutes);
                     return Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),

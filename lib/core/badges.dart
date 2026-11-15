@@ -49,7 +49,7 @@ List<Achievement> badgesFor({
       id, icon, name, '$need $unit', have >= need, math.min(1, have / need), '${math.min(have, need)}/$need');
 
   final n = sessions.length;
-  final minutes = sessions.fold(0, (a, s) => a + s.duration.inMinutes) + external.fold(0, (a, x) => a + x.minutes);
+  final minutes = sessions.fold<int>(0, (a, s) => a + s.duration.inMinutes) + external.fold<int>(0, (a, x) => a + x.minutes);
 
   // najlepsza seria tygodni z celem
   var bestWeeks = 0, run = 0;
