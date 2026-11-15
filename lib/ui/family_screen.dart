@@ -141,6 +141,48 @@ class _FamilyScreenState extends State<FamilyScreen> {
                       ),
                   ]),
                 ),
+                if (board.length > 1) ...[
+                  const SectionTitle('Wspólny cel tygodnia'),
+                  Builder(builder: (_) {
+                    // 150 min ruchu tygodniowo na osobę (zalecenie WHO), razem dla całej rodziny
+                    final goal = 150 * board.length;
+                    final sum = board.fold(0, (a, c) => a + c.weekMinutes);
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(sum >= goal ? 'Cel zdobyty razem! 🎉' : 'Razem: $sum z $goal minut',
+                              style: const TextStyle(fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(5),
+                            child: SizedBox(
+                              height: 12,
+                              child: Row(children: [
+                                for (var i = 0; i < board.length; i++)
+                                  if (board[i].weekMinutes > 0)
+                                    Expanded(
+                                      flex: board[i].weekMinutes,
+                                      child: Container(color: C.zones[i % C.zones.length]),
+                                    ),
+                                if (sum < goal) Expanded(flex: goal - sum, child: Container(color: C.surface2)),
+                              ]),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(spacing: 10, children: [
+                            for (var i = 0; i < board.length; i++)
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                                Container(width: 8, height: 8, color: C.zones[i % C.zones.length]),
+                                const SizedBox(width: 4),
+                                Text('${board[i].name} ${board[i].weekMinutes}′', style: TextStyle(color: C.muted, fontSize: 12)),
+                              ]),
+                          ]),
+                        ]),
+                      ),
+                    );
+                  }),
+                ],
                 if (_sharedChallenges(mine).isNotEmpty) ...[
                   const SectionTitle('Wspólne wyzwania'),
                   for (final c in _sharedChallenges(mine))

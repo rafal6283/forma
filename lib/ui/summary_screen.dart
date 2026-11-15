@@ -11,6 +11,7 @@ import '../core/strava.dart';
 import 'confetti.dart';
 import 'muscle_map.dart';
 import 'session_widgets.dart';
+import 'share_card.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -95,7 +96,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
         if (await confirm(context, 'Odrzucić trening?', 'Ten trening nie zostanie zapisany.', ok: 'Odrzuć')) nav.pop();
       },
       child: Scaffold(
-        appBar: AppBar(title: Text(s.completion > 0.95 ? 'Brawo! 💪' : 'Podsumowanie'), automaticallyImplyLeading: false),
+        appBar: AppBar(
+          title: Text(s.completion > 0.95 ? 'Brawo! 💪' : 'Podsumowanie'),
+          automaticallyImplyLeading: false,
+          actions: [
+            IconButton(
+                tooltip: 'Udostępnij obrazek', onPressed: () => shareSessionCard(context, s), icon: const Icon(Icons.ios_share)),
+          ],
+        ),
         body: Stack(children: [
           ListView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),

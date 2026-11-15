@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'badges.dart';
 import 'body_checks.dart';
 import 'day_factors.dart';
 import 'models.dart';
@@ -325,6 +326,18 @@ class Store extends ChangeNotifier {
 
   /// Regularność (dni i tygodnie z rzędu, miesiąc) z treningów i aktywności z zewnątrz.
   Streaks get streaks => Streaks.of(sessions, external, profile.daysPerWeek);
+
+  /// Odznaki z całej historii.
+  List<Achievement> get badges => badgesFor(
+        sessions: sessions,
+        external: external,
+        st: streaks,
+        tests: tests,
+        mobility: mobility,
+        postures: postures,
+        hrv: hrv,
+        now: DateTime.now(),
+      );
 
   /// Poziom za regularność.
   Level get level => Level.of(xpFrom(sessions, external, profile.daysPerWeek, tests: tests));

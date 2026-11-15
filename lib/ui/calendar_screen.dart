@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/models.dart';
+import '../core/badges.dart';
 import '../core/progress.dart';
 import '../core/reminders.dart';
 import '../core/store.dart';
@@ -129,6 +130,64 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
             ]),
           ),
+        ),
+        Builder(builder: (context) {
+          final (season, days, need, left) = seasonChallenge(st, DateTime.now());
+          return Card(
+            child: ListTile(
+              leading: const Text('🍂', style: TextStyle(fontSize: 26)),
+              title: Text('Wyzwanie sezonu: $season', style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                      value: (days / need).clamp(0, 1).toDouble(), minHeight: 6, backgroundColor: C.surface2, color: C.warn),
+                ),
+                const SizedBox(height: 4),
+                Text(days >= need ? 'Zaliczone! $days dni z ruchem.' : '$days/$need dni z ruchem · zostało $left dni sezonu',
+                    style: TextStyle(color: C.muted, fontSize: 12)),
+              ]),
+            ),
+          );
+        }),
+        SectionTitle('Odznaki (${store.badges.where((b) => b.earned).length}/${store.badges.length})'),
+        GridView.count(
+          crossAxisCount: 4,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: 0.78,
+          children: [
+            for (final b in store.badges)
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => showDialog<void>(
+                  context: context,
+                  builder: (c) => AlertDialog(
+                    title: Text('${b.icon}  ${b.name}'),
+                    content: Text('${b.desc}\n${b.earned ? 'Zdobyta ✓' : 'Postęp: ${b.status}'}'),
+                    actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
+                  ),
+                ),
+                child: Opacity(
+                  opacity: b.earned ? 1 : 0.4,
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Stack(alignment: Alignment.center, children: [
+                      SizedBox(
+                        width: 50,
+                        height: 50,
+                        child: CircularProgressIndicator(
+                            value: b.progress, strokeWidth: 3, backgroundColor: C.surface2, color: b.earned ? C.warn : C.muted),
+                      ),
+                      Text(b.icon, style: const TextStyle(fontSize: 24)),
+                    ]),
+                    const SizedBox(height: 4),
+                    Text(b.name,
+                        maxLines: 2, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, height: 1.15)),
+                  ]),
+                ),
+              ),
+          ],
         ),
         const SectionTitle('Przypomnienia'),
         Card(

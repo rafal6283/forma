@@ -15,6 +15,7 @@ import 'muscle_map.dart';
 import 'session_widgets.dart';
 import 'stats_screen.dart';
 import 'report_screen.dart';
+import 'share_card.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -155,6 +156,7 @@ class _SessionScreenState extends State<SessionScreen> {
     }
     return Scaffold(
       appBar: AppBar(title: Text(s.title), actions: [
+        IconButton(tooltip: 'Udostępnij obrazek', onPressed: () => shareSessionCard(context, s), icon: const Icon(Icons.ios_share)),
         IconButton(
           icon: const Icon(Icons.delete_outline),
           onPressed: () async {
