@@ -50,7 +50,7 @@ WorkoutCommand parseCommand(String text, Set<String> owned) {
 
   // czas
   int? minutes;
-  final m = RegExp(r'(\d{1,3})\s*(min|minut|m\b|\')').firstMatch(t) ?? RegExp(r'^\s*(\d{1,3})\s*$').firstMatch(t);
+  final m = RegExp(r"(\d{1,3})\s*(min|minut|m\b|')").firstMatch(t) ?? RegExp(r'^\s*(\d{1,3})\s*$').firstMatch(t);
   if (m != null) {
     minutes = int.parse(m.group(1)!);
   } else if (has(['pol godziny', 'polgodzin'])) {
