@@ -385,7 +385,14 @@ class FigAnim {
   /// Zalecany obrót kamery (radiany) — dla ruchów poza płaszczyzną widoku z boku.
   final double? cam;
 
-  FigAnim(this.keys, this.cycle, {this.hands = false, this.props = const [], this.flow = false, this.cam});
+  /// Podpora wskazana ręcznie (np. kark w hip thruście); 'none' = bez przypinania.
+  final String? pin;
+
+  /// Dłonie/stopy trzymane cały czas w jednym miejscu (np. dłonie na krześle w pompkach).
+  final List<String> fix;
+
+  FigAnim(this.keys, this.cycle,
+      {this.hands = false, this.props = const [], this.flow = false, this.cam, this.pin, this.fix = const []});
 
   factory FigAnim.fromJson(Map<String, dynamic> j, Map<String, Pose> lib) {
     final keys = <Pose>[];
@@ -405,7 +412,22 @@ class FigAnim {
       props: ((j['props'] as List?) ?? const []).map((e) => (e as Map).cast<String, dynamic>()).toList(),
       flow: j['flow'] == true,
       cam: (j['cam'] as num?)?.toDouble(),
+      pin: j['pin'] as String?,
+      fix: ((j['fix'] as List?) ?? const []).cast<String>(),
     );
+  }
+
+  /// (klatka, postęp 0…1 przejścia do następnej) w chwili [seconds] — ten sam podział co w [at].
+  (int, double) phase(double seconds, {double speed = 1}) {
+    if (keys.length == 1) return (0, 0);
+    final per = cycle / keys.length;
+    final t = (seconds * speed) % cycle;
+    final i = (t / per).floor() % keys.length;
+    final f = (t - i * per) / per;
+    if (flow) return (i, f);
+    const hold = 0.22;
+    final k = f < hold ? 0.0 : (f - hold) / (1 - hold);
+    return (i, 0.5 - math.cos(k * math.pi) / 2);
   }
 
   /// Poza w chwili [seconds] (pętla); na każdą klatkę przypada równa część cyklu.

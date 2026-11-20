@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../core/figure.dart';
 import '../core/models.dart';
+import '../core/scene.dart';
 import '../core/app_settings.dart';
 import 'figure3d.dart';
 import 'technique.dart';
@@ -103,9 +104,8 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final a = widget.exercise.anim;
-    final pose = a.at(_t, speed: widget.speed);
+    final (_, j) = _scene.physics.frameAt(_t, speed: widget.speed);
     final breath = _still ? math.sin(_t * 2 * math.pi / 3.6) : 0.0;
-    final j = Joints.grounded(pose, hands: a.hands);
 
     // wskazówki techniki: pracujące mięśnie świecą w trakcie ruchu
     var glow = const <String, double>{};
@@ -126,7 +126,7 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
       floor: widget.showFloor,
       hands: a.hands,
       hold: widget.exercise.hold,
-      props: [for (final p in _scene.props) Prop3(p.type, p.rect)],
+      props: [for (final p in _scene.physics.props) Prop3(p.type, p.rect)],
       breath: breath,
       glow: glow,
     );
@@ -196,27 +196,23 @@ class _ModeChip extends StatelessWidget {
 class _Scene {
   final Exercise ex;
   late final Rect bounds;
-  late final List<_Prop> props;
+  late final Scene physics = Scene(ex.anim);
   late final List<Joints> samples; // pozycje w całym cyklu (kadr 3D)
   late final Map<String, double> glow = glowFor(ex);
   late final double cx; // środek sceny (oś obrotu kamery)
 
   _Scene(this.ex) {
     final a = ex.anim;
-    final first = Joints.grounded(a.keys.first, hands: a.hands);
-    props = [
-      for (final p in a.props) _Prop.from(p, first),
-    ];
-    var r = Rect.fromPoints(first['hip'], first['hip']);
     // próbkujemy cały cykl
-    samples = [for (var i = 0; i <= 24; i++) Joints.grounded(a.at(a.cycle * i / 24), hands: a.hands)];
+    samples = [for (var i = 0; i <= 24; i++) physics.frameAt(a.cycle * i / 24).$2];
+    var r = Rect.fromPoints(samples.first['hip'], samples.first['hip']);
     for (final j in samples) {
       for (final v in j.p.values) {
         r = r.expandToInclude(Rect.fromCircle(center: v, radius: 0.04));
       }
       r = r.expandToInclude(Rect.fromCircle(center: j['head'], radius: Body.headR + 0.03));
     }
-    for (final p in props) {
+    for (final p in physics.props) {
       r = r.expandToInclude(p.rect);
     }
     if (!a.hands) r = r.expandToInclude(Rect.fromLTRB(r.left, r.top, r.right, 0.02));
@@ -224,32 +220,6 @@ class _Scene {
     final w = math.max(r.width, 1.2), h = math.max(r.height, 1.3);
     bounds = Rect.fromCenter(center: r.center, width: w + 0.3, height: h + 0.25);
     cx = r.center.dx;
-  }
-}
-
-class _Prop {
-  final String type;
-  final Rect rect;
-  _Prop(this.type, this.rect);
-
-  static _Prop from(Map<String, dynamic> p, Joints first) {
-    switch (p['type']) {
-      case 'chair':
-        final pt = first[(p['at'] as String?) ?? 'haN'];
-        final w = (p['w'] as num?)?.toDouble() ?? 0.4;
-        final x0 = pt.dx + ((p['dx'] as num?)?.toDouble() ?? 0) - w / 2;
-        return _Prop('chair', Rect.fromLTRB(x0, pt.dy, x0 + w, 0));
-      case 'wall':
-        final at = p['at'] as String?;
-        final x = at != null
-            ? first[at].dx + ((p['dx'] as num?)?.toDouble() ?? 0)
-            : (p['x'] as num?)?.toDouble() ?? -0.1;
-        return _Prop('wall', Rect.fromLTRB(x, -1.9, x + 0.04, 0));
-      case 'bar':
-        final h = first['haN'];
-        return _Prop('bar', Rect.fromLTRB(h.dx - 0.55, h.dy - 0.02, h.dx + 0.55, h.dy + 0.02));
-    }
-    return _Prop('none', Rect.zero);
   }
 }
 

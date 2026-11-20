@@ -213,7 +213,7 @@ P["child"] = {"t": 70, "h": 60, "an": [92, 92], "af": [90, 90], "ln": [62, -90],
 P["kneel_lunge"] = clean(solve({"t": 180, "an": [172, 176], "af": [168, 172], "lf": [-18, -90]},
                                lambda p, v: p.__setitem__("ln", [v, 0]), "anN", "knF", 40, 120))
 P["dip_up"] = {"t": 180, "an": [-16, -16], "af": [-18, -18], "ln": [86, 0], "lf": [84, 0]}
-P["dip_down"] = {"t": 178, "an": [-58, 2], "af": [-60, 2], "ln": [70, 4], "lf": [68, 4]}
+P["dip_down"] = {"t": 178, "an": [-58, 2], "af": [-60, 2], "ln": [110, 4], "lf": [108, 4]}
 _it = {"an": [0, 0], "af": [0, 0], "_dh": 4}
 set_body(_it, 130)
 P["incline_top"] = clean(_it)
@@ -242,6 +242,10 @@ def _solve_incline():
 
 
 P["incline_bot"] = _solve_incline()
+# Scena fizyki trzyma dłonie na krześle (IK ramion) — kąt ciała tak, by klatka zeszła tuż nad krawędź
+P["incline_bot"] = {"an": [-118, 18], "af": [-120, 18], "_dh": 3}
+set_body(P["incline_bot"], 112)
+P["incline_bot"] = clean(P["incline_bot"])
 
 # ------------------------------------------------------------ zwis
 P["hang"] = {"an": [180, 180], "af": [178, 178], "ln": [-4, -22], "lf": [-6, -24]}
@@ -357,7 +361,7 @@ P["band_walk_b"] = dict(FR, t=180, x=0.12, an=[10, -120], af=[10, -120], ln=[14,
 P["hang_hold"] = P["hang"]
 P["chin_top"] = dict(P["pull_top"], an=[25, 168], af=[23, 166])
 P["dec_push_top"] = {"an": [0, 0], "af": [0, 0], "t": 76, "h": 80, "ln": [-104, -104], "lf": [-104, -104]}
-P["dec_push_bot"] = {"an": [-115, 10], "af": [-117, 10], "t": 70, "h": 74, "ln": [-110, -110], "lf": [-110, -110]}
+P["dec_push_bot"] = {"an": [-115, 10], "af": [-117, 10], "t": 66, "h": 70, "ln": [-114, -114], "lf": [-114, -114]}
 P["side_plank_low"] = dict(P["side_plank"], t=P["side_plank"]["t"] - 8, h=P["side_plank"]["t"] - 8,
                            ln=[P["side_plank"]["t"] - 188] * 2, lf=[188 - P["side_plank"]["t"]] * 2)
 P["calf_wall"] = {"t": 158, "an": [60, 60], "af": [58, 58], "ln": [30, -15], "lf": [-30, -30]}
@@ -462,7 +466,7 @@ P["clap_air"] = dict(P["pushup_top"], lift=0.12, an=[-20, 30], af=[-22, 28])
 P["spider"] = dict(P["pushup_bot"], ln=[55, -60])
 P["t_rot"] = dict(P["pushup_top"], af=[180, 180], h=P["pushup_top"]["t"] + 30)
 P["hs_top"] = {"t": 4, "h": 0, "an": [2, 2], "af": [0, 0], "ln": [178, 178], "lf": [176, 176]}
-P["hs_bot"] = {"t": 10, "h": 4, "an": [-60, 40], "af": [-62, 38], "ln": [178, 178], "lf": [176, 176]}
+P["hs_bot"] = {"t": 10, "h": 4, "an": [-40, 30], "af": [-42, 28], "ln": [178, 178], "lf": [176, 176]}
 P["cross_climb"] = dict(P["pushup_top"], ln=[72, -40])
 P["step_touch"] = dict(FR, x=0.18, an=[150, 160], af=[150, 160], ln=[18, 4], lf=[-4, -4])
 P["front_kick"] = {"an": [10, 10], "af": [95, 95], "ln": [86, 86], "lf": [0, 0]}
@@ -536,8 +540,13 @@ def parse_m(spec):
 
 
 def ex(id, name, typ, groups, lvl, met, keys, s=2.0, eq=(), impact=False, uni=False,
-       stress=(), tips=(), hold=None, props=None, anchor=None, easier=None, harder=None, static=False, m=None):
+       stress=(), tips=(), hold=None, props=None, anchor=None, easier=None, harder=None, static=False, m=None,
+       fix=None, pin=None):
     a = {"k": list(keys), "s": s}
+    if pin:
+        a["pin"] = pin  # punkt przypięty w miejscu (scena fizyki); domyślnie wybierany automatycznie
+    if fix:
+        a["fix"] = list(fix)  # dłonie/stopy trzymane w miejscu przez cały ruch (scena fizyki)
     if anchor:
         a["anchor"] = anchor
     if props:
@@ -565,7 +574,7 @@ def ex(id, name, typ, groups, lvl, met, keys, s=2.0, eq=(), impact=False, uni=Fa
     return e
 
 
-CHAIR_H = [{"type": "chair", "at": "haN", "w": 0.42, "dx": -0.12}]
+CHAIR_H = [{"type": "chair", "at": "haN", "w": 0.42, "dx": 0.14}]
 E = [
     # --- rozgrzewka / kardio
     ex("jumping_jacks", "Pajacyki", "cardio", ["całe ciało"], 1, 8.0, ["jack_in", "jack_out"], 0.9,
@@ -624,7 +633,7 @@ E = [
        ["sbridge_down", "sbridge_up"], 2.4, uni=True,
        tips=["Biodra równo, nie przechylaj miednicy", "Wolna noga w linii z udem"], easier="glute_bridge"),
     ex("wall_sit", "Krzesełko przy ścianie", "strength", ["nogi"], 2, 4.0, ["wall_sit", dict(P["wall_sit"], h=182)],
-       3.0, static=True, stress=["kolana"], props=[{"type": "wall", "x": -0.06}],
+       3.0, static=True, stress=["kolana"], props=[{"type": "wall", "touch": "back"}],
        tips=["Uda równolegle do podłogi", "Plecy płasko przy ścianie"]),
     ex("calf_raises", "Wspięcia na palce", "strength", ["nogi"], 1, 3.0, ["stand", "calf_up"], 1.8,
        tips=["Zatrzymaj się na górze na sekundę", "Opuszczaj powoli"]),
@@ -638,7 +647,7 @@ E = [
        tips=["Wchodź siłą nogi na krześle", "Stabilne krzesło przy ścianie"]),
     ex("split_squat", "Przysiad bułgarski", "strength", ["nogi", "pośladki"], 3, 6.0, ["split_top", "split_bot"],
        3.0, uni=True, eq=["chair"], stress=["kolana"],
-       props=[{"type": "chair", "at": "toN", "w": 0.4, "dx": -0.1}],
+       props=[{"type": "chair", "at": "toN", "w": 0.4, "dx": -0.18}],
        tips=["Tylna stopa na krześle", "Schodź pionowo w dół"]),
     ex("side_leg_raise", "Unoszenie nogi w leżeniu bokiem", "strength", ["pośladki"], 1, 3.0,
        ["side_lying", "side_lying_up"], 2.0, uni=True, tips=["Noga prosta, palce do przodu", "Nie odchylaj bioder"]),
@@ -650,7 +659,7 @@ E = [
     ex("knee_pushups", "Pompki na kolanach", "strength", ["klatka", "ramiona"], 1, 3.8, ["kpush_top", "kpush_bot"], 2.4,
        stress=["nadgarstki"], tips=["Linia od kolan do głowy", "Klatka nisko nad podłogę"], harder="pushups"),
     ex("incline_pushups", "Pompki z rękami na krześle", "strength", ["klatka", "ramiona"], 1, 4.0,
-       ["incline_top", "incline_bot"], 2.4, eq=["chair"], props=CHAIR_H,
+       ["incline_top", "incline_bot"], 2.4, eq=["chair"], props=CHAIR_H, fix=["haN", "haF"], pin="toN",
        tips=["Krzesło oparte o ścianę", "Ciało proste jak deska"], harder="pushups"),
     ex("pike_pushups", "Pompki w pozycji V", "strength", ["barki", "ramiona"], 4, 5.0, ["pike_top", "pike_bot"], 2.6,
        stress=["nadgarstki", "barki"], tips=["Biodra wysoko", "Głowa schodzi między dłonie"], easier="pushups"),
@@ -802,10 +811,10 @@ E += [
        stress=["kolana"], m="quads glutes | abs hamstrings", easier="box_squat",
        tips=["Wolna noga prosto przed sobą", "Na początek z krzesłem za plecami"]),
     ex("box_squat", "Przysiad do krzesła", "strength", [], 1, 4.5, ["box_squat", "stand_fwd"], 2.8, eq=["chair"],
-       props=[{"type": "chair", "at": "hip", "w": 0.42, "dx": -0.14}], m="quads glutes | hamstrings",
+       props=[{"type": "chair", "at": "hip", "w": 0.42, "dx": -0.06}], m="quads glutes | hamstrings",
        harder="squat", tips=["Dotknij krzesła pośladkami i wstań", "Nie siadaj całym ciężarem"]),
     ex("hip_thrust", "Hip thrust z plecami na krześle", "strength", [], 2, 4.5, ["thrust_down", "thrust_up"], 2.6,
-       eq=["chair"], props=[{"type": "chair", "at": "neck", "w": 0.42, "dx": 0.16}], m="glutes | hamstrings quads",
+       eq=["chair"], props=[{"type": "chair", "at": "neck", "w": 0.42, "dx": 0.21}], pin="neck", m="glutes | hamstrings quads",
        tips=["Łopatki na krawędzi krzesła", "Na górze ściśnij pośladki"]),
     ex("band_walk", "Chód bokiem z gumą", "strength", [], 2, 4.0, ["band_walk", "band_walk_b"], 1.4, eq=["band"],
        m="abductors glutes | quads", tips=["Guma nad kolanami", "Kolana na zewnątrz, biodra nisko"]),
@@ -839,7 +848,7 @@ E += [
     ex("swimmers", "Pływanie w leżeniu", "strength", [], 2, 3.5, ["swimmer", "swimmer~"], 1.2,
        m="lower_back glutes | upper_back shoulders", tips=["Przeciwna ręka i noga", "Szybkie, krótkie ruchy"]),
     ex("door_row", "Wiosłowanie przy framudze", "strength", [], 2, 4.0, ["door_lean", "door_pull"], 2.6,
-       props=WALL_H, m="lats upper_back biceps | forearms abs", harder="inverted_row",
+       props=WALL_H, fix=["haN", "haF"], m="lats upper_back biceps | forearms abs", harder="inverted_row",
        tips=["Złap mocno framugę lub poręcz", "Im bardziej odchylony, tym trudniej"]),
     ex("tabletop", "Unoszenie bioder w podporze tyłem", "strength", [], 2, 4.0, ["tabletop_down", "tabletop_up"], 2.6,
        stress=["nadgarstki"], m="glutes shoulders | triceps lower_back hamstrings",
@@ -868,7 +877,7 @@ E += [
     ex("wide_pushups", "Pompki szerokie", "strength", [], 3, 5.0, ["pushup_top", "pushup_bot"], 2.4,
        stress=["nadgarstki", "barki"], m="chest | shoulders triceps", tips=["Dłonie szerzej niż barki", "Klatka nisko"]),
     ex("decline_pushups", "Pompki z nogami na krześle", "strength", [], 4, 5.5, ["dec_push_top", "dec_push_bot"], 2.6,
-       eq=["chair"], props=CHAIR_FEET, stress=["nadgarstki", "barki"], m="chest shoulders triceps | abs",
+       eq=["chair"], props=CHAIR_FEET, stress=["nadgarstki", "barki"], m="chest shoulders triceps | abs", fix=["haN", "haF"], pin="toN",
        tips=["Ciało w jednej linii", "Głowa w przedłużeniu kręgosłupa"]),
     ex("high_plank", "Podpór przodem", "core", [], 1, 3.8, ["pushup_top", dict(P["pushup_top"], h=P["pushup_top"]["t"] + 10)],
        3.0, static=True, stress=["nadgarstki"], m="abs shoulders | chest triceps", tips=["Dłonie pod barkami", "Brzuch napięty"]),
@@ -987,7 +996,7 @@ E += [
     ex("butterfly", "Motyl", "stretch", [], 1, 2.0, ["butterfly", "butterfly_b"], 4.0, static=True, m="adductors",
        tips=["Stopy razem", "Kolana opadają swobodnie"]),
     ex("calf_stretch", "Rozciąganie łydki przy ścianie", "stretch", [], 1, 2.0, ["calf_wall", dict(P["calf_wall"], t=156)],
-       4.0, static=True, uni=True, props=[{"type": "wall", "x": 0.82}], m="calves", tips=["Tylna pięta w podłogę", "Noga prosta"]),
+       4.0, static=True, uni=True, props=[{"type": "wall", "at": "haN", "dx": 0.04}], fix=["haN", "haF"], m="calves", tips=["Tylna pięta w podłogę", "Noga prosta"]),
     ex("chest_stretch", "Rozciąganie klatki", "stretch", [], 1, 2.0, ["chest_stretch", dict(P["chest_stretch"], t=183)], 4.0,
        static=True, m="chest shoulders", tips=["Dłonie splecione za plecami", "Łopatki razem"]),
     ex("triceps_stretch", "Rozciąganie tricepsa", "stretch", [], 1, 2.0, ["arm_up_bent", dict(P["arm_up_bent"], h=176)], 4.0,
@@ -1025,7 +1034,7 @@ E += [
     ex("frog_jumps", "Żabie skoki", "cardio", [], 4, 9.0, ["squat_hands", "frog_air"], 1.6, impact=True, stress=["kolana"],
        m="quads glutes | calves hamstrings", tips=["Dłonie do podłogi, potem skok do przodu", "Miękkie lądowanie"]),
     ex("chair_pistol", "Przysiad na jednej nodze do krzesła", "strength", [], 3, 5.5, ["pistol_bot", "pistol_top"], 3.4,
-       uni=True, eq=["chair"], props=[{"type": "chair", "at": "hip", "w": 0.42, "dx": -0.16}], stress=["kolana"],
+       uni=True, eq=["chair"], props=[{"type": "chair", "at": "hip", "w": 0.42, "dx": -0.06}], stress=["kolana"],
        m="quads glutes | abs", harder="pistol_squat", tips=["Siadaj na krzesło na jednej nodze", "Wstań bez odpychania rękami"]),
     ex("atg_split_squat", "Przysiad wykroczny z przednią stopą wyżej", "strength", [], 3, 5.5, ["atg_top", "atg_bot"], 3.0,
        uni=True, eq=["chair"], props=[{"type": "chair", "at": "toF", "w": 0.36, "dx": 0.0}], stress=["kolana"],
@@ -1097,7 +1106,7 @@ E += [
     ex("prone_t", "Unoszenie rąk T w leżeniu", "strength", [], 1, 3.0, ["prone_t", "prone_t_up"], 2.4,
        m="upper_back traps | shoulders", tips=["Ręce w bok jak litera T", "Kciuki do sufitu"]),
     ex("wall_pushup", "Pompki przy ścianie", "strength", [], 1, 3.0, ["wall_push_top", "wall_push_bot"], 2.2,
-       props=[{"type": "wall", "at": "haN", "dx": 0.03}], m="chest triceps | shoulders", harder="incline_pushups",
+       props=[{"type": "wall", "at": "haN", "dx": 0.04}], fix=["haN", "haF"], m="chest triceps | shoulders", harder="incline_pushups",
        tips=["Ciało proste jak deska", "Klatka do ściany"]),
     ex("hindu_pushup", "Pompki hinduskie", "strength", [], 4, 6.0, ["dog", "pushup_bot", "up_dog"], 3.6,
        stress=["nadgarstki", "barki", "plecy"], m="chest shoulders triceps | lower_back abs",
@@ -1117,7 +1126,7 @@ E += [
     ex("t_pushup", "Pompka z obrotem", "strength", [], 3, 6.0, ["pushup_top", "pushup_bot", "pushup_top", "t_rot"], 3.6,
        stress=["nadgarstki"], m="chest obliques shoulders | triceps", tips=["Po pompce otwórz się do deski bokiem", "Wzrok za ręką"]),
     ex("handstand_pushup", "Pompki w staniu na rękach przy ścianie", "strength", [], 5, 8.0, ["hs_top", "hs_bot"], 3.0,
-       props=[{"type": "wall", "at": "toN", "dx": -0.08}], stress=["nadgarstki", "barki"], m="shoulders triceps | traps",
+       props=[{"type": "wall", "at": "toN", "dx": -0.1}], stress=["nadgarstki", "barki"], m="shoulders triceps | traps",
        easier="pike_pushups", tips=["Tylko przy ścianie i na miękkim podłożu", "Głowa schodzi między dłonie"]),
 
     # --- kardio
@@ -1241,7 +1250,7 @@ E += [
        m="quads glutes | hamstrings abs", tips=["Tylne kolano schodzi za piętę", "Ręce do przodu dla równowagi"], easier="split_squat"),
     ex("wall_sit_march", "Krzesełko z unoszeniem nóg", "strength", [], 3, 4.5,
        ["wall_sit", dict(P["wall_sit"], ln=[112, 20]), "wall_sit", dict(P["wall_sit"], lf=[110, 20])], 2.4,
-       stress=["kolana"], props=[{"type": "wall", "x": -0.06}], m="quads | glutes abs", tips=["Plecy płasko przy ścianie", "Uda równolegle"]),
+       stress=["kolana"], props=[{"type": "wall", "touch": "back"}], m="quads | glutes abs", tips=["Plecy płasko przy ścianie", "Uda równolegle"]),
     ex("glute_bridge_pulse", "Mostek pulsujący", "strength", [], 1, 3.8, ["bridge_up", dict(P["bridge_up"], t=74, h=88)], 0.9,
        m="glutes | hamstrings", tips=["Biodra wysoko, krótki ruch", "Napinaj pośladki na górze"]),
     ex("bridge_hold_sl", "Mostek na jednej nodze — utrzymanie", "strength", [], 3, 3.8, ["sbridge_up", dict(P["sbridge_up"], t=68)], 3.0,
@@ -1942,3 +1951,10 @@ dst = ROOT / "assets" / "exercises.json"
 dst.parent.mkdir(exist_ok=True)
 dst.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
 print(f"{len(E)} ćwiczeń, {len(P)} póz → {dst.relative_to(ROOT)}; Fitify: {len(FITIFY)} nazw → {len(set(FITIFY.values()))} ćwiczeń")
+
+# fizyka sceny (tool/physics.py): wzorzec dla testu zgodności z lib/core/scene.dart i kontrola rekwizytów
+import physics as _phys  # noqa: E402
+
+print(f"wzorzec fizyki: {_phys.reference(ROOT / 'test' / 'fixtures' / 'physics_ref.json')} ćwiczeń")
+_bad = [r for r in _phys.check_all() if r[1] in ("rekwizyt", "przeprost")]
+assert not _bad, f"fizyka: {_bad}"
