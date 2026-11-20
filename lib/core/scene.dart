@@ -156,7 +156,7 @@ class Scene {
         flags = [
           for (var i = 0; i < n; i++)
             keys[i].lift == 0 &&
-                _touching(world[i], c, 0.06) &&
+                _touching(world[i], c, 0.045) &&
                 !(c.startsWith('ha') && _hyp(world[i][c]!, world[i]['head']!) < 0.25)
         ];
       }

@@ -14,7 +14,8 @@ void main() {
     expect(back.toJson(), c.toJson());
     // stara lub niepełna karta nie wywraca aplikacji
     final empty = FamilyCard.fromJson(const {});
-    expect((empty.name, empty.level, empty.challenges), ('', 1, isEmpty));
+    expect((empty.name, empty.level), ('', 1));
+    expect(empty.challenges, isEmpty);
   });
 
   test('moja karta: trening z tego tygodnia liczy się do minut tygodnia', () {

@@ -23,11 +23,13 @@ void main() {
           final p = j.p[k];
           if (p == null) return;
           final d = ((p.dx - (v[0] as num)).abs() + (p.dy - (v[1] as num)).abs());
-          if (d > 0.005) bad.add('$id t=$t $k: ${p.dx.toStringAsFixed(3)},${p.dy.toStringAsFixed(3)} ≠ $v');
+          if (d > 0.005 && !bad.any((b) => b.startsWith('$id '))) {
+            bad.add('$id t=$t $k: ${p.dx.toStringAsFixed(3)},${p.dy.toStringAsFixed(3)} ≠ $v');
+          }
         });
       }
     });
-    expect(bad.length, 0, reason: bad.take(15).join('\n'));
+    expect(bad.length, 0, reason: bad.join('\n'));
   });
 
   test('nic nie wchodzi w krzesło, ścianę ani podłogę', () {
