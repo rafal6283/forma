@@ -587,7 +587,7 @@ def reference(path, n=6):
         sc = Scene(ex["anim"], data["poses"])
         if sc.pivot is None and not sc.props:
             continue
-        out[ex["id"]] = [[round(sc.cycle * i / n, 6),
+        out[ex["id"]] = [[sc.cycle * i / n,
                           {k: [round(v[0], 5), round(v[1], 5)] for k, v in sc.frame_at(sc.cycle * i / n)[1].items()}]
                          for i in range(n)]
     Path(path).write_text(json.dumps(out, separators=(",", ":")))
