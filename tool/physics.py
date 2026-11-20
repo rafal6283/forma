@@ -110,6 +110,8 @@ def ik2(root, mid, target, l1, l2, back=False, arm=False):
         return s1[:2]
     if s2[2] >= -1 and s1[2] < -1:
         return s2[:2]
+    if s1[2] >= -1 and s2[2] >= -1:  # prawie prosta: lekko zgięta w stronę naturalną (bez losowości zaokrągleń)
+        return (s1 if s1[2] >= s2[2] else s2)[:2]
     cross = dx * (mid[1] - root[1]) - dy * (mid[0] - root[0])
     return (s1 if cross > 0 else s2)[:2]
 

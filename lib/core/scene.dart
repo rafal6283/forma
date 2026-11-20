@@ -54,6 +54,8 @@ double _hyp(Offset a, Offset b) => (a - b).distance;
   final s1 = sol(base - phi), s2 = sol(base + phi);
   if (s1.$3 >= -1 && s2.$3 < -1) return (s1.$1, s1.$2);
   if (s2.$3 >= -1 && s1.$3 < -1) return (s2.$1, s2.$2);
+  // prawie prosta: lekko zgięta w stronę naturalną (bez losowości zaokrągleń)
+  if (s1.$3 >= -1 && s2.$3 >= -1) return s1.$3 >= s2.$3 ? (s1.$1, s1.$2) : (s2.$1, s2.$2);
   final cross = dx * (mid.dy - root.dy) - dy * (mid.dx - root.dx);
   final s = cross > 0 ? s1 : s2;
   return (s.$1, s.$2);
