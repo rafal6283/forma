@@ -33,7 +33,7 @@ List<int> buildFormaFactors(Store s) {
 /// Wymiana z innymi aplikacjami tej samej osoby przez Koofr.
 class FormaExchange extends ExchangeAdapter {
   @override
-  String? get publishes => 'Treningi (minuty, kalorie, wysiłek, godzina końca) — dla Rytmu Snu i Dziennika talerza';
+  String? get publishes => 'Treningi (minuty, kalorie, wysiłek, godzina końca) — do podsumowania tygodnia w Dobie';
 
   @override
   List<(String, String)> get sources => const [
