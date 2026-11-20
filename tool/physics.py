@@ -53,7 +53,7 @@ def at(keys, cycle, flow, seconds):
         return keys[0]
     per = cycle / n
     t = seconds % cycle
-    i = int(t // per) % n
+    i = int(math.floor(t / per)) % n  # jak (t / per).floor() w Dart
     f = (t - i * per) / per
     if flow:
         p0, p1, p2, p3 = keys[(i - 1) % n], keys[i], keys[(i + 1) % n], keys[(i + 2) % n]
@@ -122,7 +122,7 @@ def _phase(n, cycle, flow, seconds):
     """(klatka i, postęp 0…1 przejścia do następnej) — jak w FigAnim.at."""
     per = cycle / n
     t = seconds % cycle
-    i = int(t // per) % n
+    i = int(math.floor(t / per)) % n  # jak (t / per).floor() w Dart
     f = (t - i * per) / per
     if flow:
         return i, f
