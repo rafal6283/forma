@@ -229,7 +229,7 @@ class ChallengeTile extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
-                      value: (p!.done.length / c.days).clamp(0, 1).toDouble(),
+                      value: (p.done.length / c.days).clamp(0, 1).toDouble(),
                       minHeight: 6,
                       backgroundColor: C.surface2,
                       color: finished ? C.good : C.accent,
@@ -245,7 +245,7 @@ class ChallengeTile extends StatelessWidget {
                     style: TextStyle(color: finished || doneToday ? C.good : C.text, fontSize: 13),
                   ),
                 ],
-                if (missing) Text('Wymaga: ${e!.eq.join(', ')}', style: const TextStyle(color: C.warn, fontSize: 12)),
+                if (missing) Text('Wymaga: ${e.eq.join(', ')}', style: const TextStyle(color: C.warn, fontSize: 12)),
               ]),
             ),
             const SizedBox(width: 8),

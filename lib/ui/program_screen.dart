@@ -97,7 +97,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
               if (v == 'end' &&
                   await confirm(context, 'Zakończyć plan?', 'Historia treningów zostaje. Trener wróci do doboru dzień po dniu.',
                       ok: 'Zakończ')) {
-                pr!.active = false;
+                pr.active = false;
                 await s.save();
                 if (mounted) setState(() {});
               }
@@ -108,7 +108,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
             ],
           ),
       ]),
-      body: showWizard ? _wizard() : _overview(pr!),
+      body: showWizard ? _wizard() : _overview(pr),
     );
   }
 
