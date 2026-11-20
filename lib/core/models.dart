@@ -493,6 +493,7 @@ class Session {
   final String? programDay;
   final String? challenge; // „plank30:7” = wyzwanie, dzień
   final int? hrr; // spadek tętna w minutę po treningu
+  final String? hrSource; // null = opaska na żywo; 'watch' = z zegarka przez Health Connect po treningu
   int? stravaId; // aktywność w Stravie (uzupełniona lub wysłana)
   bool stravaPending; // czeka na aktywność z zegarka
   final int readiness;
@@ -523,6 +524,7 @@ class Session {
     this.programDay,
     this.challenge,
     this.hrr,
+    this.hrSource,
   }) : feedback = feedback ?? {};
 
   int get activeSeconds => done.fold(0, (s, d) => s + d.seconds);
@@ -555,6 +557,7 @@ class Session {
         if (programDay != null) 'programDay': programDay,
         if (challenge != null) 'challenge': challenge,
         if (hrr != null) 'hrr': hrr,
+        if (hrSource != null) 'hrSrc': hrSource,
       };
 
   factory Session.fromJson(Map<String, dynamic> j) => Session(
@@ -582,6 +585,7 @@ class Session {
         programDay: j['programDay'] as String?,
         challenge: j['challenge'] as String?,
         hrr: (j['hrr'] as num?)?.toInt(),
+        hrSource: j['hrSrc'] as String?,
       );
 }
 

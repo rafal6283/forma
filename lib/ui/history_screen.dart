@@ -82,7 +82,7 @@ class HistoryScreen extends StatelessWidget {
                             title: Text(x.title, style: const TextStyle(fontWeight: FontWeight.w600)),
                             subtitle: Text(
                               '${fmtDate(x.start)}, ${fmtTime(x.start)} · ${fmtDur(x.duration.inSeconds)} · ${x.kcal.round()} kcal'
-                              '${x.avgHr != null ? ' · ♥ ${x.avgHr}' : ''}',
+                              '${x.avgHr != null ? ' · ♥ ${x.avgHr}${x.hrSource == 'watch' ? ' (z zegarka)' : ''}' : ''}',
                               style: TextStyle(color: C.muted, fontSize: 12),
                             ),
                             trailing: Column(mainAxisAlignment: MainAxisAlignment.center, children: [

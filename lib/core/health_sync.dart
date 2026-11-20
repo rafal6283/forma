@@ -189,6 +189,23 @@ class HealthSync {
     }
   }
 
+  /// Tętno z innych aplikacji (zegarek przez Health Sync / Huawei Zdrowie) w przedziale — bez tego, co zapisała Forma.
+  Future<List<(DateTime, int)>> heartRate(DateTime from, DateTime to) async {
+    if (!supported) return const [];
+    try {
+      await _configure();
+      final pts = await _h.getHealthDataFromTypes(types: const [HealthDataType.HEART_RATE], startTime: from, endTime: to);
+      return [
+        for (final p in pts)
+          if (!'${p.sourceId} ${p.sourceName}'.toLowerCase().contains('forma'))
+            if (p.value case NumericHealthValue(:final numericValue)) (p.dateFrom, numericValue.round()),
+      ];
+    } catch (e) {
+      lastError = '$e';
+      return const [];
+    }
+  }
+
   static HealthWorkoutActivityType _type(WorkoutKind k) => switch (k) {
         WorkoutKind.hiit => HealthWorkoutActivityType.HIGH_INTENSITY_INTERVAL_TRAINING,
         WorkoutKind.mobility || WorkoutKind.stretch => HealthWorkoutActivityType.OTHER,
@@ -207,7 +224,8 @@ class HealthSync {
         totalEnergyBurned: s.kcal.round(),
         title: 'Forma: ${s.title}',
       );
-      for (var i = 0; i < s.hr.length; i++) {
+      // tętno z zegarka już jest w Health Connect — nie dublujemy
+      for (var i = 0; i < (s.hrSource == 'watch' ? 0 : s.hr.length); i++) {
         final bpm = s.hr[i];
         if (bpm <= 0 || i % 3 != 0) continue; // co 15 s wystarczy
         final t = s.start.add(Duration(seconds: i * 5));

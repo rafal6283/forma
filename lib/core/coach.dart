@@ -3,6 +3,7 @@ import 'health_sync.dart';
 import 'library.dart';
 import 'models.dart';
 import 'store.dart';
+import 'watch_hr.dart';
 import 'trainer.dart';
 
 /// Trener zbudowany z aktualnych danych aplikacji.
@@ -30,6 +31,28 @@ Future<void> refreshHealth() async {
   if (!s.profile.healthConnect) return;
   s.health = await HealthSync.instance.snapshot();
   s.touch();
+  await fillWatchHr();
+}
+
+/// Treningi z ostatnich 3 dni bez tętna z opaski: tętno z zegarka z Health Connect (zegarek synchronizuje się
+/// z opóźnieniem, więc sprawdzamy przy każdym otwarciu). Zwraca liczbę uzupełnionych treningów.
+Future<int> fillWatchHr({Session? only}) async {
+  final s = Store.instance;
+  if (!s.profile.healthConnect) return 0;
+  final cutoff = DateTime.now().subtract(const Duration(days: 3));
+  var n = 0;
+  for (var i = 0; i < s.sessions.length; i++) {
+    final x = s.sessions[i];
+    if (only != null && x.id != only.id) continue;
+    if (x.start.isBefore(cutoff) || x.hr.any((v) => v > 0)) continue;
+    final samples = await HealthSync.instance.heartRate(x.start.subtract(const Duration(minutes: 3)), x.end);
+    final w = WatchHr.fromSamples(samples, x.start, x.end, s.profile.maxHr);
+    if (w == null || w.coverage < 0.3) continue;
+    s.sessions[i] = w.apply(x);
+    n++;
+  }
+  if (n > 0) await s.save();
+  return n;
 }
 
 /// Plan z polecenia zwykłym zdaniem.
