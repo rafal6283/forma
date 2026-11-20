@@ -45,6 +45,7 @@ jobs:
           if ! flutter test --reporter expanded > test.log 2>&1; then
             msg=$(grep -v '^\s*$' test.log | tail -n 60 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')
             echo "::warning title=Testy::$msg"
+            grep -v '^\s*$' test.log | grep -v '^[0-9][0-9]:[0-9][0-9] +[0-9]*: ' | tail -n 150
             exit 1
           fi
           tail -n 3 test.log
