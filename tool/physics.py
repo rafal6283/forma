@@ -167,7 +167,10 @@ class Scene:
             elif t == "bar":
                 self.props.append(("bar", first["haN"][1]))
         self.pivot, self.pin, self.world, self.ends, self.seg = None, None, [], {}, []
-        if self.hands or anim.get("pin") == "none":
+        # widok z przodu (pajacyki, przysiad sumo, deska bokiem): obie strony ruszają się symetrycznie —
+        # bez przypinania jednej stopy, ciało tylko opada na podłogę
+        front = all(k.get("view") == "front" for k in self.keys) and not anim.get("pin")
+        if self.hands or anim.get("pin") == "none" or front:
             return
         dropped = [self._drop(joints(k), k) for k in self.keys]
         self.pinned_by_anim = bool(anim.get("pin"))

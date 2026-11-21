@@ -261,7 +261,7 @@ P["sumo_bot"] = dict(FR, an=[10, -120], af=[10, -120], ln=[66, 12], lf=[66, 12])
 P["side_lunge"] = dict(FR, t=172, an=[10, -120], af=[10, -120], ln=[52, 0], lf=[36, 36])
 P["front_stand"] = dict(FR, an=[10, -120], af=[10, -120], ln=[12, 12], lf=[12, 12])
 P["skater"] = dict(FR, t=168, an=[-35, -30], af=[70, 75], ln=[22, -2], lf=[-28, -50])
-P["side_bend"] = dict(FR, t=162, h=158, an=[20, 10], af=[160, 140], ln=[6, 6], lf=[6, 6])
+P["side_bend"] = dict(FR, t=162, h=158, an=[20, 10], af=[158, 196], ln=[6, 6], lf=[6, 6])
 P["pull_apart_in"] = dict(FR, an=[48, -92], af=[48, -92], ln=[8, 8], lf=[8, 8])
 P["pull_apart_out"] = dict(FR, an=[92, 92], af=[92, 92], ln=[8, 8], lf=[8, 8])
 P["lateral_up"] = dict(FR, an=[88, 90], af=[88, 90], ln=[6, 6], lf=[6, 6])
@@ -714,7 +714,8 @@ E = [
     ex("knee_hug", "Kolana do klatki", "stretch", ["plecy"], 1, 2.0, ["knee_hug", "knee_hug_b"], 4.0,
        static=True, tips=["Rozluźnij kark", "Delikatnie kołysz się na boki"]),
     ex("side_bend", "Skłony boczne", "mobility", ["brzuch"], 1, 2.5,
-       [dict(P["side_bend"], t=180, h=180, af=[90, 120]), "side_bend", dict(P["side_bend"], t=180, h=180, af=[90, 120]),
+       [dict(P["side_bend"], t=180, h=180, af=[172, 178]), "side_bend",
+        dict(P["side_bend"], t=180, h=180, an=[172, 178], af=[20, 10]),
         "side_bend~"], 4.0, tips=["Nie pochylaj się do przodu", "Ręka sięga daleko w bok"]),
     ex("deep_squat_hold", "Głęboki przysiad z rozciąganiem", "mobility", ["nogi", "pośladki"], 2, 2.5,
        ["squat_bot", dict(P["squat_bot"], t=152)], 4.0, static=True, stress=["kolana"],
@@ -1888,6 +1889,89 @@ anim("curtsy_lunge", ["stand_hands_chest", "curtsy_s", "stand_hands_chest", "cur
 P["stand_hands_chest"] = {"an": [22, 125], "af": [20, 123]}
 for _id in ("shoulder_taps", "pushup_tap", "bear_shoulder_tap", "cross_climber", "bicycle", "knee_to_elbow", "shadow_boxing"):
     _BY[_id]["anim"]["cam"] = -0.55
+
+
+# --- poprawki fizyczności (zgłoszenia z telefonu) ---
+def _rel(a):
+    return (a + 180) % 360 - 180
+
+
+def _elbow(q, side):
+    a = q["an" if side == "N" else "af"]
+    return _rel(a[1] - a[0]) * (-1 if q.get("back") else 1)
+
+
+def _arm_to(p, side, hand_at, elbow_at=None, flex=(80, 150), w_el=1.0, w_hand=1.0):
+    """Ramię tak, by dłoń była w hand_at (i łokieć w elbow_at), łokieć zgięty naturalnie (flex w stopniach)."""
+    q = dict(full(p))
+    key = "an" if side == "N" else "af"
+    best = None
+    for u in range(-180, 180, 2):
+        for f in range(-180, 180, 2):
+            q[key] = [u, f]
+            fl = _elbow(q, side)
+            if not flex[0] <= fl <= flex[1]:
+                continue
+            j = joints(q)
+            ht = j[hand_at] if isinstance(hand_at, str) else hand_at
+            err = w_hand * math.hypot(j["ha" + side][0] - ht[0], j["ha" + side][1] - ht[1])
+            if elbow_at:
+                et = j[elbow_at]
+                err += w_el * math.hypot(j["el" + side][0] - et[0], j["el" + side][1] - et[1])
+            else:
+                err += 0.3 * max(0.0, j["el" + side][1] - j["head"][1] + 0.05)  # łokieć nie opada poniżej głowy
+            if best is None or err < best[0]:
+                best = (err, u, f)
+    q[key] = [best[1], best[2]]
+    return q
+
+
+def _hands_head(p):
+    """Dłonie splecione za głową, łokcie zgięte w naturalną stronę (brzuszki, rowerek, siady)."""
+    return _arm_to(_arm_to(p, "N", "head"), "F", "head")
+
+
+for _k in ("crunch_down", "crunch_up", "crunch_tt_down", "crunch_tt_up", "bike", "sit_ups_up"):
+    _rot = P[_k].get("rot")
+    P[_k] = clean(_hands_head(P[_k]))
+    if _rot:
+        P[_k]["rot"] = _rot
+P["stand_hands_head"] = clean(_hands_head({"an": [150, -40], "af": [146, -44]}))
+# kolano do łokcia: tułów skłania się, łokieć schodzi do uniesionego kolana, dłoń przy głowie
+_ke = dict(P["knee_elbow"], t=153, h=154, ln=[132, 20], lf=[9, 6])
+_ke = _arm_to(_ke, "N", "head", elbow_at="knN", flex=(60, 160), w_el=2.0, w_hand=0.5)
+_ke = _arm_to(_ke, "F", "head")
+P["knee_elbow"] = dict(clean(_ke), rot=-34)
+# wyskok: półprzysiad → wybicie → kolana do klatki w najwyższym punkcie → lądowanie
+P["tuck"] = dict(P["tuck"], lift=0.45)
+anim("tuck_jumps", ["squat_pulse", dict(P["jump_up"], lift=0.22), "tuck", dict(P["jump_up"], lift=0.12)], s=1.6)
+# przeskoki w bok: szeroki rozkrok → nogi razem w powietrzu → rozkrok dalej w bok → i z powrotem
+P["shuffle_b"] = dict(P["shuffle_b"], x=0.3, lift=0.12, ln=[6, 2], lf=[6, 2])
+anim("lateral_shuffle", ["shuffle_a", "shuffle_b", dict(P["shuffle_a"], x=0.6), dict(P["shuffle_b"], x=0.3)])
+# dotykanie pięt: łopatki uniesione, raz prawa, raz lewa dłoń sięga do pięty
+P["heel_a"] = dict(P["heel_a"], an=[-98, -98], af=[-74, -74])
+P["heel_b"] = dict(P["heel_a"], an=[-74, -74], af=[-98, -98])
+anim("heel_taps", ["heel_a", "heel_b"], cam=-0.55)
+# setka: ręce wyprostowane nad podłogą przy biodrach, krótkie pompowanie; widok z ukosu
+P["hundred_a"] = dict(P["hundred_a"], an=[-84, -84], af=[-86, -86])
+P["hundred_b"] = dict(P["hundred_a"], an=[-96, -96], af=[-98, -98])
+anim("hundred", ["hundred_a", "hundred_b"], cam=-0.55)
+# motyl: kolana na boki, stopy złączone przed sobą, dłonie trzymają stopy
+for _k, _th in (("butterfly", 100), ("butterfly_b", 90)):
+    _b = dict(P[_k], ln=[_th, -100], lf=[_th, -100])
+    P[_k] = clean(reach(reach(_b, "N", "ha", "toN"), "F", "ha", "toF"))
+# unoszenie bioder w podporze tyłem: dłonie stoją, ręce proste, biodra idą w górę
+# dół: dłonie i stopy tam, gdzie w pozycji stołu, biodra 25 cm niżej (bez przestawiania stóp)
+P["tabletop_down"] = dict(P["tabletop_up"], t=125, h=119, an=[-20.7, -39.4], af=[-22.7, -41.4], ln=[-106.2, -43.6],
+                          lf=[-108.2, -43.6])
+_BY["tabletop"]["anim"]["pin"] = "haN"
+_BY["tabletop"]["anim"]["fix"] = ["toN", "toF"]
+# pompki tyłem na podłodze: na dole łokcie zgięte ~85° (do tyłu), biodra niżej; dłonie i stopy w miejscu
+P["floor_dip_down"] = dict(P["floor_dip_up"], t=140, h=140, an=[25.4, -59.6], af=[25.4, -59.6], ln=[-131.4, 17.6],
+                           lf=[-133.4, 17.6])
+_BY["floor_dips"]["anim"]["fix"] = ["haN", "haF"]
+# opuszczanie bioder w desce bokiem: łokieć i stopy w miejscu, opada tylko biodro (o ~10 cm)
+P["side_plank_low"] = dict(P["side_plank"], t=115, h=115, ln=[-81.5, -81.5], lf=[81.5, 81.5])
 
 
 # Ustawienie stóp tam, gdzie nie podano go ręcznie (fp = 0):

@@ -107,7 +107,10 @@ class Scene {
           props.add(SceneProp('bar', Rect.fromLTRB(h.dx - 0.55, h.dy - 0.02, h.dx + 0.55, h.dy + 0.02)));
       }
     }
-    if (anim.hands || anim.pin == 'none') return;
+    // widok z przodu (pajacyki, przysiad sumo, deska bokiem): obie strony ruszają się symetrycznie —
+    // bez przypinania jednej stopy, ciało tylko opada na podłogę
+    final front = keys.every((k) => k.front) && anim.pin == null;
+    if (anim.hands || anim.pin == 'none' || front) return;
     final dropped = [for (final k in keys) _drop(Joints.of(k).p, k)];
     if (anim.pin != null) {
       pivot = anim.pin; // wskazany: opiera się w pierwszej klatce, w kolejnych trzymamy go w miejscu
