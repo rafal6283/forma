@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:rodzina_wykresy/rodzina_wykresy.dart' show InteractiveBarChart, BarItem, CalendarHeatmap, InteractiveLineChart, LineSeries, ChartPoint;
 
 import '../core/coach.dart';
 import '../core/library.dart';
@@ -104,10 +105,40 @@ class _StatsViewState extends State<StatsView> {
       ),
       SectionTitle(yearly ? 'Minuty w miesiącach' : 'Minuty w tygodniach'),
       Card(
-        child: Padding(padding: const EdgeInsets.fromLTRB(12, 16, 12, 8), child: SizedBox(height: 150, child: _Bars(buckets))),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+          child: InteractiveBarChart(
+            key: ValueKey(weeks),
+            height: 170,
+            color: C.accent,
+            format: (v) => '${v.round()} min',
+            bars: [
+              for (final b in buckets)
+                BarItem(b.$1, b.$2, detail: '${yearly ? b.$1 : 'tydzień od ${b.$1}'}: ${b.$2.round()} min'),
+            ],
+          ),
+        ),
       ),
-      const SectionTitle('Kalendarz (12 tygodni)'),
-      Card(child: Padding(padding: const EdgeInsets.all(14), child: _Heatmap(s.sessions))),
+      const SectionTitle('Kalendarz treningów'),
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: CalendarHeatmap(
+            values: () {
+              final m = <DateTime, double>{};
+              for (final x in s.sessions) {
+                final d = DateTime(x.start.year, x.start.month, x.start.day);
+                m[d] = (m[d] ?? 0) + x.duration.inMinutes;
+              }
+              return m;
+            }(),
+            color: C.accent,
+            weeks: yearly ? 26 : 16,
+            format: (v) => '${v.round()} min treningu',
+            marker: (_, v) => v >= 30,
+          ),
+        ),
+      ),
       SectionTitle('Serie w tym tygodniu', trailing: Text('cel $target na partię', style: TextStyle(color: C.muted, fontSize: 12))),
       Card(
         child: Padding(
@@ -153,22 +184,24 @@ class _StatsViewState extends State<StatsView> {
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Gotowość przed treningiem', style: TextStyle(color: C.muted)),
-              SizedBox(height: 70, child: _Line([for (final x in list) if (x.readiness > 0) x.readiness.toDouble()], C.good)),
+              _trend('Gotowość', [for (final x in list) if (x.readiness > 0) ChartPoint(x.start, x.readiness.toDouble())], C.good, (v) => '${v.round()}'),
               if (list.where((x) => x.avgHr != null).length >= 3) ...[
                 const SizedBox(height: 12),
                 Text('Średnie tętno na treningu', style: TextStyle(color: C.muted)),
-                SizedBox(height: 70, child: _Line([for (final x in list) if (x.avgHr != null) x.avgHr!.toDouble()], C.bad)),
+                _trend('Tętno', [for (final x in list) if (x.avgHr != null) ChartPoint(x.start, x.avgHr!.toDouble())], C.bad, (v) => '${v.round()}/min'),
               ],
               if (list.where((x) => x.hrr != null).length >= 2) ...[
                 const SizedBox(height: 12),
                 Text('Regeneracja tętna po treningu (spadek w minutę)', style: TextStyle(color: C.muted)),
-                SizedBox(height: 70, child: _Line([for (final x in list) if (x.hrr != null) x.hrr!.toDouble()], C.good)),
+                _trend('Spadek', [for (final x in list) if (x.hrr != null) ChartPoint(x.start, x.hrr!.toDouble())], C.good, (v) => '−${v.round()}/min'),
               ],
               if (s.hrv.length >= 3) ...[
                 const SizedBox(height: 12),
                 Text('HRV rano (ms)', style: TextStyle(color: C.muted)),
-                SizedBox(height: 70, child: _Line([for (final h in s.hrv.where((h) => !h.at.isBefore(from))) h.rmssd], C.calm)),
+                _trend('HRV', [for (final h in s.hrv.where((h) => !h.at.isBefore(from))) ChartPoint(h.at, h.rmssd)], C.calm, (v) => '${v.round()} ms'),
               ],
+              const SizedBox(height: 6),
+              Text('Przesuń palcem po wykresie, żeby zobaczyć wartość z danego dnia.', style: TextStyle(color: C.muted, fontSize: 11.5)),
             ]),
           ),
         ),
@@ -179,131 +212,16 @@ class _StatsViewState extends State<StatsView> {
   }
 }
 
-class _Bars extends StatelessWidget {
-  final List<(String, double)> data;
-  const _Bars(this.data);
-
-  @override
-  Widget build(BuildContext context) {
-    final mx = data.fold(0.0, (a, b) => math.max(a, b.$2));
-    return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      for (var i = 0; i < data.length; i++)
-        Expanded(
-          child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-            if (data[i].$2 > 0)
-              Text('${data[i].$2.round()}', style: TextStyle(fontSize: 9, color: C.muted)),
-            Container(
-              height: mx == 0 ? 2 : math.max(2, data[i].$2 / mx * 100),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              decoration: BoxDecoration(
-                color: i == data.length - 1 ? C.accent : C.accent.withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(i % (data.length > 8 ? 2 : 1) == 0 ? data[i].$1 : '',
-                style: TextStyle(fontSize: 9, color: C.muted), maxLines: 1),
-          ]),
-        ),
-    ]);
-  }
-}
-
-/// Kalendarz aktywności: 12 tygodni × 7 dni, kolor wg minut.
-class _Heatmap extends StatelessWidget {
-  final List<Session> sessions;
-  const _Heatmap(this.sessions);
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final start = _monday(now).subtract(const Duration(days: 7 * 11));
-    final mins = <String, int>{};
-    for (final s in sessions) {
-      final k = '${s.start.year}-${s.start.month}-${s.start.day}';
-      mins[k] = (mins[k] ?? 0) + s.duration.inMinutes;
-    }
-    Color c(int m) => m == 0
-        ? C.surface2
-        : m < 15
-            ? C.accent.withValues(alpha: 0.35)
-            : m < 30
-                ? C.accent.withValues(alpha: 0.65)
-                : C.accent;
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Column(children: [
-        for (final d in const ['P', 'W', 'Ś', 'C', 'P', 'S', 'N'])
-          SizedBox(height: 18, child: Text(d, style: TextStyle(fontSize: 10, color: C.muted))),
-      ]),
-      const SizedBox(width: 6),
-      for (var w = 0; w < 12; w++)
-        Expanded(
-          child: Column(children: [
-            for (var d = 0; d < 7; d++)
-              Builder(builder: (_) {
-                final day = start.add(Duration(days: w * 7 + d));
-                final future = day.isAfter(now);
-                final m = mins['${day.year}-${day.month}-${day.day}'] ?? 0;
-                return Container(
-                  height: 14,
-                  margin: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: future ? Colors.transparent : c(m),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                );
-              }),
-          ]),
-        ),
-    ]);
-  }
-}
-
-class _Line extends StatelessWidget {
-  final List<double> v;
-  final Color color;
-  const _Line(this.v, this.color);
-
-  @override
-  Widget build(BuildContext context) => CustomPaint(painter: _LinePainter(v, color), size: Size.infinite);
-}
-
-class _LinePainter extends CustomPainter {
-  final List<double> v;
-  final Color c;
-  _LinePainter(this.v, this.c);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (v.length < 2) return;
-    var lo = v.reduce(math.min), hi = v.reduce(math.max);
-    if (hi - lo < 1) {
-      lo -= 1;
-      hi += 1;
-    }
-    final dx = size.width / (v.length - 1);
-    Offset p(int i) => Offset(i * dx, size.height - 4 - (v[i] - lo) / (hi - lo) * (size.height - 8));
-    final path = Path()..moveTo(p(0).dx, p(0).dy);
-    for (var i = 1; i < v.length; i++) {
-      path.lineTo(p(i).dx, p(i).dy);
-    }
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = c
-        ..strokeWidth = 2.5
-        ..style = PaintingStyle.stroke
-        ..strokeJoin = StrokeJoin.round,
-    );
-    final tp = TextPainter(
-      text: TextSpan(text: '${v.last.round()}', style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w700)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(size.width - tp.width, 0));
-  }
-
-  @override
-  bool shouldRepaint(_LinePainter o) => o.v != v;
+/// Mały interaktywny wykres trendu (rysuje się przy pokazaniu, dymek pod palcem).
+Widget _trend(String name, List<ChartPoint> pts, Color color, String Function(double) fmt) {
+  final sorted = [...pts]..sort((a, b) => a.x.compareTo(b.x));
+  if (sorted.length < 2) return const SizedBox(height: 8);
+  return InteractiveLineChart(
+    height: 110,
+    series: [LineSeries(name, color, sorted, area: true, dots: sorted.length <= 20)],
+    yFormat: fmt,
+    xFormat: (d) => '${d.day}.${d.month.toString().padLeft(2, '0')}',
+  );
 }
 
 /// Najlepsze wyniki w ćwiczeniach: najwięcej powtórzeń w serii albo najdłuższe utrzymanie.
@@ -382,7 +300,14 @@ class ExerciseProgressScreen extends StatelessWidget {
         Text(usesReps ? 'Najlepsza seria (powtórzenia)' : 'Najdłużej (sekundy)', style: TextStyle(color: C.muted)),
         const SizedBox(height: 8),
         if (values.length >= 2)
-          Card(child: Padding(padding: const EdgeInsets.all(16), child: SizedBox(height: 140, child: _Line(values, C.accent))))
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: _trend(usesReps ? 'Powtórzenia' : 'Czas',
+                  [for (var i = 0; i < rows.length; i++) ChartPoint(rows[i].$1.start, values[i])], C.accent,
+                  (v) => usesReps ? '${v.round()} powt.' : '${v.round()} s'),
+            ),
+          )
         else
           Text('Wykres pojawi się po drugim treningu z tym ćwiczeniem.', style: TextStyle(color: C.muted)),
         const SectionTitle('Treningi'),
