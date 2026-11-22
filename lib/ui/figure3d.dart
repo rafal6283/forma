@@ -265,6 +265,50 @@ class Figure3DPainter extends CustomPainter {
     _shoe(an, to, zf, fS);
   }
 
+  /// Udo z kolanem i nogawką – gdy udo i goleń leżą na różnej głębokości (np. golenie za ciałem
+  /// w klęku), każda część jest sortowana osobno, żeby stopa nie „prześwitywała” przez tułów.
+  void _thighOnly(V3 hp, V3 kn, V3 an, V3 fT, double z) {
+    final thigh = _seg(hp, kn, _legUp, fT, skin, z, tag: 'thigh');
+    final knee = _seg(V3.lerp(kn, hp, 0.12), V3.lerp(kn, an, 0.12), _knee, fT, skin, z);
+    _outline([thigh.path, knee.path]);
+    _paintSeg(knee);
+    _paintSeg(thigh);
+    final sh = _seg(hp, kn, _legUp, fT, shorts, z, grow: 0.008, t1: 0.4, tag: 'pelvis');
+    _outline([sh.path], a: 0.25);
+    _paintSeg(sh);
+  }
+
+  void _shinOnly(V3 hp, V3 kn, V3 an, V3 to, V3 fT, V3 fS, double z, double zf) {
+    final shin = _seg(kn, an, _legLo, fS, skin, z, tag: 'shin');
+    final knee = _seg(V3.lerp(kn, hp, 0.12), V3.lerp(kn, an, 0.12), _knee, fT, skin, z);
+    _outline([shin.path, knee.path]);
+    _paintSeg(shin);
+    _paintSeg(knee);
+    _shoe(an, to, zf, fS);
+  }
+
+  void _upperArmOnly(V3 sh, V3 el, V3 fA, double z) {
+    final up = _seg(sh, el, _armUp, fA, skin, z, tag: 'upperArm');
+    _outline([up.path]);
+    _paintSeg(up);
+    _ball(el, 0.034, skin, edge: false);
+    final sl = _seg(sh, el, _armUp, fA, shirt, z, grow: 0.004, t1: 0.34, tag: 'shoulder');
+    _outline([sl.path], a: 0.25);
+    _paintSeg(sl);
+  }
+
+  void _forearmOnly(V3 el, V3 ha, V3 fF, double z, double facing) {
+    final lo = _seg(el, ha, _armLo, fF, skin, z, tag: 'forearm');
+    var d = (ha - el).unit;
+    if (ha.y > -0.07 && d.y > 0.5) d = j.front ? const V3(0, 0, 1) : V3(facing >= 0 ? 1 : -1, 0, 0);
+    final hand = _seg(ha - d * 0.005, ha + d * 0.095, _handP, fF, skin, z);
+    _outline([lo.path, hand.path]);
+    _paintSeg(hand);
+    _paintSeg(lo);
+    _ball(ha + d * 0.035 + fF * 0.026, 0.019, skin, edge: false);
+    _ball(el, 0.033, skin, edge: false);
+  }
+
   /// Ręka: ramię, przedramię i dłoń jednym konturem, kciuk, rękaw.
   void _arm(V3 sh, V3 el, V3 ha, V3 fA, V3 fF, double z, double facing) {
     final up = _seg(sh, el, _armUp, fA, skin, z, tag: 'upperArm');
@@ -435,10 +479,32 @@ class Figure3DPainter extends CustomPainter {
     }
 
     // spodenki od pośladków do pasa; koszulka nachodzi na pas
-    _union(q, [...secs.where((s) => s.$1 < 0.3), at(0.3)], shorts, z, grow: 0.006, g: glow['pelvis'] ?? 0);
-    _union(q, [at(0.22), ...secs.where((s) => s.$1 > 0.22)], shirt, z,
-        g: math.max(glow['chest'] ?? 0, glow['abs'] ?? 0));
+    _pelvisDraw(q, z, secs, at);
+    _chestDraw(q, z, secs, at);
   }
+
+  List<(double, double, double, double)> _secs() => [
+        for (final (t, w, df, db) in _torso) (t, w, t > 0.5 ? df * (1 + 0.04 * breath) : df, db),
+      ];
+
+  (double, double, double, double) _secAt(List<(double, double, double, double)> secs, double t) {
+    for (var i = 0; i < secs.length - 1; i++) {
+      final a = secs[i], b = secs[i + 1];
+      if (a.$1 <= t && t <= b.$1) {
+        final f = (t - a.$1) / (b.$1 - a.$1);
+        return (t, a.$2 + (b.$2 - a.$2) * f, a.$3 + (b.$3 - a.$3) * f, a.$4 + (b.$4 - a.$4) * f);
+      }
+    }
+    return secs.last;
+  }
+
+  void _pelvisDraw(Map<String, V3> q, double z, List<(double, double, double, double)> secs,
+          (double, double, double, double) Function(double) at) =>
+      _union(q, [...secs.where((s) => s.$1 < 0.3), at(0.3)], shorts, z, grow: 0.006, g: glow['pelvis'] ?? 0);
+
+  void _chestDraw(Map<String, V3> q, double z, List<(double, double, double, double)> secs,
+          (double, double, double, double) Function(double) at) =>
+      _union(q, [at(0.22), ...secs.where((s) => s.$1 > 0.22)], shirt, z, g: math.max(glow['chest'] ?? 0, glow['abs'] ?? 0));
 
   // ------------------------------------------------------------------ głowa
   void _head(Map<String, V3> q) {
@@ -698,12 +764,37 @@ class Figure3DPainter extends CustomPainter {
       final fA = _anterior((el - sh).unit), fF = _anterior((ha - el).unit);
       final fT = _anterior((kn - hp).unit), fS = _anterior((an - kn).unit);
       final zL = zof([hp, kn, an]), zA = zof([sh, el, ha]), zFt = zof([an, to]);
-      items
-        ..add((zL, () => _leg(hp, kn, an, to, fT, fS, zL, zFt)))
-        ..add((zA + 0.004, () => _arm(sh, el, ha, fA, fF, zA, facing)));
+      // udo i goleń / ramię i przedramię na wyraźnie różnej głębokości → osobno w kolejce malowania
+      final zT = zof([hp, kn]), zS = zof([kn, an, to]);
+      if ((zT - zS).abs() < 0.05) {
+        items.add((zL, () => _leg(hp, kn, an, to, fT, fS, zL, zFt)));
+      } else {
+        items
+          ..add((zT, () => _thighOnly(hp, kn, an, fT, zT)))
+          ..add((zS, () => _shinOnly(hp, kn, an, to, fT, fS, zS, zFt)));
+      }
+      final zU = zof([sh, el]), zF = zof([el, ha]);
+      if ((zU - zF).abs() < 0.05) {
+        items.add((zA + 0.004, () => _arm(sh, el, ha, fA, fF, zA, facing)));
+      } else {
+        items
+          ..add((zU + 0.004, () => _upperArmOnly(sh, el, fA, zU)))
+          ..add((zF + 0.004, () => _forearmOnly(el, ha, fF, zF, facing)));
+      }
     }
-    final zt = zof([q['hip']!, q['neck']!]);
-    items.add((zt, () => _torsoDraw(q, zt)));
+    // tułów w dwóch częściach (miednica, klatka) – przy pochylonym ciele i obróconej kamerze każda ma inną głębokość
+    final secs = _secs();
+    (double, double, double, double) at(double t) => _secAt(secs, t);
+    final hipV = q['hip']!, neckV = q['neck']!;
+    final zt = zof([hipV, neckV]);
+    final zP = zof([hipV, V3.lerp(hipV, neckV, 0.3)]), zC = zof([V3.lerp(hipV, neckV, 0.4), neckV]);
+    if ((zP - zC).abs() < 0.05) {
+      items.add((zt, () => _torsoDraw(q, zt)));
+    } else {
+      items
+        ..add((zP, () => _pelvisDraw(q, zt, secs, at)))
+        ..add((zC, () => _chestDraw(q, zt, secs, at)));
+    }
     items.add((zof([q['head']!]) + 0.002, () => _head(q)));
     items.add((zof([q['haN']!]) + 0.01, () => _holds(q)));
     items.sort((a, b) => a.$1.compareTo(b.$1));

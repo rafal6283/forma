@@ -419,7 +419,7 @@ P["leg_curl"] = {"an": [-30, 60], "af": [-32, 58], "ln": [-8, -130], "lf": [0, 0
 P["donkey_straight"] = dict(P["quad"], ln=[-100, -100])
 P["hydrant"] = dict(P["quad"], ln=[-45, -95])
 P["inner_base"] = dict(P["side_lying"], lf=[150, 40])
-P["inner_up"] = dict(P["side_lying"], lf=[150, 40], ln=[-72, -72])
+P["inner_up"] = dict(P["side_lying"], lf=[150, 40], ln=[-110, -110])
 P["side_leg_out"] = dict(FR, an=[10, -120], af=[10, -120], ln=[42, 42], lf=[4, 4])
 P["supine_march"] = dict(P["bridge_down"], ln=[178, -92])
 P["alt_leg_up"] = dict(P["legs_low"], ln=[-168, -168])
