@@ -78,6 +78,15 @@ class Cam {
   }
 }
 
+/// Część ciała w kolejce malowania: średnia głębokość, kapsuły (odcinek 3D + promień w m), rysowanie.
+class _Item {
+  final double z;
+  final List<(V3, V3, double)> caps;
+  final void Function() draw;
+  final bool torso;
+  _Item(this.z, this.caps, this.draw, {this.torso = false});
+}
+
 /// Fragment ciała do malowania.
 class _Seg {
   final Path path;
@@ -756,7 +765,7 @@ class Figure3DPainter extends CustomPainter {
     _props(q);
 
     double zof(List<V3> ps) => ps.fold(0.0, (a, p) => a + cam.project(p).$2) / ps.length;
-    final items = <(double, void Function())>[];
+    final items = <_Item>[];
     final facing = q['head']!.x - q['hip']!.x;
     for (final sd in ['N', 'F']) {
       final sh = q['sh$sd']!, el = q['el$sd']!, ha = q['ha$sd']!;
@@ -767,19 +776,19 @@ class Figure3DPainter extends CustomPainter {
       // udo i goleń / ramię i przedramię na wyraźnie różnej głębokości → osobno w kolejce malowania
       final zT = zof([hp, kn]), zS = zof([kn, an, to]);
       if ((zT - zS).abs() < 0.05) {
-        items.add((zL, () => _leg(hp, kn, an, to, fT, fS, zL, zFt)));
+        items.add(_Item(zL, [(hp, kn, 0.07), (kn, an, 0.05), (an, to, 0.04)], () => _leg(hp, kn, an, to, fT, fS, zL, zFt)));
       } else {
         items
-          ..add((zT, () => _thighOnly(hp, kn, an, fT, zT)))
-          ..add((zS, () => _shinOnly(hp, kn, an, to, fT, fS, zS, zFt)));
+          ..add(_Item(zT, [(hp, kn, 0.07)], () => _thighOnly(hp, kn, an, fT, zT)))
+          ..add(_Item(zS, [(kn, an, 0.05), (an, to, 0.04)], () => _shinOnly(hp, kn, an, to, fT, fS, zS, zFt)));
       }
       final zU = zof([sh, el]), zF = zof([el, ha]);
       if ((zU - zF).abs() < 0.05) {
-        items.add((zA + 0.004, () => _arm(sh, el, ha, fA, fF, zA, facing)));
+        items.add(_Item(zA + 0.004, [(sh, el, 0.045), (el, ha, 0.04)], () => _arm(sh, el, ha, fA, fF, zA, facing)));
       } else {
         items
-          ..add((zU + 0.004, () => _upperArmOnly(sh, el, fA, zU)))
-          ..add((zF + 0.004, () => _forearmOnly(el, ha, fF, zF, facing)));
+          ..add(_Item(zU + 0.004, [(sh, el, 0.045)], () => _upperArmOnly(sh, el, fA, zU)))
+          ..add(_Item(zF + 0.004, [(el, ha, 0.04)], () => _forearmOnly(el, ha, fF, zF, facing)));
       }
     }
     // tułów w dwóch częściach (miednica, klatka) – przy pochylonym ciele i obróconej kamerze każda ma inną głębokość
@@ -787,20 +796,115 @@ class Figure3DPainter extends CustomPainter {
     (double, double, double, double) at(double t) => _secAt(secs, t);
     final hipV = q['hip']!, neckV = q['neck']!;
     final zt = zof([hipV, neckV]);
+    final midV = V3.lerp(hipV, neckV, 0.35);
     final zP = zof([hipV, V3.lerp(hipV, neckV, 0.3)]), zC = zof([V3.lerp(hipV, neckV, 0.4), neckV]);
     if ((zP - zC).abs() < 0.05) {
-      items.add((zt, () => _torsoDraw(q, zt)));
+      items.add(_Item(zt, [(hipV, neckV, 0.13)], () => _torsoDraw(q, zt), torso: true));
     } else {
       items
-        ..add((zP, () => _pelvisDraw(q, zt, secs, at)))
-        ..add((zC, () => _chestDraw(q, zt, secs, at)));
+        ..add(_Item(zP, [(hipV, midV, 0.13)], () => _pelvisDraw(q, zt, secs, at), torso: true))
+        ..add(_Item(zC, [(midV, neckV, 0.13)], () => _chestDraw(q, zt, secs, at), torso: true));
     }
-    items.add((zof([q['head']!]) + 0.002, () => _head(q)));
-    items.add((zof([q['haN']!]) + 0.01, () => _holds(q)));
-    items.sort((a, b) => a.$1.compareTo(b.$1));
-    for (final (_, f) in items) {
-      f();
+    final headV = q['head']!;
+    items.add(_Item(zof([headV]) + 0.002, [(headV, headV, 0.1)], () => _head(q)));
+    items.add(_Item(zof([q['haN']!]) + 0.01, const [], () => _holds(q)));
+    for (final it in _order(items)) {
+      it.draw();
     }
+  }
+
+  /// Kolejność malowania: gdy dwie części nakładają się na ekranie, z tyłu idzie ta, która w miejscu
+  /// nałożenia jest dalej od widza (a nie ta o mniejszej średniej głębokości – przy wyciągniętej ręce,
+  /// pochylonym tułowiu czy obróconej kamerze średnia myliła i ręce znikały za ciałem albo
+  /// prześwitywały przez nie). Bez nałożenia lub przy cyklu – według średniej głębokości.
+  List<_Item> _order(List<_Item> items) {
+    // rzut kapsuł na ekran: (a, b, za, zb, promień)
+    final caps = [
+      for (final it in items)
+        [
+          for (final (a, b, r) in it.caps)
+            () {
+              final (pa, za, ka) = cam.project(a);
+              final (pb, zb, _) = cam.project(b);
+              return (pa, pb, za, zb, r * ka);
+            }(),
+        ],
+    ];
+    final n = items.length;
+    final behind = List.generate(n, (_) => <int>{}); // behind[i] – kto musi być narysowany przed i
+    for (var i = 0; i < n; i++) {
+      for (var k = i + 1; k < n; k++) {
+        double? best; // najmniejszy „zapas” odległości (ujemny = nakładają się)
+        double zi = 0, zk = 0;
+        for (final ci in caps[i]) {
+          for (final ck in caps[k]) {
+            final (d, s, t) = _segDist(ci.$1, ci.$2, ck.$1, ck.$2);
+            final gap = d - (ci.$5 + ck.$5) * 0.85;
+            if (gap < 0 && (best == null || gap < best)) {
+              best = gap;
+              zi = ci.$3 + (ci.$4 - ci.$3) * s;
+              zk = ck.$3 + (ck.$4 - ck.$3) * t;
+            }
+          }
+        }
+        if (best == null) continue;
+        if ((zi - zk).abs() < 0.04) continue; // prawie ta sama głębokość – zostaje kolejność wg średniej
+        if (zi < zk) {
+          behind[k].add(i);
+        } else {
+          behind[i].add(k);
+        }
+      }
+    }
+    final done = List.filled(n, false);
+    final out = <_Item>[];
+    while (out.length < n) {
+      int? pick;
+      for (var i = 0; i < n; i++) {
+        if (done[i] || behind[i].any((j) => !done[j])) continue;
+        if (pick == null || items[i].z < items[pick].z) pick = i;
+      }
+      if (pick == null) {
+        // cykl – najdalszy z pozostałych
+        for (var i = 0; i < n; i++) {
+          if (!done[i] && (pick == null || items[i].z < items[pick].z)) pick = i;
+        }
+      }
+      done[pick!] = true;
+      out.add(items[pick]);
+    }
+    return out;
+  }
+
+  /// Najmniejsza odległość odcinków ab i cd na ekranie i parametry najbliższych punktów (0…1).
+  static (double, double, double) _segDist(Offset a, Offset b, Offset c, Offset d) {
+    final u = b - a, v = d - c, w = a - c;
+    final aa = u.dx * u.dx + u.dy * u.dy, bb = u.dx * v.dx + u.dy * v.dy, cc = v.dx * v.dx + v.dy * v.dy;
+    final dd = u.dx * w.dx + u.dy * w.dy, ee = v.dx * w.dx + v.dy * w.dy;
+    final den = aa * cc - bb * bb;
+    double s, t;
+    if (aa < 1e-9 && cc < 1e-9) {
+      s = 0;
+      t = 0;
+    } else if (aa < 1e-9) {
+      s = 0;
+      t = (ee / cc).clamp(0.0, 1.0);
+    } else if (cc < 1e-9) {
+      t = 0;
+      s = (-dd / aa).clamp(0.0, 1.0);
+    } else {
+      s = den.abs() < 1e-9 ? 0.0 : ((bb * ee - cc * dd) / den).clamp(0.0, 1.0);
+      t = ((bb * s + ee) / cc);
+      if (t < 0) {
+        t = 0;
+        s = (-dd / aa).clamp(0.0, 1.0);
+      } else if (t > 1) {
+        t = 1;
+        s = ((bb - dd) / aa).clamp(0.0, 1.0);
+      }
+    }
+    final p = a + u * s, q2 = c + v * t;
+    return ((p - q2).distance, s, t);
   }
 
   @override
