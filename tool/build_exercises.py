@@ -1966,6 +1966,20 @@ P["tabletop_down"] = dict(P["tabletop_up"], t=125, h=119, an=[-20.7, -39.4], af=
                           lf=[-108.2, -43.6])
 _BY["tabletop"]["anim"]["pin"] = "haN"
 _BY["tabletop"]["anim"]["fix"] = ["toN", "toF"]
+# deska bokiem: górna ręka prosto wzdłuż boku, dłoń na biodrze (wcześniej zwisała do podłogi jak druga podpora)
+for _k in ("side_plank", "side_plank_up", "side_plank_low", "side_plank_leg", "side_plank_knee", "side_plank_knee_b"):
+    if _k not in P:
+        continue
+    _q = dict(full(P[_k]))
+    _best = None
+    for _a in range(-180, 180, 2):
+        _q["af"] = [_a, _a]
+        _jj = joints(_q)
+        _t = (_jj["hip"][0] + (_jj["neck"][0] - _jj["hip"][0]) * 0.12, _jj["hip"][1] + (_jj["neck"][1] - _jj["hip"][1]) * 0.12)
+        _e = math.hypot(_jj["haF"][0] - _t[0], _jj["haF"][1] - _t[1])
+        if _best is None or _e < _best[0]:
+            _best = (_e, _a)
+    P[_k] = dict(P[_k], af=[_best[1], _best[1]])
 # pompki tyłem na podłodze: na dole łokcie zgięte ~85° (do tyłu), biodra niżej; dłonie i stopy w miejscu
 P["floor_dip_down"] = dict(P["floor_dip_up"], t=140, h=140, an=[25.4, -59.6], af=[25.4, -59.6], ln=[-131.4, 17.6],
                            lf=[-133.4, 17.6])
