@@ -52,12 +52,14 @@ jobs:
       - name: Galeria figur (klatki animacji do przeglądu)
         continue-on-error: true
         run: FIGURY=figury FIGURY_IDS="${{ vars.FIGURY_IDS || 'all' }}" flutter test test/figure_gallery_test.dart
-      - uses: actions/upload-artifact@v4
+      - name: Galeria figur na gałąź „figury” (podgląd bez telefonu)
         continue-on-error: true
-        with:
-          name: figury
-          path: figury
-          retention-days: 7
+        run: |
+          cd figury
+          git init -q -b figury
+          git config user.name ci && git config user.email ci@forma
+          git add -A && git commit -q -m "Galeria figur ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" figury
       - name: APK
         run: |
           set -o pipefail
