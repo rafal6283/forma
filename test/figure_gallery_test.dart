@@ -16,9 +16,15 @@ void main() {
     final idsEnv = Platform.environment['FIGURY_IDS'] ?? '';
     final all = idsEnv == 'all';
     final ids = all ? [for (final e in lib.all) e.id] : idsEnv.split(',').where((s) => s.isNotEmpty).toList();
-    final tile = all ? 180.0 : 300.0;
+    // duże klatki dla ćwiczeń z tool/figury_duze.txt (podkatalog duze/)
+    final bigFile = File('tool/figury_duze.txt');
+    final big = bigFile.existsSync()
+        ? [for (final l in bigFile.readAsLinesSync()) if (l.trim().isNotEmpty && !l.startsWith('#')) l.trim()]
+        : <String>[];
     Directory(dir!).createSync(recursive: true);
-    for (final id in ids) {
+    Directory('$dir/duze').createSync(recursive: true);
+    final jobs = [for (final id in ids) (id, all ? 180.0 : 300.0, dir), for (final id in big) (id, 400.0, '$dir/duze')];
+    for (final (id, tile, outDir) in jobs) {
       final ex = lib.all.firstWhere((e) => e.id == id);
       final a = ex.anim;
       final sc = Scene(a);
@@ -57,7 +63,7 @@ void main() {
       }
       final img = await rec.endRecording().toImage((tile * 4).round(), (tile * 3).round());
       final png = await img.toByteData(format: ui.ImageByteFormat.png);
-      File('$dir/$id.png').writeAsBytesSync(png!.buffer.asUint8List());
+      File('$outDir/$id.png').writeAsBytesSync(png!.buffer.asUint8List());
     }
   }, skip: dir == null ? 'bez FIGURY=<katalog>' : false, timeout: const Timeout(Duration(minutes: 20)));
 }

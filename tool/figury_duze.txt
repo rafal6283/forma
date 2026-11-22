@@ -1,0 +1,21 @@
+# ćwiczenia renderowane w dużych klatkach przez test/figure_gallery_test.dart (gałąź „figury”, katalog duze/)
+pushups
+crunches
+bicycle
+side_bend
+bird_dog
+shoulder_taps
+superman
+side_plank_knee
+inner_thigh_raise
+floor_dips
+tabletop
+plank_jacks
+crunch_legs_up
+sit_ups
+knee_to_elbow
+side_plank
+mountain_climbers
+db_row
+russian_twist
+triceps_dips
